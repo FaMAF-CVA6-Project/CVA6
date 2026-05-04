@@ -1,0 +1,3512 @@
+
+/cva6/verif/sim/out_2026-04-07/directed_tests/daxpy.o:     file format elf64-littleriscv
+
+
+Disassembly of section .text.init:
+
+0000000080000000 <_start>:
+_start():
+/cva6/verif/sim/../tests/custom/common/crt.S:18
+#endif
+
+  .section ".text.init"
+  .globl _start
+_start:
+  li  x1, 0
+    80000000:	4081                	li	ra,0
+/cva6/verif/sim/../tests/custom/common/crt.S:19
+  li  x2, 0
+    80000002:	4101                	li	sp,0
+/cva6/verif/sim/../tests/custom/common/crt.S:20
+  li  x3, 0
+    80000004:	4181                	li	gp,0
+/cva6/verif/sim/../tests/custom/common/crt.S:21
+  li  x4, 0
+    80000006:	4201                	li	tp,0
+/cva6/verif/sim/../tests/custom/common/crt.S:22
+  li  x5, 0
+    80000008:	4281                	li	t0,0
+/cva6/verif/sim/../tests/custom/common/crt.S:23
+  li  x6, 0
+    8000000a:	4301                	li	t1,0
+/cva6/verif/sim/../tests/custom/common/crt.S:24
+  li  x7, 0
+    8000000c:	4381                	li	t2,0
+/cva6/verif/sim/../tests/custom/common/crt.S:25
+  li  x8, 0
+    8000000e:	4401                	li	s0,0
+/cva6/verif/sim/../tests/custom/common/crt.S:26
+  li  x9, 0
+    80000010:	4481                	li	s1,0
+/cva6/verif/sim/../tests/custom/common/crt.S:27
+  li  x10,0
+    80000012:	4501                	li	a0,0
+/cva6/verif/sim/../tests/custom/common/crt.S:28
+  li  x11,0
+    80000014:	4581                	li	a1,0
+/cva6/verif/sim/../tests/custom/common/crt.S:29
+  li  x12,0
+    80000016:	4601                	li	a2,0
+/cva6/verif/sim/../tests/custom/common/crt.S:30
+  li  x13,0
+    80000018:	4681                	li	a3,0
+/cva6/verif/sim/../tests/custom/common/crt.S:31
+  li  x14,0
+    8000001a:	4701                	li	a4,0
+/cva6/verif/sim/../tests/custom/common/crt.S:32
+  li  x15,0
+    8000001c:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/crt.S:33
+  li  x16,0
+    8000001e:	4801                	li	a6,0
+/cva6/verif/sim/../tests/custom/common/crt.S:34
+  li  x17,0
+    80000020:	4881                	li	a7,0
+/cva6/verif/sim/../tests/custom/common/crt.S:35
+  li  x18,0
+    80000022:	4901                	li	s2,0
+/cva6/verif/sim/../tests/custom/common/crt.S:36
+  li  x19,0
+    80000024:	4981                	li	s3,0
+/cva6/verif/sim/../tests/custom/common/crt.S:37
+  li  x20,0
+    80000026:	4a01                	li	s4,0
+/cva6/verif/sim/../tests/custom/common/crt.S:38
+  li  x21,0
+    80000028:	4a81                	li	s5,0
+/cva6/verif/sim/../tests/custom/common/crt.S:39
+  li  x22,0
+    8000002a:	4b01                	li	s6,0
+/cva6/verif/sim/../tests/custom/common/crt.S:40
+  li  x23,0
+    8000002c:	4b81                	li	s7,0
+/cva6/verif/sim/../tests/custom/common/crt.S:41
+  li  x24,0
+    8000002e:	4c01                	li	s8,0
+/cva6/verif/sim/../tests/custom/common/crt.S:42
+  li  x25,0
+    80000030:	4c81                	li	s9,0
+/cva6/verif/sim/../tests/custom/common/crt.S:43
+  li  x26,0
+    80000032:	4d01                	li	s10,0
+/cva6/verif/sim/../tests/custom/common/crt.S:44
+  li  x27,0
+    80000034:	4d81                	li	s11,0
+/cva6/verif/sim/../tests/custom/common/crt.S:45
+  li  x28,0
+    80000036:	4e01                	li	t3,0
+/cva6/verif/sim/../tests/custom/common/crt.S:46
+  li  x29,0
+    80000038:	4e81                	li	t4,0
+/cva6/verif/sim/../tests/custom/common/crt.S:47
+  li  x30,0
+    8000003a:	4f01                	li	t5,0
+/cva6/verif/sim/../tests/custom/common/crt.S:48
+  li  x31,0
+    8000003c:	4f81                	li	t6,0
+/cva6/verif/sim/../tests/custom/common/crt.S:51
+
+  # enable FPU and accelerator if present
+  li t0, MSTATUS_FS | MSTATUS_XS
+    8000003e:	62f9                	lui	t0,0x1e
+/cva6/verif/sim/../tests/custom/common/crt.S:52
+  csrs mstatus, t0
+    80000040:	3002a073          	csrs	mstatus,t0
+/cva6/verif/sim/../tests/custom/common/crt.S:55
+
+  # make sure XLEN agrees with compilation choice
+  li t0, 1
+    80000044:	4285                	li	t0,1
+/cva6/verif/sim/../tests/custom/common/crt.S:56
+  slli t0, t0, 31
+    80000046:	02fe                	slli	t0,t0,0x1f
+/cva6/verif/sim/../tests/custom/common/crt.S:58
+#if __riscv_xlen == 64
+  bgez t0, 1f
+    80000048:	0002d863          	bgez	t0,80000058 <_start+0x58>
+/cva6/verif/sim/../tests/custom/common/crt.S:63
+#else
+  bltz t0, 1f
+#endif
+2:
+  li a0, 1
+    8000004c:	4505                	li	a0,1
+/cva6/verif/sim/../tests/custom/common/crt.S:64
+  sw a0, tohost, t0
+    8000004e:	00001297          	auipc	t0,0x1
+    80000052:	faa2a923          	sw	a0,-78(t0) # 80001000 <tohost>
+/cva6/verif/sim/../tests/custom/common/crt.S:65
+  j 2b
+    80000056:	bfdd                	j	8000004c <_start+0x4c>
+/cva6/verif/sim/../tests/custom/common/crt.S:70
+1:
+
+#ifdef __riscv_flen
+  # initialize FPU if we have one
+  la t0, 1f
+    80000058:	00000297          	auipc	t0,0x0
+    8000005c:	09028293          	addi	t0,t0,144 # 800000e8 <_start+0xe8>
+/cva6/verif/sim/../tests/custom/common/crt.S:71
+  csrw mtvec, t0
+    80000060:	30529073          	csrw	mtvec,t0
+/cva6/verif/sim/../tests/custom/common/crt.S:73
+
+  fssr    x0
+    80000064:	00301073          	fscsr	zero
+/cva6/verif/sim/../tests/custom/common/crt.S:74
+  fmv.s.x f0, x0
+    80000068:	f0000053          	fmv.w.x	ft0,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:75
+  fmv.s.x f1, x0
+    8000006c:	f00000d3          	fmv.w.x	ft1,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:76
+  fmv.s.x f2, x0
+    80000070:	f0000153          	fmv.w.x	ft2,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:77
+  fmv.s.x f3, x0
+    80000074:	f00001d3          	fmv.w.x	ft3,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:78
+  fmv.s.x f4, x0
+    80000078:	f0000253          	fmv.w.x	ft4,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:79
+  fmv.s.x f5, x0
+    8000007c:	f00002d3          	fmv.w.x	ft5,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:80
+  fmv.s.x f6, x0
+    80000080:	f0000353          	fmv.w.x	ft6,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:81
+  fmv.s.x f7, x0
+    80000084:	f00003d3          	fmv.w.x	ft7,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:82
+  fmv.s.x f8, x0
+    80000088:	f0000453          	fmv.w.x	fs0,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:83
+  fmv.s.x f9, x0
+    8000008c:	f00004d3          	fmv.w.x	fs1,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:84
+  fmv.s.x f10,x0
+    80000090:	f0000553          	fmv.w.x	fa0,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:85
+  fmv.s.x f11,x0
+    80000094:	f00005d3          	fmv.w.x	fa1,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:86
+  fmv.s.x f12,x0
+    80000098:	f0000653          	fmv.w.x	fa2,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:87
+  fmv.s.x f13,x0
+    8000009c:	f00006d3          	fmv.w.x	fa3,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:88
+  fmv.s.x f14,x0
+    800000a0:	f0000753          	fmv.w.x	fa4,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:89
+  fmv.s.x f15,x0
+    800000a4:	f00007d3          	fmv.w.x	fa5,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:90
+  fmv.s.x f16,x0
+    800000a8:	f0000853          	fmv.w.x	fa6,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:91
+  fmv.s.x f17,x0
+    800000ac:	f00008d3          	fmv.w.x	fa7,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:92
+  fmv.s.x f18,x0
+    800000b0:	f0000953          	fmv.w.x	fs2,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:93
+  fmv.s.x f19,x0
+    800000b4:	f00009d3          	fmv.w.x	fs3,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:94
+  fmv.s.x f20,x0
+    800000b8:	f0000a53          	fmv.w.x	fs4,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:95
+  fmv.s.x f21,x0
+    800000bc:	f0000ad3          	fmv.w.x	fs5,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:96
+  fmv.s.x f22,x0
+    800000c0:	f0000b53          	fmv.w.x	fs6,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:97
+  fmv.s.x f23,x0
+    800000c4:	f0000bd3          	fmv.w.x	fs7,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:98
+  fmv.s.x f24,x0
+    800000c8:	f0000c53          	fmv.w.x	fs8,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:99
+  fmv.s.x f25,x0
+    800000cc:	f0000cd3          	fmv.w.x	fs9,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:100
+  fmv.s.x f26,x0
+    800000d0:	f0000d53          	fmv.w.x	fs10,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:101
+  fmv.s.x f27,x0
+    800000d4:	f0000dd3          	fmv.w.x	fs11,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:102
+  fmv.s.x f28,x0
+    800000d8:	f0000e53          	fmv.w.x	ft8,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:103
+  fmv.s.x f29,x0
+    800000dc:	f0000ed3          	fmv.w.x	ft9,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:104
+  fmv.s.x f30,x0
+    800000e0:	f0000f53          	fmv.w.x	ft10,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:105
+  fmv.s.x f31,x0
+    800000e4:	f0000fd3          	fmv.w.x	ft11,zero
+/cva6/verif/sim/../tests/custom/common/crt.S:110
+1:
+#endif
+
+  # initialize trap vector
+  la t0, trap_entry
+    800000e8:	00000297          	auipc	t0,0x0
+    800000ec:	03c28293          	addi	t0,t0,60 # 80000124 <trap_entry>
+/cva6/verif/sim/../tests/custom/common/crt.S:111
+  csrw mtvec, t0
+    800000f0:	30529073          	csrw	mtvec,t0
+/cva6/verif/sim/../tests/custom/common/crt.S:116
+
+  # initialize global pointer
+.option push
+.option norelax
+  la gp, __global_pointer$
+    800000f4:	00006197          	auipc	gp,0x6
+    800000f8:	71c18193          	addi	gp,gp,1820 # 80006810 <__global_pointer$>
+/cva6/verif/sim/../tests/custom/common/crt.S:119
+.option pop
+
+  la  tp, _end + 63
+    800000fc:	0001e217          	auipc	tp,0x1e
+    80000100:	f8320213          	addi	tp,tp,-125 # 8001e07f <_end+0x3f>
+/cva6/verif/sim/../tests/custom/common/crt.S:120
+  and tp, tp, -64
+    80000104:	fc027213          	andi	tp,tp,-64
+/cva6/verif/sim/../tests/custom/common/crt.S:123
+
+  # get core id
+  csrr a0, mhartid
+    80000108:	f1402573          	csrr	a0,mhartid
+/cva6/verif/sim/../tests/custom/common/crt.S:125
+  # for now, assume only 1 core
+  li a1, 1
+    8000010c:	4585                	li	a1,1
+/cva6/verif/sim/../tests/custom/common/crt.S:126
+1:bgeu a0, a1, 1b
+    8000010e:	00b57063          	bgeu	a0,a1,8000010e <_start+0x10e>
+/cva6/verif/sim/../tests/custom/common/crt.S:130
+
+  # give each core 128KB of stack + TLS
+#define STKSHIFT 17
+  add sp, a0, 1
+    80000112:	00150113          	addi	sp,a0,1
+/cva6/verif/sim/../tests/custom/common/crt.S:131
+  sll sp, sp, STKSHIFT
+    80000116:	0146                	slli	sp,sp,0x11
+/cva6/verif/sim/../tests/custom/common/crt.S:132
+  add sp, sp, tp
+    80000118:	9112                	add	sp,sp,tp
+/cva6/verif/sim/../tests/custom/common/crt.S:133
+  sll a2, a0, STKSHIFT
+    8000011a:	01151613          	slli	a2,a0,0x11
+/cva6/verif/sim/../tests/custom/common/crt.S:134
+  add tp, tp, a2
+    8000011e:	9232                	add	tp,tp,a2
+/cva6/verif/sim/../tests/custom/common/crt.S:136
+
+  j _init
+    80000120:	6680306f          	j	80003788 <_init>
+
+0000000080000124 <trap_entry>:
+trap_entry():
+/cva6/verif/sim/../tests/custom/common/crt.S:141
+  .size    _start, . - _start
+
+  .align 2
+trap_entry:
+  addi sp, sp, -272
+    80000124:	716d                	addi	sp,sp,-272
+/cva6/verif/sim/../tests/custom/common/crt.S:143
+
+  SREG x1, 1*REGBYTES(sp)
+    80000126:	e406                	sd	ra,8(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:144
+  SREG x2, 2*REGBYTES(sp)
+    80000128:	e80a                	sd	sp,16(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:145
+  SREG x3, 3*REGBYTES(sp)
+    8000012a:	ec0e                	sd	gp,24(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:146
+  SREG x4, 4*REGBYTES(sp)
+    8000012c:	f012                	sd	tp,32(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:147
+  SREG x5, 5*REGBYTES(sp)
+    8000012e:	f416                	sd	t0,40(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:148
+  SREG x6, 6*REGBYTES(sp)
+    80000130:	f81a                	sd	t1,48(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:149
+  SREG x7, 7*REGBYTES(sp)
+    80000132:	fc1e                	sd	t2,56(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:150
+  SREG x8, 8*REGBYTES(sp)
+    80000134:	e0a2                	sd	s0,64(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:151
+  SREG x9, 9*REGBYTES(sp)
+    80000136:	e4a6                	sd	s1,72(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:152
+  SREG x10, 10*REGBYTES(sp)
+    80000138:	e8aa                	sd	a0,80(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:153
+  SREG x11, 11*REGBYTES(sp)
+    8000013a:	ecae                	sd	a1,88(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:154
+  SREG x12, 12*REGBYTES(sp)
+    8000013c:	f0b2                	sd	a2,96(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:155
+  SREG x13, 13*REGBYTES(sp)
+    8000013e:	f4b6                	sd	a3,104(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:156
+  SREG x14, 14*REGBYTES(sp)
+    80000140:	f8ba                	sd	a4,112(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:157
+  SREG x15, 15*REGBYTES(sp)
+    80000142:	fcbe                	sd	a5,120(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:158
+  SREG x16, 16*REGBYTES(sp)
+    80000144:	e142                	sd	a6,128(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:159
+  SREG x17, 17*REGBYTES(sp)
+    80000146:	e546                	sd	a7,136(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:160
+  SREG x18, 18*REGBYTES(sp)
+    80000148:	e94a                	sd	s2,144(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:161
+  SREG x19, 19*REGBYTES(sp)
+    8000014a:	ed4e                	sd	s3,152(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:162
+  SREG x20, 20*REGBYTES(sp)
+    8000014c:	f152                	sd	s4,160(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:163
+  SREG x21, 21*REGBYTES(sp)
+    8000014e:	f556                	sd	s5,168(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:164
+  SREG x22, 22*REGBYTES(sp)
+    80000150:	f95a                	sd	s6,176(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:165
+  SREG x23, 23*REGBYTES(sp)
+    80000152:	fd5e                	sd	s7,184(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:166
+  SREG x24, 24*REGBYTES(sp)
+    80000154:	e1e2                	sd	s8,192(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:167
+  SREG x25, 25*REGBYTES(sp)
+    80000156:	e5e6                	sd	s9,200(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:168
+  SREG x26, 26*REGBYTES(sp)
+    80000158:	e9ea                	sd	s10,208(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:169
+  SREG x27, 27*REGBYTES(sp)
+    8000015a:	edee                	sd	s11,216(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:170
+  SREG x28, 28*REGBYTES(sp)
+    8000015c:	f1f2                	sd	t3,224(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:171
+  SREG x29, 29*REGBYTES(sp)
+    8000015e:	f5f6                	sd	t4,232(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:172
+  SREG x30, 30*REGBYTES(sp)
+    80000160:	f9fa                	sd	t5,240(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:173
+  SREG x31, 31*REGBYTES(sp)
+    80000162:	fdfe                	sd	t6,248(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:175
+
+  csrr a0, mcause
+    80000164:	34202573          	csrr	a0,mcause
+/cva6/verif/sim/../tests/custom/common/crt.S:176
+  csrr a1, mepc
+    80000168:	341025f3          	csrr	a1,mepc
+/cva6/verif/sim/../tests/custom/common/crt.S:177
+  mv a2, sp
+    8000016c:	860a                	mv	a2,sp
+/cva6/verif/sim/../tests/custom/common/crt.S:178
+  jal handle_trap
+    8000016e:	4e4030ef          	jal	ra,80003652 <handle_trap>
+/cva6/verif/sim/../tests/custom/common/crt.S:179
+  csrw mepc, a0
+    80000172:	34151073          	csrw	mepc,a0
+/cva6/verif/sim/../tests/custom/common/crt.S:182
+
+  # Remain in M-mode after eret
+  li t0, MSTATUS_MPP
+    80000176:	6289                	lui	t0,0x2
+    80000178:	8002829b          	addiw	t0,t0,-2048
+/cva6/verif/sim/../tests/custom/common/crt.S:183
+  csrs mstatus, t0
+    8000017c:	3002a073          	csrs	mstatus,t0
+/cva6/verif/sim/../tests/custom/common/crt.S:185
+
+  LREG x1, 1*REGBYTES(sp)
+    80000180:	60a2                	ld	ra,8(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:186
+  LREG x2, 2*REGBYTES(sp)
+    80000182:	6142                	ld	sp,16(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:187
+  LREG x3, 3*REGBYTES(sp)
+    80000184:	61e2                	ld	gp,24(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:188
+  LREG x4, 4*REGBYTES(sp)
+    80000186:	7202                	ld	tp,32(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:189
+  LREG x5, 5*REGBYTES(sp)
+    80000188:	72a2                	ld	t0,40(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:190
+  LREG x6, 6*REGBYTES(sp)
+    8000018a:	7342                	ld	t1,48(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:191
+  LREG x7, 7*REGBYTES(sp)
+    8000018c:	73e2                	ld	t2,56(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:192
+  LREG x8, 8*REGBYTES(sp)
+    8000018e:	6406                	ld	s0,64(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:193
+  LREG x9, 9*REGBYTES(sp)
+    80000190:	64a6                	ld	s1,72(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:194
+  LREG x10, 10*REGBYTES(sp)
+    80000192:	6546                	ld	a0,80(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:195
+  LREG x11, 11*REGBYTES(sp)
+    80000194:	65e6                	ld	a1,88(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:196
+  LREG x12, 12*REGBYTES(sp)
+    80000196:	7606                	ld	a2,96(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:197
+  LREG x13, 13*REGBYTES(sp)
+    80000198:	76a6                	ld	a3,104(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:198
+  LREG x14, 14*REGBYTES(sp)
+    8000019a:	7746                	ld	a4,112(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:199
+  LREG x15, 15*REGBYTES(sp)
+    8000019c:	77e6                	ld	a5,120(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:200
+  LREG x16, 16*REGBYTES(sp)
+    8000019e:	680a                	ld	a6,128(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:201
+  LREG x17, 17*REGBYTES(sp)
+    800001a0:	68aa                	ld	a7,136(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:202
+  LREG x18, 18*REGBYTES(sp)
+    800001a2:	694a                	ld	s2,144(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:203
+  LREG x19, 19*REGBYTES(sp)
+    800001a4:	69ea                	ld	s3,152(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:204
+  LREG x20, 20*REGBYTES(sp)
+    800001a6:	7a0a                	ld	s4,160(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:205
+  LREG x21, 21*REGBYTES(sp)
+    800001a8:	7aaa                	ld	s5,168(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:206
+  LREG x22, 22*REGBYTES(sp)
+    800001aa:	7b4a                	ld	s6,176(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:207
+  LREG x23, 23*REGBYTES(sp)
+    800001ac:	7bea                	ld	s7,184(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:208
+  LREG x24, 24*REGBYTES(sp)
+    800001ae:	6c0e                	ld	s8,192(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:209
+  LREG x25, 25*REGBYTES(sp)
+    800001b0:	6cae                	ld	s9,200(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:210
+  LREG x26, 26*REGBYTES(sp)
+    800001b2:	6d4e                	ld	s10,208(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:211
+  LREG x27, 27*REGBYTES(sp)
+    800001b4:	6dee                	ld	s11,216(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:212
+  LREG x28, 28*REGBYTES(sp)
+    800001b6:	7e0e                	ld	t3,224(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:213
+  LREG x29, 29*REGBYTES(sp)
+    800001b8:	7eae                	ld	t4,232(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:214
+  LREG x30, 30*REGBYTES(sp)
+    800001ba:	7f4e                	ld	t5,240(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:215
+  LREG x31, 31*REGBYTES(sp)
+    800001bc:	7fee                	ld	t6,248(sp)
+/cva6/verif/sim/../tests/custom/common/crt.S:217
+
+  addi sp, sp, 272
+    800001be:	6151                	addi	sp,sp,272
+/cva6/verif/sim/../tests/custom/common/crt.S:218
+  mret
+    800001c0:	30200073          	mret
+/cva6/verif/sim/../tests/custom/common/crt.S:224
+
+  // Default definition of handle_trap: Exit with code 0x7ffffff0.
+  .weak   handle_trap
+  .type	handle_trap, @function
+handle_trap:
+        li  a0, -32
+    800001c4:	5501                	li	a0,-32
+/cva6/verif/sim/../tests/custom/common/crt.S:225
+	j   _exit
+    800001c6:	a029                	j	800001d0 <_exit>
+/cva6/verif/sim/../tests/custom/common/crt.S:233
+  // Default, overrideable definition of _init:
+  // Call 'main' and jump to '_exit' which never returns.
+  .weak   _init
+  .type   _init, @function
+_init:
+  jal     main
+    800001c8:	639020ef          	jal	ra,80003000 <main>
+/cva6/verif/sim/../tests/custom/common/crt.S:234
+  j       _exit
+    800001cc:	a011                	j	800001d0 <_exit>
+/cva6/verif/sim/../tests/custom/common/crt.S:242
+  // Default, overrideable definition of 'exit':
+  // Jump to '_exit' low-level termination function.
+  .weak   exit
+  .type   exit, @function
+exit:
+  j       _exit
+    800001ce:	a009                	j	800001d0 <_exit>
+
+00000000800001d0 <_exit>:
+_exit():
+/cva6/verif/sim/../tests/custom/common/crt.S:248
+  .size   exit, . - exit
+
+  // Minimal low-level exit function.
+  .global  _exit
+_exit:
+  sll  a0, a0, 1      # Set up exit code: shift a0 left by 1
+    800001d0:	0506                	slli	a0,a0,0x1
+/cva6/verif/sim/../tests/custom/common/crt.S:249
+  add  a0, a0, 1      # and set bit 0.
+    800001d2:	0505                	addi	a0,a0,1
+/cva6/verif/sim/../tests/custom/common/crt.S:250
+  sw   a0, tohost, t5 # Store bits [31:0] of a0 into variable tohost
+    800001d4:	00001f17          	auipc	t5,0x1
+    800001d8:	e2af2623          	sw	a0,-468(t5) # 80001000 <tohost>
+/cva6/verif/sim/../tests/custom/common/crt.S:251
+  nop                 # Leave one cycle of slack before entering endless loop
+    800001dc:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/crt.S:253
+1:
+  j        1b;        # Wait indefinitely (until the env terminates the simulation)
+    800001de:	a001                	j	800001de <_exit+0xe>
+	...
+
+Disassembly of section .text:
+
+0000000080003000 <main>:
+$xrv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbkb1p0_zbkx1p0_zbs1p0_zknd1p0_zkne1p0_zknh1p0():
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:40
+main:
+  # ---------------------------------------------------------
+  # CONFIGURACIÓN DEL PMU (PERFORMANCE MONITOR UNIT)
+  # --------------------------------------------------------- 
+  # Pausar todos los contadores
+  addi    sp, sp, -80
+    80003000:	715d                	addi	sp,sp,-80
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:41
+  li      t0, -1
+    80003002:	52fd                	li	t0,-1
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:42
+  csrw    CSR_MCOUNTINHIBIT, t0
+    80003004:	32029073          	csrw	mcountinhibit,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:45
+
+  # Configurar Eventos
+  li      t0, 1
+    80003008:	4285                	li	t0,1
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:46
+  csrw    CSR_MHPMEVENT3, t0    # L1 I-Cache Miss
+    8000300a:	32329073          	csrw	mhpmevent3,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:47
+  li      t0, 2
+    8000300e:	4289                	li	t0,2
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:48
+  csrw    CSR_MHPMEVENT4, t0    # L1 D-Cache Miss
+    80003010:	32429073          	csrw	mhpmevent4,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:49
+  li      t0, 16
+    80003014:	42c1                	li	t0,16
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:50
+  csrw    CSR_MHPMEVENT5, t0    # L1 I-Cache Access
+    80003016:	32529073          	csrw	mhpmevent5,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:51
+  li      t0, 22
+    8000301a:	42d9                	li	t0,22
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:52
+  csrw    CSR_MHPMEVENT6, t0    # Pipeline Stall
+    8000301c:	32629073          	csrw	mhpmevent6,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:53
+  li      t0, 9
+    80003020:	42a5                	li	t0,9
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:54
+  csrw    CSR_MHPMEVENT7, t0    # Branch Instr
+    80003022:	32729073          	csrw	mhpmevent7,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:55
+  li      t0, 10
+    80003026:	42a9                	li	t0,10
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:56
+  csrw    CSR_MHPMEVENT8, t0    # Branch Mispredict
+    80003028:	32829073          	csrw	mhpmevent8,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:59
+
+  # Resetear contadores a 0
+  csrw    CSR_MHPMCOUNTER3, zero
+    8000302c:	b0301073          	csrw	mhpmcounter3,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:60
+  csrw    CSR_MHPMCOUNTER4, zero
+    80003030:	b0401073          	csrw	mhpmcounter4,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:61
+  csrw    CSR_MHPMCOUNTER5, zero
+    80003034:	b0501073          	csrw	mhpmcounter5,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:62
+  csrw    CSR_MHPMCOUNTER6, zero
+    80003038:	b0601073          	csrw	mhpmcounter6,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:63
+  csrw    CSR_MHPMCOUNTER7, zero
+    8000303c:	b0701073          	csrw	mhpmcounter7,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:64
+  csrw    CSR_MHPMCOUNTER8, zero
+    80003040:	b0801073          	csrw	mhpmcounter8,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:67
+
+  # Habilitar acceso a contadores
+  li      t0, -1
+    80003044:	52fd                	li	t0,-1
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:68
+  csrw    mcounteren, t0
+    80003046:	30629073          	csrw	mcounteren,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:69
+  csrw    CSR_MCOUNTINHIBIT, zero
+    8000304a:	32001073          	csrw	mcountinhibit,zero
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:74
+
+  # ---------------------------------------------------------
+  # SNAPSHOT INICIAL
+  # ---------------------------------------------------------
+  csrr    t0, CSR_MCYCLE
+    8000304e:	b00022f3          	csrr	t0,mcycle
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:75
+  sd      t0, 0(sp)       # Guardar Cycle Start
+    80003052:	e016                	sd	t0,0(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:76
+  csrr    t0, CSR_MINSTRET
+    80003054:	b02022f3          	csrr	t0,minstret
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:77
+  sd      t0, 8(sp)       # Guardar Instret Start
+    80003058:	e416                	sd	t0,8(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:78
+  csrr    t0, CSR_MHPMCOUNTER3
+    8000305a:	b03022f3          	csrr	t0,mhpmcounter3
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:79
+  sd      t0, 16(sp)      # Guardar HPM3 Start
+    8000305e:	e816                	sd	t0,16(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:80
+  csrr    t0, CSR_MHPMCOUNTER4
+    80003060:	b04022f3          	csrr	t0,mhpmcounter4
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:81
+  sd      t0, 24(sp)      # Guardar HPM4 Start
+    80003064:	ec16                	sd	t0,24(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:82
+  csrr    t0, CSR_MHPMCOUNTER5
+    80003066:	b05022f3          	csrr	t0,mhpmcounter5
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:83
+  sd      t0, 32(sp)      # Guardar HPM5 Start
+    8000306a:	f016                	sd	t0,32(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:84
+  csrr    t0, CSR_MHPMCOUNTER6
+    8000306c:	b06022f3          	csrr	t0,mhpmcounter6
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:85
+  sd      t0, 40(sp)      # Guardar HPM6 Start
+    80003070:	f416                	sd	t0,40(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:86
+  csrr    t0, CSR_MHPMCOUNTER7
+    80003072:	b07022f3          	csrr	t0,mhpmcounter7
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:87
+  sd      t0, 48(sp)      # Guardar HPM7 Start
+    80003076:	f816                	sd	t0,48(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:88
+  csrr    t0, CSR_MHPMCOUNTER8
+    80003078:	b08022f3          	csrr	t0,mhpmcounter8
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:89
+  sd      t0, 56(sp)      # Guardar HPM8 Start
+    8000307c:	fc16                	sd	t0,56(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:95
+
+  # ---------------------------------------------------------
+  # PROGRAMA
+  # ---------------------------------------------------------
+  # Cargar valores iniciales
+  la t0, N
+    8000307e:	00003297          	auipc	t0,0x3
+    80003082:	f8228293          	addi	t0,t0,-126 # 80006000 <N>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:96
+  ld t1, 0(t0)
+    80003086:	0002b303          	ld	t1,0(t0)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:97
+  la t2, Alpha
+    8000308a:	00003397          	auipc	t2,0x3
+    8000308e:	f7e38393          	addi	t2,t2,-130 # 80006008 <Alpha>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:98
+  ld t3, 0(t2)
+    80003092:	0003be03          	ld	t3,0(t2)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:99
+  fcvt.d.l f10, t3
+    80003096:	d22e7553          	fcvt.d.l	fa0,t3
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:100
+  la s2, X
+    8000309a:	00003917          	auipc	s2,0x3
+    8000309e:	f7690913          	addi	s2,s2,-138 # 80006010 <X>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:101
+  la s3, Y
+    800030a2:	0000b997          	auipc	s3,0xb
+    800030a6:	f6e98993          	addi	s3,s3,-146 # 8000e010 <Y>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:102
+  la s4, Z
+    800030aa:	00013a17          	auipc	s4,0x13
+    800030ae:	f66a0a13          	addi	s4,s4,-154 # 80016010 <Z>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:103
+  mv s5, s2
+    800030b2:	8aca                	mv	s5,s2
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:104
+  mv s6, s3
+    800030b4:	8b4e                	mv	s6,s3
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:105
+  mv s7, s4
+    800030b6:	8bd2                	mv	s7,s4
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:106
+  li t4, 0
+    800030b8:	4e81                	li	t4,0
+    800030ba:	00000013          	nop
+    800030be:	0001                	nop
+
+00000000800030c0 <loop>:
+loop():
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:110
+
+.align 4
+loop:
+  fld f5, 0(s5)            # f5 = X[i]
+    800030c0:	000ab287          	fld	ft5,0(s5)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:111
+  fld f6, 0(s6)            # f6 = Y[i]
+    800030c4:	000b3307          	fld	ft6,0(s6)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:112
+  fmul.d f7, f10, f5       # f7 = alpha * X[i]
+    800030c8:	125573d3          	fmul.d	ft7,fa0,ft5
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:113
+  fadd.d f8, f7, f6        # f8 = f7 + Y[i]
+    800030cc:	0263f453          	fadd.d	fs0,ft7,ft6
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:114
+  fsd f8, 0(s7)            # Z[i] = f8
+    800030d0:	008bb027          	fsd	fs0,0(s7)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:115
+  addi s5, s5, 8
+    800030d4:	0aa1                	addi	s5,s5,8
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:116
+  addi s6, s6, 8
+    800030d6:	0b21                	addi	s6,s6,8
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:117
+  addi s7, s7, 8
+    800030d8:	0ba1                	addi	s7,s7,8
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:118
+  addi t4, t4, 1
+    800030da:	0e85                	addi	t4,t4,1
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:119
+  blt  t4, t1, loop
+    800030dc:	fe6ec2e3          	blt	t4,t1,800030c0 <loop>
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:125
+
+  # ---------------------------------------------------------
+  # SNAPSHOT FINAL Y CÁLCULO DE DIFERENCIAS
+  # ---------------------------------------------------------
+  # x18 (s2) = Cycles
+  csrr    s2, CSR_MCYCLE
+    800030e0:	b0002973          	csrr	s2,mcycle
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:126
+  ld      t0, 0(sp)
+    800030e4:	6282                	ld	t0,0(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:127
+  sub     s2, s2, t0
+    800030e6:	40590933          	sub	s2,s2,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:130
+
+  # x19 (s3) = Instructions
+  csrr    s3, CSR_MINSTRET
+    800030ea:	b02029f3          	csrr	s3,minstret
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:131
+  ld      t0, 8(sp)
+    800030ee:	62a2                	ld	t0,8(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:132
+  sub     s3, s3, t0
+    800030f0:	405989b3          	sub	s3,s3,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:135
+
+  # x20 (s4) = I-Cache Miss
+  csrr    s4, CSR_MHPMCOUNTER3
+    800030f4:	b0302a73          	csrr	s4,mhpmcounter3
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:136
+  ld      t0, 16(sp)
+    800030f8:	62c2                	ld	t0,16(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:137
+  sub     s4, s4, t0
+    800030fa:	405a0a33          	sub	s4,s4,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:140
+
+  # x21 (s5) = D-Cache Miss
+  csrr    s5, CSR_MHPMCOUNTER4
+    800030fe:	b0402af3          	csrr	s5,mhpmcounter4
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:141
+  ld      t0, 24(sp)
+    80003102:	62e2                	ld	t0,24(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:142
+  sub     s5, s5, t0
+    80003104:	405a8ab3          	sub	s5,s5,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:145
+
+  # x22 (s6) = I-Cache Access
+  csrr    s6, CSR_MHPMCOUNTER5
+    80003108:	b0502b73          	csrr	s6,mhpmcounter5
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:146
+  ld      t0, 32(sp)
+    8000310c:	7282                	ld	t0,32(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:147
+  sub     s6, s6, t0
+    8000310e:	405b0b33          	sub	s6,s6,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:150
+
+  # x23 (s7) = Pipeline Stall
+  csrr    s7, CSR_MHPMCOUNTER6
+    80003112:	b0602bf3          	csrr	s7,mhpmcounter6
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:151
+  ld      t0, 40(sp)
+    80003116:	72a2                	ld	t0,40(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:152
+  sub     s7, s7, t0
+    80003118:	405b8bb3          	sub	s7,s7,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:155
+
+  # x24 (s8) = Branches
+  csrr    s8, CSR_MHPMCOUNTER7
+    8000311c:	b0702c73          	csrr	s8,mhpmcounter7
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:156
+  ld      t0, 48(sp)
+    80003120:	72c2                	ld	t0,48(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:157
+  sub     s8, s8, t0
+    80003122:	405c0c33          	sub	s8,s8,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:160
+
+  # x25 (s9) = Branch Miss
+  csrr    s9, CSR_MHPMCOUNTER8
+    80003126:	b0802cf3          	csrr	s9,mhpmcounter8
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:161
+  ld      t0, 56(sp)
+    8000312a:	72e2                	ld	t0,56(sp)
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:162
+  sub     s9, s9, t0
+    8000312c:	405c8cb3          	sub	s9,s9,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:165
+
+  # Restaurar Stack Pointer
+  addi    sp, sp, 80
+    80003130:	6161                	addi	sp,sp,80
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:170
+
+  # ---------------------------------------------------------
+  # CÁLCULO TIEMPO (us) -> x26 (s10)
+  # ---------------------------------------------------------
+  li      t0, 1000000
+    80003132:	000f42b7          	lui	t0,0xf4
+    80003136:	2402829b          	addiw	t0,t0,576
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:171
+  mul     s10, s2, t0      # s10 = Cycles (s2) * 1M
+    8000313a:	02590d33          	mul	s10,s2,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:172
+  li      t0, CPU_FREQ
+    8000313e:	02faf2b7          	lui	t0,0x2faf
+    80003142:	0802829b          	addiw	t0,t0,128
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:173
+  divu    s10, s10, t0     # s10 = s10 / Freq
+    80003146:	025d5d33          	divu	s10,s10,t0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:178
+
+  # ---------------------------------------------------------
+  # SALIDA
+  # ---------------------------------------------------------
+  li      a0, 0
+    8000314a:	4501                	li	a0,0
+/cva6/verif/sim/../tests/custom/templates/daxpy.S:179
+    8000314c:	522000ef          	jal	ra,8000366e <exit>
+	...
+
+0000000080003158 <verify>:
+verify():
+/cva6/verif/sim/../tests/custom/common/util.h:13
+#include <stdint.h>
+
+#define static_assert(cond) switch(0) { case 0: case !!(long)(cond): ; }
+
+static int verify(int n, const volatile int* test, const int* verify)
+{
+    80003158:	715d                	addi	sp,sp,-80
+    8000315a:	e4a2                	sd	s0,72(sp)
+    8000315c:	0880                	addi	s0,sp,80
+    8000315e:	87aa                	mv	a5,a0
+    80003160:	fcb43023          	sd	a1,-64(s0)
+    80003164:	fac43c23          	sd	a2,-72(s0)
+    80003168:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:16
+  int i;
+  // Unrolled for faster verification
+  for (i = 0; i < n/2*2; i+=2)
+    8000316c:	fe042623          	sw	zero,-20(s0)
+    80003170:	a841                	j	80003200 <verify+0xa8>
+/cva6/verif/sim/../tests/custom/common/util.h:18
+  {
+    int t0 = test[i], t1 = test[i+1];
+    80003172:	fec42783          	lw	a5,-20(s0)
+    80003176:	078a                	slli	a5,a5,0x2
+    80003178:	fc043703          	ld	a4,-64(s0)
+    8000317c:	97ba                	add	a5,a5,a4
+    8000317e:	439c                	lw	a5,0(a5)
+    80003180:	fef42423          	sw	a5,-24(s0)
+    80003184:	fec42783          	lw	a5,-20(s0)
+    80003188:	0785                	addi	a5,a5,1
+    8000318a:	078a                	slli	a5,a5,0x2
+    8000318c:	fc043703          	ld	a4,-64(s0)
+    80003190:	97ba                	add	a5,a5,a4
+    80003192:	439c                	lw	a5,0(a5)
+    80003194:	fef42223          	sw	a5,-28(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:19
+    int v0 = verify[i], v1 = verify[i+1];
+    80003198:	fec42783          	lw	a5,-20(s0)
+    8000319c:	078a                	slli	a5,a5,0x2
+    8000319e:	fb843703          	ld	a4,-72(s0)
+    800031a2:	97ba                	add	a5,a5,a4
+    800031a4:	439c                	lw	a5,0(a5)
+    800031a6:	fef42023          	sw	a5,-32(s0)
+    800031aa:	fec42783          	lw	a5,-20(s0)
+    800031ae:	0785                	addi	a5,a5,1
+    800031b0:	078a                	slli	a5,a5,0x2
+    800031b2:	fb843703          	ld	a4,-72(s0)
+    800031b6:	97ba                	add	a5,a5,a4
+    800031b8:	439c                	lw	a5,0(a5)
+    800031ba:	fcf42e23          	sw	a5,-36(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:20
+    if (t0 != v0) return i+1;
+    800031be:	fe842783          	lw	a5,-24(s0)
+    800031c2:	873e                	mv	a4,a5
+    800031c4:	fe042783          	lw	a5,-32(s0)
+    800031c8:	2701                	sext.w	a4,a4
+    800031ca:	2781                	sext.w	a5,a5
+    800031cc:	00f70763          	beq	a4,a5,800031da <verify+0x82>
+/cva6/verif/sim/../tests/custom/common/util.h:20 (discriminator 1)
+    800031d0:	fec42783          	lw	a5,-20(s0)
+    800031d4:	2785                	addiw	a5,a5,1
+    800031d6:	2781                	sext.w	a5,a5
+/cva6/verif/sim/../tests/custom/common/util.h:20
+    800031d8:	a059                	j	8000325e <verify+0x106>
+/cva6/verif/sim/../tests/custom/common/util.h:21
+    if (t1 != v1) return i+2;
+    800031da:	fe442783          	lw	a5,-28(s0)
+    800031de:	873e                	mv	a4,a5
+    800031e0:	fdc42783          	lw	a5,-36(s0)
+    800031e4:	2701                	sext.w	a4,a4
+    800031e6:	2781                	sext.w	a5,a5
+    800031e8:	00f70763          	beq	a4,a5,800031f6 <verify+0x9e>
+/cva6/verif/sim/../tests/custom/common/util.h:21 (discriminator 1)
+    800031ec:	fec42783          	lw	a5,-20(s0)
+    800031f0:	2789                	addiw	a5,a5,2
+    800031f2:	2781                	sext.w	a5,a5
+/cva6/verif/sim/../tests/custom/common/util.h:21
+    800031f4:	a0ad                	j	8000325e <verify+0x106>
+/cva6/verif/sim/../tests/custom/common/util.h:16 (discriminator 2)
+  for (i = 0; i < n/2*2; i+=2)
+    800031f6:	fec42783          	lw	a5,-20(s0)
+    800031fa:	2789                	addiw	a5,a5,2
+    800031fc:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:16 (discriminator 1)
+    80003200:	fcc42783          	lw	a5,-52(s0)
+    80003204:	01f7d71b          	srliw	a4,a5,0x1f
+    80003208:	9fb9                	addw	a5,a5,a4
+    8000320a:	4017d79b          	sraiw	a5,a5,0x1
+    8000320e:	2781                	sext.w	a5,a5
+    80003210:	0017979b          	slliw	a5,a5,0x1
+    80003214:	0007871b          	sext.w	a4,a5
+    80003218:	fec42783          	lw	a5,-20(s0)
+    8000321c:	2781                	sext.w	a5,a5
+    8000321e:	f4e7cae3          	blt	a5,a4,80003172 <verify+0x1a>
+/cva6/verif/sim/../tests/custom/common/util.h:23
+  }
+  if (n % 2 != 0 && test[n-1] != verify[n-1])
+    80003222:	fcc42783          	lw	a5,-52(s0)
+    80003226:	8b85                	andi	a5,a5,1
+    80003228:	2781                	sext.w	a5,a5
+    8000322a:	cb8d                	beqz	a5,8000325c <verify+0x104>
+/cva6/verif/sim/../tests/custom/common/util.h:23 (discriminator 1)
+    8000322c:	fcc42783          	lw	a5,-52(s0)
+    80003230:	078a                	slli	a5,a5,0x2
+    80003232:	17f1                	addi	a5,a5,-4
+    80003234:	fc043703          	ld	a4,-64(s0)
+    80003238:	97ba                	add	a5,a5,a4
+    8000323a:	439c                	lw	a5,0(a5)
+    8000323c:	0007869b          	sext.w	a3,a5
+    80003240:	fcc42783          	lw	a5,-52(s0)
+    80003244:	078a                	slli	a5,a5,0x2
+    80003246:	17f1                	addi	a5,a5,-4
+    80003248:	fb843703          	ld	a4,-72(s0)
+    8000324c:	97ba                	add	a5,a5,a4
+    8000324e:	439c                	lw	a5,0(a5)
+    80003250:	8736                	mv	a4,a3
+    80003252:	00f70563          	beq	a4,a5,8000325c <verify+0x104>
+/cva6/verif/sim/../tests/custom/common/util.h:24
+    return n;
+    80003256:	fcc42783          	lw	a5,-52(s0)
+    8000325a:	a011                	j	8000325e <verify+0x106>
+/cva6/verif/sim/../tests/custom/common/util.h:25
+  return 0;
+    8000325c:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/util.h:26
+}
+    8000325e:	853e                	mv	a0,a5
+    80003260:	6426                	ld	s0,72(sp)
+    80003262:	6161                	addi	sp,sp,80
+    80003264:	8082                	ret
+
+0000000080003266 <verifyDouble>:
+verifyDouble():
+/cva6/verif/sim/../tests/custom/common/util.h:29
+
+static int verifyDouble(int n, const volatile double* test, const double* verify)
+{
+    80003266:	711d                	addi	sp,sp,-96
+    80003268:	eca2                	sd	s0,88(sp)
+    8000326a:	1080                	addi	s0,sp,96
+    8000326c:	87aa                	mv	a5,a0
+    8000326e:	fab43823          	sd	a1,-80(s0)
+    80003272:	fac43423          	sd	a2,-88(s0)
+    80003276:	faf42e23          	sw	a5,-68(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:32
+  int i;
+  // Unrolled for faster verification
+  for (i = 0; i < n/2*2; i+=2)
+    8000327a:	fe042623          	sw	zero,-20(s0)
+    8000327e:	a06d                	j	80003328 <verifyDouble+0xc2>
+/cva6/verif/sim/../tests/custom/common/util.h:34
+  {
+    double t0 = test[i], t1 = test[i+1];
+    80003280:	fec42783          	lw	a5,-20(s0)
+    80003284:	078e                	slli	a5,a5,0x3
+    80003286:	fb043703          	ld	a4,-80(s0)
+    8000328a:	97ba                	add	a5,a5,a4
+    8000328c:	239c                	fld	fa5,0(a5)
+    8000328e:	fef43027          	fsd	fa5,-32(s0)
+    80003292:	fec42783          	lw	a5,-20(s0)
+    80003296:	0785                	addi	a5,a5,1
+    80003298:	078e                	slli	a5,a5,0x3
+    8000329a:	fb043703          	ld	a4,-80(s0)
+    8000329e:	97ba                	add	a5,a5,a4
+    800032a0:	239c                	fld	fa5,0(a5)
+    800032a2:	fcf43c27          	fsd	fa5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:35
+    double v0 = verify[i], v1 = verify[i+1];
+    800032a6:	fec42783          	lw	a5,-20(s0)
+    800032aa:	078e                	slli	a5,a5,0x3
+    800032ac:	fa843703          	ld	a4,-88(s0)
+    800032b0:	97ba                	add	a5,a5,a4
+    800032b2:	239c                	fld	fa5,0(a5)
+    800032b4:	fcf43827          	fsd	fa5,-48(s0)
+    800032b8:	fec42783          	lw	a5,-20(s0)
+    800032bc:	0785                	addi	a5,a5,1
+    800032be:	078e                	slli	a5,a5,0x3
+    800032c0:	fa843703          	ld	a4,-88(s0)
+    800032c4:	97ba                	add	a5,a5,a4
+    800032c6:	239c                	fld	fa5,0(a5)
+    800032c8:	fcf43427          	fsd	fa5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:36
+    int eq1 = t0 == v0, eq2 = t1 == v1;
+    800032cc:	fe043707          	fld	fa4,-32(s0)
+    800032d0:	fd043787          	fld	fa5,-48(s0)
+    800032d4:	a2f727d3          	feq.d	a5,fa4,fa5
+    800032d8:	00f037b3          	snez	a5,a5
+    800032dc:	0ff7f793          	andi	a5,a5,255
+    800032e0:	fcf42223          	sw	a5,-60(s0)
+    800032e4:	fd843707          	fld	fa4,-40(s0)
+    800032e8:	fc843787          	fld	fa5,-56(s0)
+    800032ec:	a2f727d3          	feq.d	a5,fa4,fa5
+    800032f0:	00f037b3          	snez	a5,a5
+    800032f4:	0ff7f793          	andi	a5,a5,255
+    800032f8:	fcf42023          	sw	a5,-64(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:37
+    if (!(eq1 & eq2)) return i+1+eq1;
+    800032fc:	fc442783          	lw	a5,-60(s0)
+    80003300:	873e                	mv	a4,a5
+    80003302:	fc042783          	lw	a5,-64(s0)
+    80003306:	8ff9                	and	a5,a5,a4
+    80003308:	2781                	sext.w	a5,a5
+    8000330a:	eb91                	bnez	a5,8000331e <verifyDouble+0xb8>
+/cva6/verif/sim/../tests/custom/common/util.h:37 (discriminator 1)
+    8000330c:	fec42783          	lw	a5,-20(s0)
+    80003310:	2785                	addiw	a5,a5,1
+    80003312:	2781                	sext.w	a5,a5
+    80003314:	fc442703          	lw	a4,-60(s0)
+    80003318:	9fb9                	addw	a5,a5,a4
+    8000331a:	2781                	sext.w	a5,a5
+/cva6/verif/sim/../tests/custom/common/util.h:37
+    8000331c:	a09d                	j	80003382 <verifyDouble+0x11c>
+/cva6/verif/sim/../tests/custom/common/util.h:32 (discriminator 2)
+  for (i = 0; i < n/2*2; i+=2)
+    8000331e:	fec42783          	lw	a5,-20(s0)
+    80003322:	2789                	addiw	a5,a5,2
+    80003324:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:32 (discriminator 1)
+    80003328:	fbc42783          	lw	a5,-68(s0)
+    8000332c:	01f7d71b          	srliw	a4,a5,0x1f
+    80003330:	9fb9                	addw	a5,a5,a4
+    80003332:	4017d79b          	sraiw	a5,a5,0x1
+    80003336:	2781                	sext.w	a5,a5
+    80003338:	0017979b          	slliw	a5,a5,0x1
+    8000333c:	0007871b          	sext.w	a4,a5
+    80003340:	fec42783          	lw	a5,-20(s0)
+    80003344:	2781                	sext.w	a5,a5
+    80003346:	f2e7cde3          	blt	a5,a4,80003280 <verifyDouble+0x1a>
+/cva6/verif/sim/../tests/custom/common/util.h:39
+  }
+  if (n % 2 != 0 && test[n-1] != verify[n-1])
+    8000334a:	fbc42783          	lw	a5,-68(s0)
+    8000334e:	8b85                	andi	a5,a5,1
+    80003350:	2781                	sext.w	a5,a5
+    80003352:	c79d                	beqz	a5,80003380 <verifyDouble+0x11a>
+/cva6/verif/sim/../tests/custom/common/util.h:39 (discriminator 1)
+    80003354:	fbc42783          	lw	a5,-68(s0)
+    80003358:	078e                	slli	a5,a5,0x3
+    8000335a:	17e1                	addi	a5,a5,-8
+    8000335c:	fb043703          	ld	a4,-80(s0)
+    80003360:	97ba                	add	a5,a5,a4
+    80003362:	2398                	fld	fa4,0(a5)
+    80003364:	fbc42783          	lw	a5,-68(s0)
+    80003368:	078e                	slli	a5,a5,0x3
+    8000336a:	17e1                	addi	a5,a5,-8
+    8000336c:	fa843703          	ld	a4,-88(s0)
+    80003370:	97ba                	add	a5,a5,a4
+    80003372:	239c                	fld	fa5,0(a5)
+    80003374:	a2f727d3          	feq.d	a5,fa4,fa5
+    80003378:	e781                	bnez	a5,80003380 <verifyDouble+0x11a>
+/cva6/verif/sim/../tests/custom/common/util.h:40
+    return n;
+    8000337a:	fbc42783          	lw	a5,-68(s0)
+    8000337e:	a011                	j	80003382 <verifyDouble+0x11c>
+/cva6/verif/sim/../tests/custom/common/util.h:41
+  return 0;
+    80003380:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/util.h:42
+}
+    80003382:	853e                	mv	a0,a5
+    80003384:	6466                	ld	s0,88(sp)
+    80003386:	6125                	addi	sp,sp,96
+    80003388:	8082                	ret
+
+000000008000338a <barrier>:
+barrier():
+/cva6/verif/sim/../tests/custom/common/util.h:45
+
+static void __attribute__((noinline)) barrier(int ncores)
+{
+    8000338a:	1101                	addi	sp,sp,-32
+    8000338c:	ec22                	sd	s0,24(sp)
+    8000338e:	1000                	addi	s0,sp,32
+    80003390:	87aa                	mv	a5,a0
+    80003392:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:51
+#ifdef __riscv_atomic // __sync_* builtins require A extension
+  static volatile int sense;
+  static volatile int count;
+  static __thread int threadsense;
+
+  __sync_synchronize();
+    80003396:	0ff0000f          	fence
+/cva6/verif/sim/../tests/custom/common/util.h:53
+
+  threadsense = !threadsense;
+    8000339a:	00022783          	lw	a5,0(tp) # 0 <threadsense.4>
+    8000339e:	0017b793          	seqz	a5,a5
+    800033a2:	0ff7f793          	andi	a5,a5,255
+    800033a6:	0007871b          	sext.w	a4,a5
+    800033aa:	00e22023          	sw	a4,0(tp) # 0 <threadsense.4>
+/cva6/verif/sim/../tests/custom/common/util.h:54
+  if (__sync_fetch_and_add(&count, 1) == ncores-1)
+    800033ae:	0001b797          	auipc	a5,0x1b
+    800033b2:	c8278793          	addi	a5,a5,-894 # 8001e030 <count.1>
+    800033b6:	4705                	li	a4,1
+    800033b8:	0f50000f          	fence	iorw,ow
+    800033bc:	04e7a6af          	amoadd.w.aq	a3,a4,(a5)
+    800033c0:	0006879b          	sext.w	a5,a3
+/cva6/verif/sim/../tests/custom/common/util.h:54 (discriminator 1)
+    800033c4:	0007871b          	sext.w	a4,a5
+    800033c8:	fec42783          	lw	a5,-20(s0)
+    800033cc:	37fd                	addiw	a5,a5,-1
+    800033ce:	2781                	sext.w	a5,a5
+    800033d0:	02f71063          	bne	a4,a5,800033f0 <barrier+0x66>
+/cva6/verif/sim/../tests/custom/common/util.h:56
+  {
+    count = 0;
+    800033d4:	0001b797          	auipc	a5,0x1b
+    800033d8:	c5c78793          	addi	a5,a5,-932 # 8001e030 <count.1>
+    800033dc:	0007a023          	sw	zero,0(a5)
+/cva6/verif/sim/../tests/custom/common/util.h:57
+    sense = threadsense;
+    800033e0:	00022703          	lw	a4,0(tp) # 0 <threadsense.4>
+    800033e4:	0001b797          	auipc	a5,0x1b
+    800033e8:	c5078793          	addi	a5,a5,-944 # 8001e034 <sense.0>
+    800033ec:	c398                	sw	a4,0(a5)
+    800033ee:	a829                	j	80003408 <barrier+0x7e>
+/cva6/verif/sim/../tests/custom/common/util.h:59
+  }
+  else while(sense != threadsense)
+    800033f0:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/util.h:59 (discriminator 1)
+    800033f2:	0001b797          	auipc	a5,0x1b
+    800033f6:	c4278793          	addi	a5,a5,-958 # 8001e034 <sense.0>
+    800033fa:	439c                	lw	a5,0(a5)
+    800033fc:	0007871b          	sext.w	a4,a5
+    80003400:	00022783          	lw	a5,0(tp) # 0 <threadsense.4>
+    80003404:	fef717e3          	bne	a4,a5,800033f2 <barrier+0x68>
+/cva6/verif/sim/../tests/custom/common/util.h:62
+    ;
+
+  __sync_synchronize();
+    80003408:	0ff0000f          	fence
+/cva6/verif/sim/../tests/custom/common/util.h:64
+#endif // __riscv_atomic
+}
+    8000340c:	0001                	nop
+    8000340e:	6462                	ld	s0,24(sp)
+    80003410:	6105                	addi	sp,sp,32
+    80003412:	8082                	ret
+
+0000000080003414 <lfsr>:
+lfsr():
+/cva6/verif/sim/../tests/custom/common/util.h:67
+
+static uint64_t lfsr(uint64_t x)
+{
+    80003414:	7179                	addi	sp,sp,-48
+    80003416:	f422                	sd	s0,40(sp)
+    80003418:	1800                	addi	s0,sp,48
+    8000341a:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:68
+  uint64_t bit = (x ^ (x >> 1)) & 1;
+    8000341e:	fd843783          	ld	a5,-40(s0)
+    80003422:	0017d713          	srli	a4,a5,0x1
+    80003426:	fd843783          	ld	a5,-40(s0)
+    8000342a:	8fb9                	xor	a5,a5,a4
+    8000342c:	8b85                	andi	a5,a5,1
+    8000342e:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:69
+  return (x >> 1) | (bit << 62);
+    80003432:	fd843783          	ld	a5,-40(s0)
+    80003436:	0017d713          	srli	a4,a5,0x1
+    8000343a:	fe843783          	ld	a5,-24(s0)
+    8000343e:	17fa                	slli	a5,a5,0x3e
+    80003440:	8fd9                	or	a5,a5,a4
+/cva6/verif/sim/../tests/custom/common/util.h:70
+}
+    80003442:	853e                	mv	a0,a5
+    80003444:	7422                	ld	s0,40(sp)
+    80003446:	6145                	addi	sp,sp,48
+    80003448:	8082                	ret
+
+000000008000344a <insn_len>:
+insn_len():
+/cva6/verif/sim/../tests/custom/common/util.h:73
+
+static uintptr_t insn_len(uintptr_t pc)
+{
+    8000344a:	1101                	addi	sp,sp,-32
+    8000344c:	ec22                	sd	s0,24(sp)
+    8000344e:	1000                	addi	s0,sp,32
+    80003450:	fea43423          	sd	a0,-24(s0)
+/cva6/verif/sim/../tests/custom/common/util.h:74
+  return (*(unsigned short*)pc & 3) ? 4 : 2;
+    80003454:	fe843783          	ld	a5,-24(s0)
+    80003458:	0007d783          	lhu	a5,0(a5)
+    8000345c:	2781                	sext.w	a5,a5
+    8000345e:	8b8d                	andi	a5,a5,3
+    80003460:	2781                	sext.w	a5,a5
+    80003462:	c399                	beqz	a5,80003468 <insn_len+0x1e>
+/cva6/verif/sim/../tests/custom/common/util.h:74 (discriminator 1)
+    80003464:	4791                	li	a5,4
+/cva6/verif/sim/../tests/custom/common/util.h:74
+    80003466:	a011                	j	8000346a <insn_len+0x20>
+/cva6/verif/sim/../tests/custom/common/util.h:74 (discriminator 2)
+    80003468:	4789                	li	a5,2
+/cva6/verif/sim/../tests/custom/common/util.h:75
+}
+    8000346a:	853e                	mv	a0,a5
+    8000346c:	6462                	ld	s0,24(sp)
+    8000346e:	6105                	addi	sp,sp,32
+    80003470:	8082                	ret
+
+0000000080003472 <syscall>:
+syscall():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:31
+// - syscall index (93 dec for syscall_exit, cf. Spike values in
+//   riscv-isa-sim/fesvr/syscall.cc:140 and ff.)
+// - syscall args in the declaration order of the given syscall
+
+static uintptr_t syscall(uintptr_t which, uintptr_t arg0, uintptr_t arg1, uintptr_t arg2)
+{
+    80003472:	7171                	addi	sp,sp,-176
+    80003474:	f522                	sd	s0,168(sp)
+    80003476:	1900                	addi	s0,sp,176
+    80003478:	f6a43c23          	sd	a0,-136(s0)
+    8000347c:	f6b43823          	sd	a1,-144(s0)
+    80003480:	f6c43423          	sd	a2,-152(s0)
+    80003484:	f6d43023          	sd	a3,-160(s0)
+    80003488:	ff040793          	addi	a5,s0,-16
+    8000348c:	f4f43c23          	sd	a5,-168(s0)
+    80003490:	f5843783          	ld	a5,-168(s0)
+    80003494:	f9078793          	addi	a5,a5,-112
+    80003498:	03f78793          	addi	a5,a5,63
+    8000349c:	8399                	srli	a5,a5,0x6
+    8000349e:	079a                	slli	a5,a5,0x6
+/cva6/verif/sim/../tests/custom/common/syscalls.c:34
+  // Arguments in magic_mem have XLEN bits each.
+  volatile uintptr_t magic_mem[8] __attribute__((aligned(64)));
+  magic_mem[0] = which;
+    800034a0:	f7843703          	ld	a4,-136(s0)
+    800034a4:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:35
+  magic_mem[1] = arg0;
+    800034a6:	f7043703          	ld	a4,-144(s0)
+    800034aa:	e798                	sd	a4,8(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:36
+  magic_mem[2] = arg1;
+    800034ac:	f6843703          	ld	a4,-152(s0)
+    800034b0:	eb98                	sd	a4,16(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:37
+  magic_mem[3] = arg2;
+    800034b2:	f6043703          	ld	a4,-160(s0)
+    800034b6:	ef98                	sd	a4,24(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:39
+#ifdef __riscv_atomic // __sync_synchronize requires A extension
+  __sync_synchronize();
+    800034b8:	0ff0000f          	fence
+/cva6/verif/sim/../tests/custom/common/syscalls.c:49
+  // - here tohost is guaranteed non-NULL because magic_mem is a valid RISC-V
+  //   pointer.
+  // - the environment acknowledges the env request by writing 0 into tohost.
+  // - the completion of the request is signalled by the environment through
+  //   a write of a non-zero value into fromhost.
+  tohost = (((uint64_t) ((unsigned long int) magic_mem)) << 16) >> 16;    // clear the DEV and CMD bytes, clip payload.
+    800034bc:	86be                	mv	a3,a5
+    800034be:	2b001713          	0x2b001713
+    800034c2:	177d                	addi	a4,a4,-1
+    800034c4:	8ef9                	and	a3,a3,a4
+    800034c6:	ffffe717          	auipc	a4,0xffffe
+    800034ca:	b3a70713          	addi	a4,a4,-1222 # 80001000 <tohost>
+    800034ce:	e314                	sd	a3,0(a4)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:50
+  while (fromhost == 0)
+    800034d0:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:50 (discriminator 1)
+    800034d2:	ffffe717          	auipc	a4,0xffffe
+    800034d6:	b6e70713          	addi	a4,a4,-1170 # 80001040 <fromhost>
+    800034da:	6318                	ld	a4,0(a4)
+    800034dc:	db7d                	beqz	a4,800034d2 <syscall+0x60>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:52
+    ;
+  fromhost = 0;
+    800034de:	ffffe717          	auipc	a4,0xffffe
+    800034e2:	b6270713          	addi	a4,a4,-1182 # 80001040 <fromhost>
+    800034e6:	00073023          	sd	zero,0(a4)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:55
+
+#ifdef __riscv_atomic // __sync_synchronize requires A extension
+  __sync_synchronize();
+    800034ea:	0ff0000f          	fence
+/cva6/verif/sim/../tests/custom/common/syscalls.c:57
+#endif
+  return magic_mem[0];
+    800034ee:	639c                	ld	a5,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:58
+}
+    800034f0:	853e                	mv	a0,a5
+    800034f2:	742a                	ld	s0,168(sp)
+    800034f4:	614d                	addi	sp,sp,176
+    800034f6:	8082                	ret
+
+00000000800034f8 <setStats>:
+setStats():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:65
+#define NUM_COUNTERS 2
+static uintptr_t counters[NUM_COUNTERS];
+static char* counter_names[NUM_COUNTERS];
+
+void setStats(int enable)
+{
+    800034f8:	715d                	addi	sp,sp,-80
+    800034fa:	e4a2                	sd	s0,72(sp)
+    800034fc:	0880                	addi	s0,sp,80
+    800034fe:	87aa                	mv	a5,a0
+    80003500:	faf42e23          	sw	a5,-68(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:66
+  int i = 0;
+    80003504:	fc042e23          	sw	zero,-36(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:74 (discriminator 1)
+    uintptr_t csr = read_csr(name); \
+    if (!enable) { csr -= counters[i]; counter_names[i] = #name; } \
+    counters[i++] = csr; \
+  } while (0)
+
+  READ_CTR(mcycle);
+    80003508:	fdc42783          	lw	a5,-36(s0)
+    8000350c:	0007871b          	sext.w	a4,a5
+    80003510:	4785                	li	a5,1
+    80003512:	fee7cbe3          	blt	a5,a4,80003508 <setStats+0x10>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:74 (discriminator 2)
+    80003516:	b00027f3          	csrr	a5,mcycle
+    8000351a:	fcf43823          	sd	a5,-48(s0)
+    8000351e:	fd043783          	ld	a5,-48(s0)
+    80003522:	fef43423          	sd	a5,-24(s0)
+    80003526:	fbc42783          	lw	a5,-68(s0)
+    8000352a:	2781                	sext.w	a5,a5
+    8000352c:	ef8d                	bnez	a5,80003566 <setStats+0x6e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:74 (discriminator 3)
+    8000352e:	0001b717          	auipc	a4,0x1b
+    80003532:	ae270713          	addi	a4,a4,-1310 # 8001e010 <counters>
+    80003536:	fdc42783          	lw	a5,-36(s0)
+    8000353a:	078e                	slli	a5,a5,0x3
+    8000353c:	97ba                	add	a5,a5,a4
+    8000353e:	639c                	ld	a5,0(a5)
+    80003540:	fe843703          	ld	a4,-24(s0)
+    80003544:	40f707b3          	sub	a5,a4,a5
+    80003548:	fef43423          	sd	a5,-24(s0)
+    8000354c:	0001b717          	auipc	a4,0x1b
+    80003550:	ad470713          	addi	a4,a4,-1324 # 8001e020 <counter_names>
+    80003554:	fdc42783          	lw	a5,-36(s0)
+    80003558:	078e                	slli	a5,a5,0x3
+    8000355a:	97ba                	add	a5,a5,a4
+    8000355c:	00002717          	auipc	a4,0x2
+    80003560:	aa470713          	addi	a4,a4,-1372 # 80005000 <_end_text>
+    80003564:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:74 (discriminator 5)
+    80003566:	fdc42783          	lw	a5,-36(s0)
+    8000356a:	0017871b          	addiw	a4,a5,1
+    8000356e:	fce42e23          	sw	a4,-36(s0)
+    80003572:	0001b717          	auipc	a4,0x1b
+    80003576:	a9e70713          	addi	a4,a4,-1378 # 8001e010 <counters>
+    8000357a:	078e                	slli	a5,a5,0x3
+    8000357c:	97ba                	add	a5,a5,a4
+    8000357e:	fe843703          	ld	a4,-24(s0)
+    80003582:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:75 (discriminator 1)
+  READ_CTR(minstret);
+    80003584:	fdc42783          	lw	a5,-36(s0)
+    80003588:	0007871b          	sext.w	a4,a5
+    8000358c:	4785                	li	a5,1
+    8000358e:	fee7cbe3          	blt	a5,a4,80003584 <setStats+0x8c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:75 (discriminator 2)
+    80003592:	b02027f3          	csrr	a5,minstret
+    80003596:	fcf43423          	sd	a5,-56(s0)
+    8000359a:	fc843783          	ld	a5,-56(s0)
+    8000359e:	fef43023          	sd	a5,-32(s0)
+    800035a2:	fbc42783          	lw	a5,-68(s0)
+    800035a6:	2781                	sext.w	a5,a5
+    800035a8:	ef8d                	bnez	a5,800035e2 <setStats+0xea>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:75 (discriminator 3)
+    800035aa:	0001b717          	auipc	a4,0x1b
+    800035ae:	a6670713          	addi	a4,a4,-1434 # 8001e010 <counters>
+    800035b2:	fdc42783          	lw	a5,-36(s0)
+    800035b6:	078e                	slli	a5,a5,0x3
+    800035b8:	97ba                	add	a5,a5,a4
+    800035ba:	639c                	ld	a5,0(a5)
+    800035bc:	fe043703          	ld	a4,-32(s0)
+    800035c0:	40f707b3          	sub	a5,a4,a5
+    800035c4:	fef43023          	sd	a5,-32(s0)
+    800035c8:	0001b717          	auipc	a4,0x1b
+    800035cc:	a5870713          	addi	a4,a4,-1448 # 8001e020 <counter_names>
+    800035d0:	fdc42783          	lw	a5,-36(s0)
+    800035d4:	078e                	slli	a5,a5,0x3
+    800035d6:	97ba                	add	a5,a5,a4
+    800035d8:	00002717          	auipc	a4,0x2
+    800035dc:	a3070713          	addi	a4,a4,-1488 # 80005008 <_end_text+0x8>
+    800035e0:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:75 (discriminator 5)
+    800035e2:	fdc42783          	lw	a5,-36(s0)
+    800035e6:	0017871b          	addiw	a4,a5,1
+    800035ea:	fce42e23          	sw	a4,-36(s0)
+    800035ee:	0001b717          	auipc	a4,0x1b
+    800035f2:	a2270713          	addi	a4,a4,-1502 # 8001e010 <counters>
+    800035f6:	078e                	slli	a5,a5,0x3
+    800035f8:	97ba                	add	a5,a5,a4
+    800035fa:	fe043703          	ld	a4,-32(s0)
+    800035fe:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:78
+
+#undef READ_CTR
+}
+    80003600:	0001                	nop
+    80003602:	6426                	ld	s0,72(sp)
+    80003604:	6161                	addi	sp,sp,80
+    80003606:	8082                	ret
+
+0000000080003608 <getStats>:
+getStats():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:81
+
+uintptr_t getStats(int counterid)
+{
+    80003608:	1101                	addi	sp,sp,-32
+    8000360a:	ec22                	sd	s0,24(sp)
+    8000360c:	1000                	addi	s0,sp,32
+    8000360e:	87aa                	mv	a5,a0
+    80003610:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:82
+  return counters[counterid];
+    80003614:	0001b717          	auipc	a4,0x1b
+    80003618:	9fc70713          	addi	a4,a4,-1540 # 8001e010 <counters>
+    8000361c:	fec42783          	lw	a5,-20(s0)
+    80003620:	078e                	slli	a5,a5,0x3
+    80003622:	97ba                	add	a5,a5,a4
+    80003624:	639c                	ld	a5,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:83
+}
+    80003626:	853e                	mv	a0,a5
+    80003628:	6462                	ld	s0,24(sp)
+    8000362a:	6105                	addi	sp,sp,32
+    8000362c:	8082                	ret
+
+000000008000362e <tohost_exit>:
+tohost_exit():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:86
+
+void __attribute__((noreturn)) tohost_exit(uintptr_t code)
+{
+    8000362e:	1101                	addi	sp,sp,-32
+    80003630:	ec22                	sd	s0,24(sp)
+    80003632:	1000                	addi	s0,sp,32
+    80003634:	fea43423          	sd	a0,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:90
+  // Simply write PASS/FAIL result into 'tohost'.
+  // Left shift 'code' by 1 and set bit 0 to 1, but leave the 16 uppermost bits clear
+  // so that the syscall is properly recognized even if 'code' value is very large.
+  tohost = ((((uint64_t) code) << 17) >> 16) | 1;
+    80003638:	fe843783          	ld	a5,-24(s0)
+    8000363c:	07c6                	slli	a5,a5,0x11
+    8000363e:	83c1                	srli	a5,a5,0x10
+    80003640:	0017e713          	ori	a4,a5,1
+    80003644:	ffffe797          	auipc	a5,0xffffe
+    80003648:	9bc78793          	addi	a5,a5,-1604 # 80001000 <tohost>
+    8000364c:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:95
+
+  // Do not care about the value returned by host.
+  // Leave 1 cycle of slack (one NOP instruction) to help debugging
+  // the termination mechanism if needed.
+  __asm__("nop\n\t");
+    8000364e:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:98
+
+  // Go into an endless loop if the write into 'tohost' did not terminate the simulation.
+  while (1);
+    80003650:	a001                	j	80003650 <tohost_exit+0x22>
+
+0000000080003652 <handle_trap>:
+handle_trap():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:102
+}
+
+uintptr_t __attribute__((weak)) handle_trap(uintptr_t cause, uintptr_t epc, uintptr_t regs[32])
+{
+    80003652:	7179                	addi	sp,sp,-48
+    80003654:	f406                	sd	ra,40(sp)
+    80003656:	f022                	sd	s0,32(sp)
+    80003658:	1800                	addi	s0,sp,48
+    8000365a:	fea43423          	sd	a0,-24(s0)
+    8000365e:	feb43023          	sd	a1,-32(s0)
+    80003662:	fcc43c23          	sd	a2,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:103
+  tohost_exit(1337);
+    80003666:	53900513          	li	a0,1337
+    8000366a:	fc5ff0ef          	jal	ra,8000362e <tohost_exit>
+
+000000008000366e <exit>:
+exit():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:107
+}
+
+void exit(int code)
+{
+    8000366e:	1101                	addi	sp,sp,-32
+    80003670:	ec06                	sd	ra,24(sp)
+    80003672:	e822                	sd	s0,16(sp)
+    80003674:	1000                	addi	s0,sp,32
+    80003676:	87aa                	mv	a5,a0
+    80003678:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:108
+  tohost_exit(code);
+    8000367c:	fec42783          	lw	a5,-20(s0)
+    80003680:	853e                	mv	a0,a5
+    80003682:	fadff0ef          	jal	ra,8000362e <tohost_exit>
+
+0000000080003686 <abort>:
+abort():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:112
+}
+
+void abort()
+{
+    80003686:	1141                	addi	sp,sp,-16
+    80003688:	e406                	sd	ra,8(sp)
+    8000368a:	e022                	sd	s0,0(sp)
+    8000368c:	0800                	addi	s0,sp,16
+/cva6/verif/sim/../tests/custom/common/syscalls.c:113
+  exit(128 + SIGABRT);
+    8000368e:	08600513          	li	a0,134
+    80003692:	fddff0ef          	jal	ra,8000366e <exit>
+
+0000000080003696 <printstr>:
+printstr():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:117
+}
+
+void printstr(const char* s)
+{
+    80003696:	7179                	addi	sp,sp,-48
+    80003698:	f406                	sd	ra,40(sp)
+    8000369a:	f022                	sd	s0,32(sp)
+    8000369c:	ec26                	sd	s1,24(sp)
+    8000369e:	1800                	addi	s0,sp,48
+    800036a0:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:119
+#if !NOPRINT
+  syscall(SYS_write, 1, (uintptr_t)s, strlen(s));
+    800036a4:	fd843483          	ld	s1,-40(s0)
+    800036a8:	fd843503          	ld	a0,-40(s0)
+    800036ac:	2d3000ef          	jal	ra,8000417e <strlen>
+    800036b0:	87aa                	mv	a5,a0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:119 (discriminator 1)
+    800036b2:	86be                	mv	a3,a5
+    800036b4:	8626                	mv	a2,s1
+    800036b6:	4585                	li	a1,1
+    800036b8:	04000513          	li	a0,64
+    800036bc:	db7ff0ef          	jal	ra,80003472 <syscall>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:121
+#endif
+}
+    800036c0:	0001                	nop
+    800036c2:	70a2                	ld	ra,40(sp)
+    800036c4:	7402                	ld	s0,32(sp)
+    800036c6:	64e2                	ld	s1,24(sp)
+    800036c8:	6145                	addi	sp,sp,48
+    800036ca:	8082                	ret
+
+00000000800036cc <thread_entry>:
+thread_entry():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:124
+
+void __attribute__((weak)) thread_entry(int cid, int nc)
+{
+    800036cc:	1101                	addi	sp,sp,-32
+    800036ce:	ec22                	sd	s0,24(sp)
+    800036d0:	1000                	addi	s0,sp,32
+    800036d2:	87aa                	mv	a5,a0
+    800036d4:	872e                	mv	a4,a1
+    800036d6:	fef42623          	sw	a5,-20(s0)
+    800036da:	87ba                	mv	a5,a4
+    800036dc:	fef42423          	sw	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:127
+  // multi-threaded programs override this function.
+  // for the case of single-threaded programs, only let core 0 proceed.
+  while (cid != 0);
+    800036e0:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:127 (discriminator 1)
+    800036e2:	fec42783          	lw	a5,-20(s0)
+    800036e6:	2781                	sext.w	a5,a5
+    800036e8:	ffed                	bnez	a5,800036e2 <thread_entry+0x16>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:128
+}
+    800036ea:	0001                	nop
+    800036ec:	0001                	nop
+    800036ee:	6462                	ld	s0,24(sp)
+    800036f0:	6105                	addi	sp,sp,32
+    800036f2:	8082                	ret
+main():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:131
+
+int __attribute__((weak)) main(int argc, char** argv)
+{
+    800036f4:	1101                	addi	sp,sp,-32
+    800036f6:	ec06                	sd	ra,24(sp)
+    800036f8:	e822                	sd	s0,16(sp)
+    800036fa:	1000                	addi	s0,sp,32
+    800036fc:	87aa                	mv	a5,a0
+    800036fe:	feb43023          	sd	a1,-32(s0)
+    80003702:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:133
+  // single-threaded programs override this function.
+  printstr("Implement main(), foo!\n");
+    80003706:	00002517          	auipc	a0,0x2
+    8000370a:	91250513          	addi	a0,a0,-1774 # 80005018 <_end_text+0x18>
+    8000370e:	f89ff0ef          	jal	ra,80003696 <printstr>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:134
+  return -1;
+    80003712:	57fd                	li	a5,-1
+/cva6/verif/sim/../tests/custom/common/syscalls.c:135
+}
+    80003714:	853e                	mv	a0,a5
+    80003716:	60e2                	ld	ra,24(sp)
+    80003718:	6442                	ld	s0,16(sp)
+    8000371a:	6105                	addi	sp,sp,32
+    8000371c:	8082                	ret
+
+000000008000371e <init_tls>:
+init_tls():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:138
+
+static void init_tls()
+{
+    8000371e:	1101                	addi	sp,sp,-32
+    80003720:	ec06                	sd	ra,24(sp)
+    80003722:	e822                	sd	s0,16(sp)
+    80003724:	1000                	addi	s0,sp,32
+/cva6/verif/sim/../tests/custom/common/syscalls.c:140
+  extern char _tdata_begin, _tdata_end, _tbss_end;
+  size_t tdata_size = &_tdata_end - &_tdata_begin;
+    80003726:	0001b717          	auipc	a4,0x1b
+    8000372a:	91270713          	addi	a4,a4,-1774 # 8001e038 <_tdata_begin>
+    8000372e:	0001b797          	auipc	a5,0x1b
+    80003732:	90a78793          	addi	a5,a5,-1782 # 8001e038 <_tdata_begin>
+    80003736:	40f707b3          	sub	a5,a4,a5
+    8000373a:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:141
+  memcpy(thread_pointer, &_tdata_begin, tdata_size);
+    8000373e:	8792                	mv	a5,tp
+    80003740:	fe843603          	ld	a2,-24(s0)
+    80003744:	0001b597          	auipc	a1,0x1b
+    80003748:	8f458593          	addi	a1,a1,-1804 # 8001e038 <_tdata_begin>
+    8000374c:	853e                	mv	a0,a5
+    8000374e:	0ab000ef          	jal	ra,80003ff8 <memcpy>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:142
+  size_t tbss_size = &_tbss_end - &_tdata_end;
+    80003752:	0001b717          	auipc	a4,0x1b
+    80003756:	97270713          	addi	a4,a4,-1678 # 8001e0c4 <_tbss_end>
+    8000375a:	0001b797          	auipc	a5,0x1b
+    8000375e:	8de78793          	addi	a5,a5,-1826 # 8001e038 <_tdata_begin>
+    80003762:	40f707b3          	sub	a5,a4,a5
+    80003766:	fef43023          	sd	a5,-32(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:143
+  memset(thread_pointer + tdata_size, 0, tbss_size);
+    8000376a:	8712                	mv	a4,tp
+    8000376c:	fe843783          	ld	a5,-24(s0)
+    80003770:	97ba                	add	a5,a5,a4
+    80003772:	fe043603          	ld	a2,-32(s0)
+    80003776:	4581                	li	a1,0
+    80003778:	853e                	mv	a0,a5
+    8000377a:	137000ef          	jal	ra,800040b0 <memset>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:144
+}
+    8000377e:	0001                	nop
+    80003780:	60e2                	ld	ra,24(sp)
+    80003782:	6442                	ld	s0,16(sp)
+    80003784:	6105                	addi	sp,sp,32
+    80003786:	8082                	ret
+
+0000000080003788 <_init>:
+_init():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:147
+
+void _init(int cid, int nc)
+{
+    80003788:	7171                	addi	sp,sp,-176
+    8000378a:	f506                	sd	ra,168(sp)
+    8000378c:	f122                	sd	s0,160(sp)
+    8000378e:	ed26                	sd	s1,152(sp)
+    80003790:	1900                	addi	s0,sp,176
+    80003792:	87aa                	mv	a5,a0
+    80003794:	872e                	mv	a4,a1
+    80003796:	f4f42e23          	sw	a5,-164(s0)
+    8000379a:	87ba                	mv	a5,a4
+    8000379c:	f4f42c23          	sw	a5,-168(s0)
+    800037a0:	fe040793          	addi	a5,s0,-32
+    800037a4:	f4f43823          	sd	a5,-176(s0)
+    800037a8:	f5043783          	ld	a5,-176(s0)
+    800037ac:	f8078793          	addi	a5,a5,-128
+    800037b0:	03f78793          	addi	a5,a5,63
+    800037b4:	8399                	srli	a5,a5,0x6
+    800037b6:	00679493          	slli	s1,a5,0x6
+/cva6/verif/sim/../tests/custom/common/syscalls.c:148
+  init_tls();
+    800037ba:	f65ff0ef          	jal	ra,8000371e <init_tls>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:149
+  thread_entry(cid, nc);
+    800037be:	f5842703          	lw	a4,-168(s0)
+    800037c2:	f5c42783          	lw	a5,-164(s0)
+    800037c6:	85ba                	mv	a1,a4
+    800037c8:	853e                	mv	a0,a5
+    800037ca:	f03ff0ef          	jal	ra,800036cc <thread_entry>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:152
+
+  // only single-threaded programs should ever get here.
+  int ret = main(0, 0);
+    800037ce:	4581                	li	a1,0
+    800037d0:	4501                	li	a0,0
+    800037d2:	82fff0ef          	jal	ra,80003000 <main>
+    800037d6:	87aa                	mv	a5,a0
+    800037d8:	fcf42823          	sw	a5,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:155
+
+  char buf[NUM_COUNTERS * 32] __attribute__((aligned(64)));
+  char* pbuf = buf;
+    800037dc:	fc943c23          	sd	s1,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:156
+  for (int i = 0; i < NUM_COUNTERS; i++)
+    800037e0:	fc042a23          	sw	zero,-44(s0)
+    800037e4:	a095                	j	80003848 <_init+0xc0>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:157
+    if (counters[i])
+    800037e6:	0001b717          	auipc	a4,0x1b
+    800037ea:	82a70713          	addi	a4,a4,-2006 # 8001e010 <counters>
+    800037ee:	fd442783          	lw	a5,-44(s0)
+    800037f2:	078e                	slli	a5,a5,0x3
+    800037f4:	97ba                	add	a5,a5,a4
+    800037f6:	639c                	ld	a5,0(a5)
+    800037f8:	c3b9                	beqz	a5,8000383e <_init+0xb6>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:158
+      pbuf += sprintf(pbuf, "%s = %zu\n", counter_names[i], counters[i]);
+    800037fa:	0001b717          	auipc	a4,0x1b
+    800037fe:	82670713          	addi	a4,a4,-2010 # 8001e020 <counter_names>
+    80003802:	fd442783          	lw	a5,-44(s0)
+    80003806:	078e                	slli	a5,a5,0x3
+    80003808:	97ba                	add	a5,a5,a4
+    8000380a:	6390                	ld	a2,0(a5)
+    8000380c:	0001b717          	auipc	a4,0x1b
+    80003810:	80470713          	addi	a4,a4,-2044 # 8001e010 <counters>
+    80003814:	fd442783          	lw	a5,-44(s0)
+    80003818:	078e                	slli	a5,a5,0x3
+    8000381a:	97ba                	add	a5,a5,a4
+    8000381c:	639c                	ld	a5,0(a5)
+    8000381e:	86be                	mv	a3,a5
+    80003820:	00002597          	auipc	a1,0x2
+    80003824:	81058593          	addi	a1,a1,-2032 # 80005030 <_end_text+0x30>
+    80003828:	fd843503          	ld	a0,-40(s0)
+    8000382c:	754000ef          	jal	ra,80003f80 <sprintf>
+    80003830:	87aa                	mv	a5,a0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:158 (discriminator 1)
+    80003832:	873e                	mv	a4,a5
+    80003834:	fd843783          	ld	a5,-40(s0)
+    80003838:	97ba                	add	a5,a5,a4
+    8000383a:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:156 (discriminator 2)
+  for (int i = 0; i < NUM_COUNTERS; i++)
+    8000383e:	fd442783          	lw	a5,-44(s0)
+    80003842:	2785                	addiw	a5,a5,1
+    80003844:	fcf42a23          	sw	a5,-44(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:156 (discriminator 1)
+    80003848:	fd442783          	lw	a5,-44(s0)
+    8000384c:	0007871b          	sext.w	a4,a5
+    80003850:	4785                	li	a5,1
+    80003852:	f8e7dae3          	bge	a5,a4,800037e6 <_init+0x5e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:159
+  if (pbuf != buf)
+    80003856:	fd843783          	ld	a5,-40(s0)
+    8000385a:	00f48563          	beq	s1,a5,80003864 <_init+0xdc>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:160
+    printstr(buf);
+    8000385e:	8526                	mv	a0,s1
+    80003860:	e37ff0ef          	jal	ra,80003696 <printstr>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:162
+
+  exit(ret);
+    80003864:	fd042783          	lw	a5,-48(s0)
+    80003868:	853e                	mv	a0,a5
+    8000386a:	e05ff0ef          	jal	ra,8000366e <exit>
+
+000000008000386e <puts>:
+puts():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:166
+}
+
+int puts(const char *s)
+{
+    8000386e:	7179                	addi	sp,sp,-48
+    80003870:	f406                	sd	ra,40(sp)
+    80003872:	f022                	sd	s0,32(sp)
+    80003874:	1800                	addi	s0,sp,48
+    80003876:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:167
+  const char *p = s;
+    8000387a:	fd843783          	ld	a5,-40(s0)
+    8000387e:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:169
+
+  while (*p)
+    80003882:	a829                	j	8000389c <puts+0x2e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:170
+    putchar(*p++);
+    80003884:	fe843783          	ld	a5,-24(s0)
+    80003888:	00178713          	addi	a4,a5,1
+    8000388c:	fee43423          	sd	a4,-24(s0)
+    80003890:	0007c783          	lbu	a5,0(a5)
+    80003894:	2781                	sext.w	a5,a5
+    80003896:	853e                	mv	a0,a5
+    80003898:	020000ef          	jal	ra,800038b8 <putchar>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:169
+  while (*p)
+    8000389c:	fe843783          	ld	a5,-24(s0)
+    800038a0:	0007c783          	lbu	a5,0(a5)
+    800038a4:	f3e5                	bnez	a5,80003884 <puts+0x16>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:172
+
+  putchar('\n');
+    800038a6:	4529                	li	a0,10
+    800038a8:	010000ef          	jal	ra,800038b8 <putchar>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:173
+  return 0;
+    800038ac:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:174
+}
+    800038ae:	853e                	mv	a0,a5
+    800038b0:	70a2                	ld	ra,40(sp)
+    800038b2:	7402                	ld	s0,32(sp)
+    800038b4:	6145                	addi	sp,sp,48
+    800038b6:	8082                	ret
+
+00000000800038b8 <putchar>:
+putchar():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:178
+
+#undef putchar
+int putchar(int ch)
+{
+    800038b8:	1101                	addi	sp,sp,-32
+    800038ba:	ec06                	sd	ra,24(sp)
+    800038bc:	e822                	sd	s0,16(sp)
+    800038be:	1000                	addi	s0,sp,32
+    800038c0:	87aa                	mv	a5,a0
+    800038c2:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:183
+#if !NOPRINT
+  static __thread char buf[64] __attribute__((aligned(64)));
+  static __thread int buflen = 0;
+
+  buf[buflen++] = ch;
+    800038c6:	08022783          	lw	a5,128(tp) # 80 <buflen.2>
+    800038ca:	0017871b          	addiw	a4,a5,1
+    800038ce:	0007069b          	sext.w	a3,a4
+    800038d2:	08d22023          	sw	a3,128(tp) # 80 <buflen.2>
+    800038d6:	fec42703          	lw	a4,-20(s0)
+    800038da:	0ff77713          	andi	a4,a4,255
+    800038de:	04020693          	addi	a3,tp,64 # 40 <buf.3>
+    800038e2:	97b6                	add	a5,a5,a3
+    800038e4:	00e78023          	sb	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:185
+
+  if (ch == '\n' || buflen == sizeof(buf))
+    800038e8:	fec42783          	lw	a5,-20(s0)
+    800038ec:	0007871b          	sext.w	a4,a5
+    800038f0:	47a9                	li	a5,10
+    800038f2:	00f70963          	beq	a4,a5,80003904 <putchar+0x4c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:185 (discriminator 1)
+    800038f6:	08022783          	lw	a5,128(tp) # 80 <buflen.2>
+    800038fa:	873e                	mv	a4,a5
+    800038fc:	04000793          	li	a5,64
+    80003900:	00f71f63          	bne	a4,a5,8000391e <putchar+0x66>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:187
+  {
+    syscall(SYS_write, 1, (uintptr_t)buf, buflen);
+    80003904:	04020713          	addi	a4,tp,64 # 40 <buf.3>
+    80003908:	08022783          	lw	a5,128(tp) # 80 <buflen.2>
+    8000390c:	86be                	mv	a3,a5
+    8000390e:	863a                	mv	a2,a4
+    80003910:	4585                	li	a1,1
+    80003912:	04000513          	li	a0,64
+    80003916:	b5dff0ef          	jal	ra,80003472 <syscall>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:188
+    buflen = 0;
+    8000391a:	08022023          	sw	zero,128(tp) # 80 <buflen.2>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:192
+  }
+#endif
+
+  return 0;
+    8000391e:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:193
+}
+    80003920:	853e                	mv	a0,a5
+    80003922:	60e2                	ld	ra,24(sp)
+    80003924:	6442                	ld	s0,16(sp)
+    80003926:	6105                	addi	sp,sp,32
+    80003928:	8082                	ret
+
+000000008000392a <printhex>:
+printhex():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:196
+
+void printhex(uint64_t x)
+{
+    8000392a:	7139                	addi	sp,sp,-64
+    8000392c:	fc06                	sd	ra,56(sp)
+    8000392e:	f822                	sd	s0,48(sp)
+    80003930:	0080                	addi	s0,sp,64
+    80003932:	fca43423          	sd	a0,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:199
+  char str[17];
+  int i;
+  for (i = 0; i < 16; i++)
+    80003936:	fe042623          	sw	zero,-20(s0)
+    8000393a:	a899                	j	80003990 <printhex+0x66>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:201
+  {
+    str[15-i] = (x & 0xF) + ((x & 0xF) < 10 ? '0' : 'a'-10);
+    8000393c:	fc843783          	ld	a5,-56(s0)
+    80003940:	0ff7f793          	andi	a5,a5,255
+    80003944:	8bbd                	andi	a5,a5,15
+    80003946:	0ff7f713          	andi	a4,a5,255
+    8000394a:	fc843783          	ld	a5,-56(s0)
+    8000394e:	00f7f693          	andi	a3,a5,15
+    80003952:	47a5                	li	a5,9
+    80003954:	00d7e563          	bltu	a5,a3,8000395e <printhex+0x34>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:201 (discriminator 1)
+    80003958:	03000793          	li	a5,48
+    8000395c:	a019                	j	80003962 <printhex+0x38>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:201 (discriminator 2)
+    8000395e:	05700793          	li	a5,87
+/cva6/verif/sim/../tests/custom/common/syscalls.c:201 (discriminator 4)
+    80003962:	46bd                	li	a3,15
+    80003964:	fec42603          	lw	a2,-20(s0)
+    80003968:	9e91                	subw	a3,a3,a2
+    8000396a:	2681                	sext.w	a3,a3
+    8000396c:	9fb9                	addw	a5,a5,a4
+    8000396e:	0ff7f713          	andi	a4,a5,255
+    80003972:	ff068793          	addi	a5,a3,-16
+    80003976:	97a2                	add	a5,a5,s0
+    80003978:	fee78423          	sb	a4,-24(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:202
+    x >>= 4;
+    8000397c:	fc843783          	ld	a5,-56(s0)
+    80003980:	8391                	srli	a5,a5,0x4
+    80003982:	fcf43423          	sd	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:199 (discriminator 2)
+  for (i = 0; i < 16; i++)
+    80003986:	fec42783          	lw	a5,-20(s0)
+    8000398a:	2785                	addiw	a5,a5,1
+    8000398c:	fef42623          	sw	a5,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:199 (discriminator 1)
+    80003990:	fec42783          	lw	a5,-20(s0)
+    80003994:	0007871b          	sext.w	a4,a5
+    80003998:	47bd                	li	a5,15
+    8000399a:	fae7d1e3          	bge	a5,a4,8000393c <printhex+0x12>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:204
+  }
+  str[16] = 0;
+    8000399e:	fe040423          	sb	zero,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:206
+
+  printstr(str);
+    800039a2:	fd840793          	addi	a5,s0,-40
+    800039a6:	853e                	mv	a0,a5
+    800039a8:	cefff0ef          	jal	ra,80003696 <printstr>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:207
+}
+    800039ac:	0001                	nop
+    800039ae:	70e2                	ld	ra,56(sp)
+    800039b0:	7442                	ld	s0,48(sp)
+    800039b2:	6121                	addi	sp,sp,64
+    800039b4:	8082                	ret
+
+00000000800039b6 <printnum>:
+printnum():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:211
+
+static inline void printnum(void (*putch)(int, void**), void **putdat,
+                    unsigned long long num, unsigned base, int width, int padc)
+{
+    800039b6:	714d                	addi	sp,sp,-336
+    800039b8:	e686                	sd	ra,328(sp)
+    800039ba:	e2a2                	sd	s0,320(sp)
+    800039bc:	0a80                	addi	s0,sp,336
+    800039be:	eca43c23          	sd	a0,-296(s0)
+    800039c2:	ecb43823          	sd	a1,-304(s0)
+    800039c6:	ecc43423          	sd	a2,-312(s0)
+    800039ca:	8636                	mv	a2,a3
+    800039cc:	86ba                	mv	a3,a4
+    800039ce:	873e                	mv	a4,a5
+    800039d0:	87b2                	mv	a5,a2
+    800039d2:	ecf42223          	sw	a5,-316(s0)
+    800039d6:	87b6                	mv	a5,a3
+    800039d8:	ecf42023          	sw	a5,-320(s0)
+    800039dc:	87ba                	mv	a5,a4
+    800039de:	eaf42e23          	sw	a5,-324(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:213
+  unsigned digs[sizeof(num)*CHAR_BIT];
+  int pos = 0;
+    800039e2:	fe042623          	sw	zero,-20(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:217
+
+  while (1)
+  {
+    digs[pos++] = num % base;
+    800039e6:	ec446783          	lwu	a5,-316(s0)
+    800039ea:	ec843703          	ld	a4,-312(s0)
+    800039ee:	02f776b3          	remu	a3,a4,a5
+    800039f2:	fec42783          	lw	a5,-20(s0)
+    800039f6:	0017871b          	addiw	a4,a5,1
+    800039fa:	fee42623          	sw	a4,-20(s0)
+    800039fe:	0006871b          	sext.w	a4,a3
+    80003a02:	078a                	slli	a5,a5,0x2
+    80003a04:	17c1                	addi	a5,a5,-16
+    80003a06:	97a2                	add	a5,a5,s0
+    80003a08:	eee7ac23          	sw	a4,-264(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:218
+    if (num < base)
+    80003a0c:	ec446783          	lwu	a5,-316(s0)
+    80003a10:	ec843703          	ld	a4,-312(s0)
+    80003a14:	00f76b63          	bltu	a4,a5,80003a2a <printnum+0x74>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:220
+      break;
+    num /= base;
+    80003a18:	ec446783          	lwu	a5,-316(s0)
+    80003a1c:	ec843703          	ld	a4,-312(s0)
+    80003a20:	02f757b3          	divu	a5,a4,a5
+    80003a24:	ecf43423          	sd	a5,-312(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:217
+    digs[pos++] = num % base;
+    80003a28:	bf7d                	j	800039e6 <printnum+0x30>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:219
+      break;
+    80003a2a:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:223
+  }
+
+  while (width-- > pos)
+    80003a2c:	a809                	j	80003a3e <printnum+0x88>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:224
+    putch(padc, putdat);
+    80003a2e:	ebc42703          	lw	a4,-324(s0)
+    80003a32:	ed843783          	ld	a5,-296(s0)
+    80003a36:	ed043583          	ld	a1,-304(s0)
+    80003a3a:	853a                	mv	a0,a4
+    80003a3c:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:223
+  while (width-- > pos)
+    80003a3e:	ec042783          	lw	a5,-320(s0)
+    80003a42:	fff7871b          	addiw	a4,a5,-1
+    80003a46:	ece42023          	sw	a4,-320(s0)
+    80003a4a:	fec42703          	lw	a4,-20(s0)
+    80003a4e:	2701                	sext.w	a4,a4
+    80003a50:	fcf74fe3          	blt	a4,a5,80003a2e <printnum+0x78>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:226
+
+  while (pos-- > 0)
+    80003a54:	a091                	j	80003a98 <printnum+0xe2>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:227
+    putch(digs[pos] + (digs[pos] >= 10 ? 'a' - 10 : '0'), putdat);
+    80003a56:	fec42783          	lw	a5,-20(s0)
+    80003a5a:	078a                	slli	a5,a5,0x2
+    80003a5c:	17c1                	addi	a5,a5,-16
+    80003a5e:	97a2                	add	a5,a5,s0
+    80003a60:	ef87a703          	lw	a4,-264(a5)
+    80003a64:	fec42783          	lw	a5,-20(s0)
+    80003a68:	078a                	slli	a5,a5,0x2
+    80003a6a:	17c1                	addi	a5,a5,-16
+    80003a6c:	97a2                	add	a5,a5,s0
+    80003a6e:	ef87a783          	lw	a5,-264(a5)
+    80003a72:	86be                	mv	a3,a5
+    80003a74:	47a5                	li	a5,9
+    80003a76:	00d7f563          	bgeu	a5,a3,80003a80 <printnum+0xca>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:227 (discriminator 1)
+    80003a7a:	05700793          	li	a5,87
+    80003a7e:	a019                	j	80003a84 <printnum+0xce>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:227 (discriminator 2)
+    80003a80:	03000793          	li	a5,48
+/cva6/verif/sim/../tests/custom/common/syscalls.c:227 (discriminator 4)
+    80003a84:	9fb9                	addw	a5,a5,a4
+    80003a86:	2781                	sext.w	a5,a5
+    80003a88:	0007871b          	sext.w	a4,a5
+    80003a8c:	ed843783          	ld	a5,-296(s0)
+    80003a90:	ed043583          	ld	a1,-304(s0)
+    80003a94:	853a                	mv	a0,a4
+    80003a96:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:226
+  while (pos-- > 0)
+    80003a98:	fec42783          	lw	a5,-20(s0)
+    80003a9c:	fff7871b          	addiw	a4,a5,-1
+    80003aa0:	fee42623          	sw	a4,-20(s0)
+    80003aa4:	faf049e3          	bgtz	a5,80003a56 <printnum+0xa0>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:228
+}
+    80003aa8:	0001                	nop
+    80003aaa:	0001                	nop
+    80003aac:	60b6                	ld	ra,328(sp)
+    80003aae:	6416                	ld	s0,320(sp)
+    80003ab0:	6171                	addi	sp,sp,336
+    80003ab2:	8082                	ret
+
+0000000080003ab4 <getuint>:
+getuint():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:231
+
+static unsigned long long getuint(va_list *ap, int lflag)
+{
+    80003ab4:	1101                	addi	sp,sp,-32
+    80003ab6:	ec22                	sd	s0,24(sp)
+    80003ab8:	1000                	addi	s0,sp,32
+    80003aba:	fea43423          	sd	a0,-24(s0)
+    80003abe:	87ae                	mv	a5,a1
+    80003ac0:	fef42223          	sw	a5,-28(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:232
+  if (lflag >= 2)
+    80003ac4:	fe442783          	lw	a5,-28(s0)
+    80003ac8:	0007871b          	sext.w	a4,a5
+    80003acc:	4785                	li	a5,1
+    80003ace:	00e7dc63          	bge	a5,a4,80003ae6 <getuint+0x32>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:233
+    return va_arg(*ap, unsigned long long);
+    80003ad2:	fe843783          	ld	a5,-24(s0)
+    80003ad6:	639c                	ld	a5,0(a5)
+    80003ad8:	00878693          	addi	a3,a5,8
+    80003adc:	fe843703          	ld	a4,-24(s0)
+    80003ae0:	e314                	sd	a3,0(a4)
+    80003ae2:	639c                	ld	a5,0(a5)
+    80003ae4:	a815                	j	80003b18 <getuint+0x64>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:234
+  else if (lflag)
+    80003ae6:	fe442783          	lw	a5,-28(s0)
+    80003aea:	2781                	sext.w	a5,a5
+    80003aec:	cb99                	beqz	a5,80003b02 <getuint+0x4e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:235
+    return va_arg(*ap, unsigned long);
+    80003aee:	fe843783          	ld	a5,-24(s0)
+    80003af2:	639c                	ld	a5,0(a5)
+    80003af4:	00878693          	addi	a3,a5,8
+    80003af8:	fe843703          	ld	a4,-24(s0)
+    80003afc:	e314                	sd	a3,0(a4)
+    80003afe:	639c                	ld	a5,0(a5)
+    80003b00:	a821                	j	80003b18 <getuint+0x64>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:237
+  else
+    return va_arg(*ap, unsigned int);
+    80003b02:	fe843783          	ld	a5,-24(s0)
+    80003b06:	639c                	ld	a5,0(a5)
+    80003b08:	00878693          	addi	a3,a5,8
+    80003b0c:	fe843703          	ld	a4,-24(s0)
+    80003b10:	e314                	sd	a3,0(a4)
+    80003b12:	439c                	lw	a5,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:237 (discriminator 1)
+    80003b14:	080787bb          	0x80787bb
+/cva6/verif/sim/../tests/custom/common/syscalls.c:238
+}
+    80003b18:	853e                	mv	a0,a5
+    80003b1a:	6462                	ld	s0,24(sp)
+    80003b1c:	6105                	addi	sp,sp,32
+    80003b1e:	8082                	ret
+
+0000000080003b20 <getint>:
+getint():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:241
+
+static long long getint(va_list *ap, int lflag)
+{
+    80003b20:	1101                	addi	sp,sp,-32
+    80003b22:	ec22                	sd	s0,24(sp)
+    80003b24:	1000                	addi	s0,sp,32
+    80003b26:	fea43423          	sd	a0,-24(s0)
+    80003b2a:	87ae                	mv	a5,a1
+    80003b2c:	fef42223          	sw	a5,-28(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:242
+  if (lflag >= 2)
+    80003b30:	fe442783          	lw	a5,-28(s0)
+    80003b34:	0007871b          	sext.w	a4,a5
+    80003b38:	4785                	li	a5,1
+    80003b3a:	00e7dc63          	bge	a5,a4,80003b52 <getint+0x32>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:243
+    return va_arg(*ap, long long);
+    80003b3e:	fe843783          	ld	a5,-24(s0)
+    80003b42:	639c                	ld	a5,0(a5)
+    80003b44:	00878693          	addi	a3,a5,8
+    80003b48:	fe843703          	ld	a4,-24(s0)
+    80003b4c:	e314                	sd	a3,0(a4)
+    80003b4e:	639c                	ld	a5,0(a5)
+    80003b50:	a805                	j	80003b80 <getint+0x60>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:244
+  else if (lflag)
+    80003b52:	fe442783          	lw	a5,-28(s0)
+    80003b56:	2781                	sext.w	a5,a5
+    80003b58:	cb99                	beqz	a5,80003b6e <getint+0x4e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:245
+    return va_arg(*ap, long);
+    80003b5a:	fe843783          	ld	a5,-24(s0)
+    80003b5e:	639c                	ld	a5,0(a5)
+    80003b60:	00878693          	addi	a3,a5,8
+    80003b64:	fe843703          	ld	a4,-24(s0)
+    80003b68:	e314                	sd	a3,0(a4)
+    80003b6a:	639c                	ld	a5,0(a5)
+    80003b6c:	a811                	j	80003b80 <getint+0x60>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:247
+  else
+    return va_arg(*ap, int);
+    80003b6e:	fe843783          	ld	a5,-24(s0)
+    80003b72:	639c                	ld	a5,0(a5)
+    80003b74:	00878693          	addi	a3,a5,8
+    80003b78:	fe843703          	ld	a4,-24(s0)
+    80003b7c:	e314                	sd	a3,0(a4)
+    80003b7e:	439c                	lw	a5,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:248
+}
+    80003b80:	853e                	mv	a0,a5
+    80003b82:	6462                	ld	s0,24(sp)
+    80003b84:	6105                	addi	sp,sp,32
+    80003b86:	8082                	ret
+
+0000000080003b88 <vprintfmt>:
+vprintfmt():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:251
+
+static void vprintfmt(void (*putch)(int, void**), void **putdat, const char *fmt, va_list ap)
+{
+    80003b88:	7159                	addi	sp,sp,-112
+    80003b8a:	f486                	sd	ra,104(sp)
+    80003b8c:	f0a2                	sd	s0,96(sp)
+    80003b8e:	eca6                	sd	s1,88(sp)
+    80003b90:	e8ca                	sd	s2,80(sp)
+    80003b92:	1880                	addi	s0,sp,112
+    80003b94:	faa43423          	sd	a0,-88(s0)
+    80003b98:	fab43023          	sd	a1,-96(s0)
+    80003b9c:	f8c43c23          	sd	a2,-104(s0)
+    80003ba0:	f8d43823          	sd	a3,-112(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:260
+  unsigned long long num;
+  int base, lflag, width, precision, altflag;
+  char padc;
+
+  while (1) {
+    while ((ch = *(unsigned char *) fmt) != '%') {
+    80003ba4:	a831                	j	80003bc0 <vprintfmt+0x38>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:261
+      if (ch == '\0')
+    80003ba6:	32048a63          	beqz	s1,80003eda <vprintfmt+0x352>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:263
+        return;
+      fmt++;
+    80003baa:	f9843783          	ld	a5,-104(s0)
+    80003bae:	0785                	addi	a5,a5,1
+    80003bb0:	f8f43c23          	sd	a5,-104(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:264
+      putch(ch, putdat);
+    80003bb4:	fa843783          	ld	a5,-88(s0)
+    80003bb8:	fa043583          	ld	a1,-96(s0)
+    80003bbc:	8526                	mv	a0,s1
+    80003bbe:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:260
+    while ((ch = *(unsigned char *) fmt) != '%') {
+    80003bc0:	f9843783          	ld	a5,-104(s0)
+    80003bc4:	0007c783          	lbu	a5,0(a5)
+    80003bc8:	0007849b          	sext.w	s1,a5
+    80003bcc:	8726                	mv	a4,s1
+    80003bce:	02500793          	li	a5,37
+    80003bd2:	fcf71ae3          	bne	a4,a5,80003ba6 <vprintfmt+0x1e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:266
+    }
+    fmt++;
+    80003bd6:	f9843783          	ld	a5,-104(s0)
+    80003bda:	0785                	addi	a5,a5,1
+    80003bdc:	f8f43c23          	sd	a5,-104(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:269
+
+    // Process a %-escape sequence
+    last_fmt = fmt;
+    80003be0:	f9843783          	ld	a5,-104(s0)
+    80003be4:	faf43c23          	sd	a5,-72(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:270
+    padc = ' ';
+    80003be8:	02000793          	li	a5,32
+    80003bec:	fcf403a3          	sb	a5,-57(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:271
+    width = -1;
+    80003bf0:	57fd                	li	a5,-1
+    80003bf2:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:272
+    precision = -1;
+    80003bf6:	57fd                	li	a5,-1
+    80003bf8:	fcf42423          	sw	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:273
+    lflag = 0;
+    80003bfc:	fc042823          	sw	zero,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:274
+    altflag = 0;
+    80003c00:	fa042a23          	sw	zero,-76(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:276
+  reswitch:
+    switch (ch = *(unsigned char *) fmt++) {
+    80003c04:	f9843783          	ld	a5,-104(s0)
+    80003c08:	00178713          	addi	a4,a5,1
+    80003c0c:	f8e43c23          	sd	a4,-104(s0)
+    80003c10:	0007c783          	lbu	a5,0(a5)
+    80003c14:	0007849b          	sext.w	s1,a5
+    80003c18:	fdd4869b          	addiw	a3,s1,-35
+    80003c1c:	0006871b          	sext.w	a4,a3
+    80003c20:	05500793          	li	a5,85
+    80003c24:	28e7ee63          	bltu	a5,a4,80003ec0 <vprintfmt+0x338>
+    80003c28:	080687bb          	0x80687bb
+    80003c2c:	00279713          	slli	a4,a5,0x2
+    80003c30:	00001797          	auipc	a5,0x1
+    80003c34:	41878793          	addi	a5,a5,1048 # 80005048 <_end_text+0x48>
+    80003c38:	97ba                	add	a5,a5,a4
+    80003c3a:	439c                	lw	a5,0(a5)
+    80003c3c:	0007871b          	sext.w	a4,a5
+    80003c40:	00001797          	auipc	a5,0x1
+    80003c44:	40878793          	addi	a5,a5,1032 # 80005048 <_end_text+0x48>
+    80003c48:	97ba                	add	a5,a5,a4
+    80003c4a:	8782                	jr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:280
+
+    // flag to pad on the right
+    case '-':
+      padc = '-';
+    80003c4c:	02d00793          	li	a5,45
+    80003c50:	fcf403a3          	sb	a5,-57(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:281
+      goto reswitch;
+    80003c54:	bf45                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:285
+      
+    // flag to pad with 0's instead of spaces
+    case '0':
+      padc = '0';
+    80003c56:	03000793          	li	a5,48
+    80003c5a:	fcf403a3          	sb	a5,-57(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:286
+      goto reswitch;
+    80003c5e:	b75d                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:298
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      for (precision = 0; ; ++fmt) {
+    80003c60:	fc042423          	sw	zero,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:299
+        precision = precision * 10 + ch - '0';
+    80003c64:	fc842783          	lw	a5,-56(s0)
+    80003c68:	873e                	mv	a4,a5
+    80003c6a:	87ba                	mv	a5,a4
+    80003c6c:	0027979b          	slliw	a5,a5,0x2
+    80003c70:	9fb9                	addw	a5,a5,a4
+    80003c72:	0017979b          	slliw	a5,a5,0x1
+    80003c76:	2781                	sext.w	a5,a5
+    80003c78:	9fa5                	addw	a5,a5,s1
+    80003c7a:	2781                	sext.w	a5,a5
+    80003c7c:	fd07879b          	addiw	a5,a5,-48
+    80003c80:	fcf42423          	sw	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:300
+        ch = *fmt;
+    80003c84:	f9843783          	ld	a5,-104(s0)
+    80003c88:	0007c783          	lbu	a5,0(a5)
+    80003c8c:	0007849b          	sext.w	s1,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:301
+        if (ch < '0' || ch > '9')
+    80003c90:	8726                	mv	a4,s1
+    80003c92:	02f00793          	li	a5,47
+    80003c96:	04e7d363          	bge	a5,a4,80003cdc <vprintfmt+0x154>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:301 (discriminator 1)
+    80003c9a:	8726                	mv	a4,s1
+    80003c9c:	03900793          	li	a5,57
+    80003ca0:	02e7ce63          	blt	a5,a4,80003cdc <vprintfmt+0x154>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:298
+      for (precision = 0; ; ++fmt) {
+    80003ca4:	f9843783          	ld	a5,-104(s0)
+    80003ca8:	0785                	addi	a5,a5,1
+    80003caa:	f8f43c23          	sd	a5,-104(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:299
+        precision = precision * 10 + ch - '0';
+    80003cae:	bf5d                	j	80003c64 <vprintfmt+0xdc>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:307
+          break;
+      }
+      goto process_precision;
+
+    case '*':
+      precision = va_arg(ap, int);
+    80003cb0:	f9043783          	ld	a5,-112(s0)
+    80003cb4:	00878713          	addi	a4,a5,8
+    80003cb8:	f8e43823          	sd	a4,-112(s0)
+    80003cbc:	439c                	lw	a5,0(a5)
+    80003cbe:	fcf42423          	sw	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:308
+      goto process_precision;
+    80003cc2:	a831                	j	80003cde <vprintfmt+0x156>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:311
+
+    case '.':
+      if (width < 0)
+    80003cc4:	fcc42783          	lw	a5,-52(s0)
+    80003cc8:	2781                	sext.w	a5,a5
+    80003cca:	f207dde3          	bgez	a5,80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:312
+        width = 0;
+    80003cce:	fc042623          	sw	zero,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:313
+      goto reswitch;
+    80003cd2:	bf0d                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:316
+
+    case '#':
+      altflag = 1;
+    80003cd4:	4785                	li	a5,1
+    80003cd6:	faf42a23          	sw	a5,-76(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:317
+      goto reswitch;
+    80003cda:	b72d                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:304
+      goto process_precision;
+    80003cdc:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:320
+
+    process_precision:
+      if (width < 0)
+    80003cde:	fcc42783          	lw	a5,-52(s0)
+    80003ce2:	2781                	sext.w	a5,a5
+    80003ce4:	f207d0e3          	bgez	a5,80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:321
+        width = precision, precision = -1;
+    80003ce8:	fc842783          	lw	a5,-56(s0)
+    80003cec:	fcf42623          	sw	a5,-52(s0)
+    80003cf0:	57fd                	li	a5,-1
+    80003cf2:	fcf42423          	sw	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:322
+      goto reswitch;
+    80003cf6:	b739                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:326
+
+    // long flag (doubled for long long)
+    case 'l':
+      lflag++;
+    80003cf8:	fd042783          	lw	a5,-48(s0)
+    80003cfc:	2785                	addiw	a5,a5,1
+    80003cfe:	fcf42823          	sw	a5,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:327
+      goto reswitch;
+    80003d02:	b709                	j	80003c04 <vprintfmt+0x7c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:331
+
+    // character
+    case 'c':
+      putch(va_arg(ap, int), putdat);
+    80003d04:	f9043783          	ld	a5,-112(s0)
+    80003d08:	00878713          	addi	a4,a5,8
+    80003d0c:	f8e43823          	sd	a4,-112(s0)
+    80003d10:	4398                	lw	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:331 (discriminator 1)
+    80003d12:	fa843783          	ld	a5,-88(s0)
+    80003d16:	fa043583          	ld	a1,-96(s0)
+    80003d1a:	853a                	mv	a0,a4
+    80003d1c:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:332
+      break;
+    80003d1e:	aa6d                	j	80003ed8 <vprintfmt+0x350>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:336
+
+    // string
+    case 's':
+      if ((p = va_arg(ap, char *)) == NULL)
+    80003d20:	f9043783          	ld	a5,-112(s0)
+    80003d24:	00878713          	addi	a4,a5,8
+    80003d28:	f8e43823          	sd	a4,-112(s0)
+    80003d2c:	0007b903          	ld	s2,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:336 (discriminator 1)
+    80003d30:	00091663          	bnez	s2,80003d3c <vprintfmt+0x1b4>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:337
+        p = "(null)";
+    80003d34:	00001917          	auipc	s2,0x1
+    80003d38:	30c90913          	addi	s2,s2,780 # 80005040 <_end_text+0x40>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:338
+      if (width > 0 && padc != '-')
+    80003d3c:	fcc42783          	lw	a5,-52(s0)
+    80003d40:	2781                	sext.w	a5,a5
+    80003d42:	06f05b63          	blez	a5,80003db8 <vprintfmt+0x230>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:338 (discriminator 1)
+    80003d46:	fc744783          	lbu	a5,-57(s0)
+    80003d4a:	0ff7f713          	andi	a4,a5,255
+    80003d4e:	02d00793          	li	a5,45
+    80003d52:	06f70363          	beq	a4,a5,80003db8 <vprintfmt+0x230>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:339
+        for (width -= strnlen(p, precision); width > 0; width--)
+    80003d56:	fcc42483          	lw	s1,-52(s0)
+    80003d5a:	fc842783          	lw	a5,-56(s0)
+    80003d5e:	85be                	mv	a1,a5
+    80003d60:	854a                	mv	a0,s2
+    80003d62:	458000ef          	jal	ra,800041ba <strnlen>
+    80003d66:	87aa                	mv	a5,a0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:339 (discriminator 1)
+    80003d68:	2781                	sext.w	a5,a5
+    80003d6a:	40f487bb          	subw	a5,s1,a5
+    80003d6e:	2781                	sext.w	a5,a5
+    80003d70:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:339
+    80003d74:	a005                	j	80003d94 <vprintfmt+0x20c>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:340
+          putch(padc, putdat);
+    80003d76:	fc744783          	lbu	a5,-57(s0)
+    80003d7a:	0007871b          	sext.w	a4,a5
+    80003d7e:	fa843783          	ld	a5,-88(s0)
+    80003d82:	fa043583          	ld	a1,-96(s0)
+    80003d86:	853a                	mv	a0,a4
+    80003d88:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:339 (discriminator 3)
+        for (width -= strnlen(p, precision); width > 0; width--)
+    80003d8a:	fcc42783          	lw	a5,-52(s0)
+    80003d8e:	37fd                	addiw	a5,a5,-1
+    80003d90:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:339 (discriminator 1)
+    80003d94:	fcc42783          	lw	a5,-52(s0)
+    80003d98:	2781                	sext.w	a5,a5
+    80003d9a:	fcf04ee3          	bgtz	a5,80003d76 <vprintfmt+0x1ee>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:341
+      for (; (ch = *p) != '\0' && (precision < 0 || --precision >= 0); width--) {
+    80003d9e:	a829                	j	80003db8 <vprintfmt+0x230>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:342
+        putch(ch, putdat);
+    80003da0:	fa843783          	ld	a5,-88(s0)
+    80003da4:	fa043583          	ld	a1,-96(s0)
+    80003da8:	8526                	mv	a0,s1
+    80003daa:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:343
+        p++;
+    80003dac:	0905                	addi	s2,s2,1
+/cva6/verif/sim/../tests/custom/common/syscalls.c:341 (discriminator 5)
+      for (; (ch = *p) != '\0' && (precision < 0 || --precision >= 0); width--) {
+    80003dae:	fcc42783          	lw	a5,-52(s0)
+    80003db2:	37fd                	addiw	a5,a5,-1
+    80003db4:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:341 (discriminator 1)
+    80003db8:	00094783          	lbu	a5,0(s2)
+    80003dbc:	0007849b          	sext.w	s1,a5
+    80003dc0:	cc8d                	beqz	s1,80003dfa <vprintfmt+0x272>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:341 (discriminator 2)
+    80003dc2:	fc842783          	lw	a5,-56(s0)
+    80003dc6:	2781                	sext.w	a5,a5
+    80003dc8:	fc07cce3          	bltz	a5,80003da0 <vprintfmt+0x218>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:341 (discriminator 4)
+    80003dcc:	fc842783          	lw	a5,-56(s0)
+    80003dd0:	37fd                	addiw	a5,a5,-1
+    80003dd2:	fcf42423          	sw	a5,-56(s0)
+    80003dd6:	fc842783          	lw	a5,-56(s0)
+    80003dda:	2781                	sext.w	a5,a5
+    80003ddc:	fc07d2e3          	bgez	a5,80003da0 <vprintfmt+0x218>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:345
+      }
+      for (; width > 0; width--)
+    80003de0:	a829                	j	80003dfa <vprintfmt+0x272>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:346
+        putch(' ', putdat);
+    80003de2:	fa843783          	ld	a5,-88(s0)
+    80003de6:	fa043583          	ld	a1,-96(s0)
+    80003dea:	02000513          	li	a0,32
+    80003dee:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:345 (discriminator 2)
+      for (; width > 0; width--)
+    80003df0:	fcc42783          	lw	a5,-52(s0)
+    80003df4:	37fd                	addiw	a5,a5,-1
+    80003df6:	fcf42623          	sw	a5,-52(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:345 (discriminator 1)
+    80003dfa:	fcc42783          	lw	a5,-52(s0)
+    80003dfe:	2781                	sext.w	a5,a5
+    80003e00:	fef041e3          	bgtz	a5,80003de2 <vprintfmt+0x25a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:347
+      break;
+    80003e04:	a8d1                	j	80003ed8 <vprintfmt+0x350>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:351
+
+    // (signed) decimal
+    case 'd':
+      num = getint(&ap, lflag);
+    80003e06:	fd042703          	lw	a4,-48(s0)
+    80003e0a:	f9040793          	addi	a5,s0,-112
+    80003e0e:	85ba                	mv	a1,a4
+    80003e10:	853e                	mv	a0,a5
+    80003e12:	d0fff0ef          	jal	ra,80003b20 <getint>
+    80003e16:	87aa                	mv	a5,a0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:351 (discriminator 1)
+    80003e18:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:352
+      if ((long long) num < 0) {
+    80003e1c:	fd843783          	ld	a5,-40(s0)
+    80003e20:	0007df63          	bgez	a5,80003e3e <vprintfmt+0x2b6>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:353
+        putch('-', putdat);
+    80003e24:	fa843783          	ld	a5,-88(s0)
+    80003e28:	fa043583          	ld	a1,-96(s0)
+    80003e2c:	02d00513          	li	a0,45
+    80003e30:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:354
+        num = -(long long) num;
+    80003e32:	fd843783          	ld	a5,-40(s0)
+    80003e36:	40f007b3          	neg	a5,a5
+    80003e3a:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:356
+      }
+      base = 10;
+    80003e3e:	47a9                	li	a5,10
+    80003e40:	fcf42a23          	sw	a5,-44(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:357
+      goto signed_number;
+    80003e44:	a0b9                	j	80003e92 <vprintfmt+0x30a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:361
+
+    // unsigned decimal
+    case 'u':
+      base = 10;
+    80003e46:	47a9                	li	a5,10
+    80003e48:	fcf42a23          	sw	a5,-44(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:362
+      goto unsigned_number;
+    80003e4c:	a80d                	j	80003e7e <vprintfmt+0x2f6>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:367
+
+    // (unsigned) octal
+    case 'o':
+      // should do something with padding so it's always 3 octits
+      base = 8;
+    80003e4e:	47a1                	li	a5,8
+    80003e50:	fcf42a23          	sw	a5,-44(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:368
+      goto unsigned_number;
+    80003e54:	a02d                	j	80003e7e <vprintfmt+0x2f6>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:373
+
+    // pointer
+    case 'p':
+      static_assert(sizeof(long) == sizeof(void*));
+      lflag = 1;
+    80003e56:	4785                	li	a5,1
+    80003e58:	fcf42823          	sw	a5,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:374
+      putch('0', putdat);
+    80003e5c:	fa843783          	ld	a5,-88(s0)
+    80003e60:	fa043583          	ld	a1,-96(s0)
+    80003e64:	03000513          	li	a0,48
+    80003e68:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:375
+      putch('x', putdat);
+    80003e6a:	fa843783          	ld	a5,-88(s0)
+    80003e6e:	fa043583          	ld	a1,-96(s0)
+    80003e72:	07800513          	li	a0,120
+    80003e76:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:380
+      /* fall through to 'x' */
+
+    // (unsigned) hexadecimal
+    case 'x':
+      base = 16;
+    80003e78:	47c1                	li	a5,16
+    80003e7a:	fcf42a23          	sw	a5,-44(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:382
+    unsigned_number:
+      num = getuint(&ap, lflag);
+    80003e7e:	fd042703          	lw	a4,-48(s0)
+    80003e82:	f9040793          	addi	a5,s0,-112
+    80003e86:	85ba                	mv	a1,a4
+    80003e88:	853e                	mv	a0,a5
+    80003e8a:	c2bff0ef          	jal	ra,80003ab4 <getuint>
+    80003e8e:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:384
+    signed_number:
+      printnum(putch, putdat, num, base, width, padc);
+    80003e92:	fd442683          	lw	a3,-44(s0)
+    80003e96:	fc744783          	lbu	a5,-57(s0)
+    80003e9a:	2781                	sext.w	a5,a5
+    80003e9c:	fcc42703          	lw	a4,-52(s0)
+    80003ea0:	fd843603          	ld	a2,-40(s0)
+    80003ea4:	fa043583          	ld	a1,-96(s0)
+    80003ea8:	fa843503          	ld	a0,-88(s0)
+    80003eac:	b0bff0ef          	jal	ra,800039b6 <printnum>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:385
+      break;
+    80003eb0:	a025                	j	80003ed8 <vprintfmt+0x350>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:389
+
+    // escaped '%' character
+    case '%':
+      putch(ch, putdat);
+    80003eb2:	fa843783          	ld	a5,-88(s0)
+    80003eb6:	fa043583          	ld	a1,-96(s0)
+    80003eba:	8526                	mv	a0,s1
+    80003ebc:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:390
+      break;
+    80003ebe:	a829                	j	80003ed8 <vprintfmt+0x350>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:394
+      
+    // unrecognized escape sequence - just print it literally
+    default:
+      putch('%', putdat);
+    80003ec0:	fa843783          	ld	a5,-88(s0)
+    80003ec4:	fa043583          	ld	a1,-96(s0)
+    80003ec8:	02500513          	li	a0,37
+    80003ecc:	9782                	jalr	a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:395
+      fmt = last_fmt;
+    80003ece:	fb843783          	ld	a5,-72(s0)
+    80003ed2:	f8f43c23          	sd	a5,-104(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:396
+      break;
+    80003ed6:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:260
+    while ((ch = *(unsigned char *) fmt) != '%') {
+    80003ed8:	b1e5                	j	80003bc0 <vprintfmt+0x38>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:262
+        return;
+    80003eda:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:399
+    }
+  }
+}
+    80003edc:	70a6                	ld	ra,104(sp)
+    80003ede:	7406                	ld	s0,96(sp)
+    80003ee0:	64e6                	ld	s1,88(sp)
+    80003ee2:	6946                	ld	s2,80(sp)
+    80003ee4:	6165                	addi	sp,sp,112
+    80003ee6:	8082                	ret
+
+0000000080003ee8 <printf>:
+printf():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:402
+
+int printf(const char* fmt, ...)
+{
+    80003ee8:	7159                	addi	sp,sp,-112
+    80003eea:	f406                	sd	ra,40(sp)
+    80003eec:	f022                	sd	s0,32(sp)
+    80003eee:	1800                	addi	s0,sp,48
+    80003ef0:	fca43c23          	sd	a0,-40(s0)
+    80003ef4:	e40c                	sd	a1,8(s0)
+    80003ef6:	e810                	sd	a2,16(s0)
+    80003ef8:	ec14                	sd	a3,24(s0)
+    80003efa:	f018                	sd	a4,32(s0)
+    80003efc:	f41c                	sd	a5,40(s0)
+    80003efe:	03043823          	sd	a6,48(s0)
+    80003f02:	03143c23          	sd	a7,56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:404
+  va_list ap;
+  va_start(ap, fmt);
+    80003f06:	04040793          	addi	a5,s0,64
+    80003f0a:	fcf43823          	sd	a5,-48(s0)
+    80003f0e:	fd043783          	ld	a5,-48(s0)
+    80003f12:	fc878793          	addi	a5,a5,-56
+    80003f16:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:406
+
+  vprintfmt((void*)putchar, 0, fmt, ap);
+    80003f1a:	fe843783          	ld	a5,-24(s0)
+    80003f1e:	86be                	mv	a3,a5
+    80003f20:	fd843603          	ld	a2,-40(s0)
+    80003f24:	4581                	li	a1,0
+    80003f26:	00000517          	auipc	a0,0x0
+    80003f2a:	99250513          	addi	a0,a0,-1646 # 800038b8 <putchar>
+    80003f2e:	c5bff0ef          	jal	ra,80003b88 <vprintfmt>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:409
+
+  va_end(ap);
+  return 0; // incorrect return value, but who cares, anyway?
+    80003f32:	4781                	li	a5,0
+/cva6/verif/sim/../tests/custom/common/syscalls.c:410
+}
+    80003f34:	853e                	mv	a0,a5
+    80003f36:	70a2                	ld	ra,40(sp)
+    80003f38:	7402                	ld	s0,32(sp)
+    80003f3a:	6165                	addi	sp,sp,112
+    80003f3c:	8082                	ret
+
+0000000080003f3e <sprintf_putch>:
+sprintf_putch():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:413
+
+void sprintf_putch(int ch, void** data)
+{
+    80003f3e:	7179                	addi	sp,sp,-48
+    80003f40:	f422                	sd	s0,40(sp)
+    80003f42:	1800                	addi	s0,sp,48
+    80003f44:	87aa                	mv	a5,a0
+    80003f46:	fcb43823          	sd	a1,-48(s0)
+    80003f4a:	fcf42e23          	sw	a5,-36(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:414
+  char** pstr = (char**)data;
+    80003f4e:	fd043783          	ld	a5,-48(s0)
+    80003f52:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:415
+  **pstr = ch;
+    80003f56:	fe843783          	ld	a5,-24(s0)
+    80003f5a:	639c                	ld	a5,0(a5)
+    80003f5c:	fdc42703          	lw	a4,-36(s0)
+    80003f60:	0ff77713          	andi	a4,a4,255
+    80003f64:	00e78023          	sb	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:416
+  (*pstr)++;
+    80003f68:	fe843783          	ld	a5,-24(s0)
+    80003f6c:	639c                	ld	a5,0(a5)
+    80003f6e:	00178713          	addi	a4,a5,1
+    80003f72:	fe843783          	ld	a5,-24(s0)
+    80003f76:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:417
+}
+    80003f78:	0001                	nop
+    80003f7a:	7422                	ld	s0,40(sp)
+    80003f7c:	6145                	addi	sp,sp,48
+    80003f7e:	8082                	ret
+
+0000000080003f80 <sprintf>:
+sprintf():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:420
+
+int sprintf(char* str, const char* fmt, ...)
+{
+    80003f80:	7159                	addi	sp,sp,-112
+    80003f82:	fc06                	sd	ra,56(sp)
+    80003f84:	f822                	sd	s0,48(sp)
+    80003f86:	0080                	addi	s0,sp,64
+    80003f88:	fca43c23          	sd	a0,-40(s0)
+    80003f8c:	fcb43823          	sd	a1,-48(s0)
+    80003f90:	e010                	sd	a2,0(s0)
+    80003f92:	e414                	sd	a3,8(s0)
+    80003f94:	e818                	sd	a4,16(s0)
+    80003f96:	ec1c                	sd	a5,24(s0)
+    80003f98:	03043023          	sd	a6,32(s0)
+    80003f9c:	03143423          	sd	a7,40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:422
+  va_list ap;
+  char* str0 = str;
+    80003fa0:	fd843783          	ld	a5,-40(s0)
+    80003fa4:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:423
+  va_start(ap, fmt);
+    80003fa8:	03040793          	addi	a5,s0,48
+    80003fac:	fcf43423          	sd	a5,-56(s0)
+    80003fb0:	fc843783          	ld	a5,-56(s0)
+    80003fb4:	fd078793          	addi	a5,a5,-48
+    80003fb8:	fef43023          	sd	a5,-32(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:425
+
+  vprintfmt(sprintf_putch, (void**)&str, fmt, ap);
+    80003fbc:	fe043703          	ld	a4,-32(s0)
+    80003fc0:	fd840793          	addi	a5,s0,-40
+    80003fc4:	86ba                	mv	a3,a4
+    80003fc6:	fd043603          	ld	a2,-48(s0)
+    80003fca:	85be                	mv	a1,a5
+    80003fcc:	00000517          	auipc	a0,0x0
+    80003fd0:	f7250513          	addi	a0,a0,-142 # 80003f3e <sprintf_putch>
+    80003fd4:	bb5ff0ef          	jal	ra,80003b88 <vprintfmt>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:426
+  *str = 0;
+    80003fd8:	fd843783          	ld	a5,-40(s0)
+    80003fdc:	00078023          	sb	zero,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:429
+
+  va_end(ap);
+  return str - str0;
+    80003fe0:	fd843703          	ld	a4,-40(s0)
+    80003fe4:	fe843783          	ld	a5,-24(s0)
+    80003fe8:	40f707b3          	sub	a5,a4,a5
+    80003fec:	2781                	sext.w	a5,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:430
+}
+    80003fee:	853e                	mv	a0,a5
+    80003ff0:	70e2                	ld	ra,56(sp)
+    80003ff2:	7442                	ld	s0,48(sp)
+    80003ff4:	6165                	addi	sp,sp,112
+    80003ff6:	8082                	ret
+
+0000000080003ff8 <memcpy>:
+memcpy():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:433
+
+void* memcpy(void* dest, const void* src, size_t len)
+{
+    80003ff8:	715d                	addi	sp,sp,-80
+    80003ffa:	e4a2                	sd	s0,72(sp)
+    80003ffc:	0880                	addi	s0,sp,80
+    80003ffe:	fca43423          	sd	a0,-56(s0)
+    80004002:	fcb43023          	sd	a1,-64(s0)
+    80004006:	fac43c23          	sd	a2,-72(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:434
+  if ((((uintptr_t)dest | (uintptr_t)src | len) & (sizeof(uintptr_t)-1)) == 0) {
+    8000400a:	fc843703          	ld	a4,-56(s0)
+    8000400e:	fc043783          	ld	a5,-64(s0)
+    80004012:	8f5d                	or	a4,a4,a5
+    80004014:	fb843783          	ld	a5,-72(s0)
+    80004018:	8fd9                	or	a5,a5,a4
+    8000401a:	8b9d                	andi	a5,a5,7
+    8000401c:	e3b1                	bnez	a5,80004060 <memcpy+0x68>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:435
+    const uintptr_t* s = src;
+    8000401e:	fc043783          	ld	a5,-64(s0)
+    80004022:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:436
+    uintptr_t *d = dest;
+    80004026:	fc843783          	ld	a5,-56(s0)
+    8000402a:	fef43023          	sd	a5,-32(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:437
+    while (d < (uintptr_t*)(dest + len))
+    8000402e:	a839                	j	8000404c <memcpy+0x54>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:438
+      *d++ = *s++;
+    80004030:	fe843703          	ld	a4,-24(s0)
+    80004034:	00870793          	addi	a5,a4,8
+    80004038:	fef43423          	sd	a5,-24(s0)
+    8000403c:	fe043783          	ld	a5,-32(s0)
+    80004040:	00878693          	addi	a3,a5,8
+    80004044:	fed43023          	sd	a3,-32(s0)
+    80004048:	6318                	ld	a4,0(a4)
+    8000404a:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:437
+    while (d < (uintptr_t*)(dest + len))
+    8000404c:	fc843703          	ld	a4,-56(s0)
+    80004050:	fb843783          	ld	a5,-72(s0)
+    80004054:	97ba                	add	a5,a5,a4
+    80004056:	fe043703          	ld	a4,-32(s0)
+    8000405a:	fcf76be3          	bltu	a4,a5,80004030 <memcpy+0x38>
+    8000405e:	a099                	j	800040a4 <memcpy+0xac>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:440
+  } else {
+    const char* s = src;
+    80004060:	fc043783          	ld	a5,-64(s0)
+    80004064:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:441
+    char *d = dest;
+    80004068:	fc843783          	ld	a5,-56(s0)
+    8000406c:	fcf43823          	sd	a5,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:442
+    while (d < (char*)(dest + len))
+    80004070:	a00d                	j	80004092 <memcpy+0x9a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:443
+      *d++ = *s++;
+    80004072:	fd843703          	ld	a4,-40(s0)
+    80004076:	00170793          	addi	a5,a4,1
+    8000407a:	fcf43c23          	sd	a5,-40(s0)
+    8000407e:	fd043783          	ld	a5,-48(s0)
+    80004082:	00178693          	addi	a3,a5,1
+    80004086:	fcd43823          	sd	a3,-48(s0)
+    8000408a:	00074703          	lbu	a4,0(a4)
+    8000408e:	00e78023          	sb	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:442
+    while (d < (char*)(dest + len))
+    80004092:	fc843703          	ld	a4,-56(s0)
+    80004096:	fb843783          	ld	a5,-72(s0)
+    8000409a:	97ba                	add	a5,a5,a4
+    8000409c:	fd043703          	ld	a4,-48(s0)
+    800040a0:	fcf769e3          	bltu	a4,a5,80004072 <memcpy+0x7a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:445
+  }
+  return dest;
+    800040a4:	fc843783          	ld	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:446
+}
+    800040a8:	853e                	mv	a0,a5
+    800040aa:	6426                	ld	s0,72(sp)
+    800040ac:	6161                	addi	sp,sp,80
+    800040ae:	8082                	ret
+
+00000000800040b0 <memset>:
+memset():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:449
+
+void* memset(void* dest, int byte, size_t len)
+{
+    800040b0:	715d                	addi	sp,sp,-80
+    800040b2:	e4a2                	sd	s0,72(sp)
+    800040b4:	0880                	addi	s0,sp,80
+    800040b6:	fca43423          	sd	a0,-56(s0)
+    800040ba:	87ae                	mv	a5,a1
+    800040bc:	fac43c23          	sd	a2,-72(s0)
+    800040c0:	fcf42223          	sw	a5,-60(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:450
+  if ((((uintptr_t)dest | len) & (sizeof(uintptr_t)-1)) == 0) {
+    800040c4:	fc843703          	ld	a4,-56(s0)
+    800040c8:	fb843783          	ld	a5,-72(s0)
+    800040cc:	8fd9                	or	a5,a5,a4
+    800040ce:	8b9d                	andi	a5,a5,7
+    800040d0:	e7bd                	bnez	a5,8000413e <memset+0x8e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:451
+    uintptr_t word = byte & 0xFF;
+    800040d2:	fc442783          	lw	a5,-60(s0)
+    800040d6:	0ff7f793          	andi	a5,a5,255
+    800040da:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:452
+    word |= word << 8;
+    800040de:	fd843783          	ld	a5,-40(s0)
+    800040e2:	07a2                	slli	a5,a5,0x8
+    800040e4:	fd843703          	ld	a4,-40(s0)
+    800040e8:	8fd9                	or	a5,a5,a4
+    800040ea:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:453
+    word |= word << 16;
+    800040ee:	fd843783          	ld	a5,-40(s0)
+    800040f2:	07c2                	slli	a5,a5,0x10
+    800040f4:	fd843703          	ld	a4,-40(s0)
+    800040f8:	8fd9                	or	a5,a5,a4
+    800040fa:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:454
+    word |= word << 16 << 16;
+    800040fe:	fd843783          	ld	a5,-40(s0)
+    80004102:	1782                	slli	a5,a5,0x20
+    80004104:	fd843703          	ld	a4,-40(s0)
+    80004108:	8fd9                	or	a5,a5,a4
+    8000410a:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:456
+
+    uintptr_t *d = dest;
+    8000410e:	fc843783          	ld	a5,-56(s0)
+    80004112:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:457
+    while (d < (uintptr_t*)(dest + len))
+    80004116:	a811                	j	8000412a <memset+0x7a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:458
+      *d++ = word;
+    80004118:	fe843783          	ld	a5,-24(s0)
+    8000411c:	00878713          	addi	a4,a5,8
+    80004120:	fee43423          	sd	a4,-24(s0)
+    80004124:	fd843703          	ld	a4,-40(s0)
+    80004128:	e398                	sd	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:457
+    while (d < (uintptr_t*)(dest + len))
+    8000412a:	fc843703          	ld	a4,-56(s0)
+    8000412e:	fb843783          	ld	a5,-72(s0)
+    80004132:	97ba                	add	a5,a5,a4
+    80004134:	fe843703          	ld	a4,-24(s0)
+    80004138:	fef760e3          	bltu	a4,a5,80004118 <memset+0x68>
+    8000413c:	a81d                	j	80004172 <memset+0xc2>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:460
+  } else {
+    char *d = dest;
+    8000413e:	fc843783          	ld	a5,-56(s0)
+    80004142:	fef43023          	sd	a5,-32(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:461
+    while (d < (char*)(dest + len))
+    80004146:	a829                	j	80004160 <memset+0xb0>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:462
+      *d++ = byte;
+    80004148:	fe043783          	ld	a5,-32(s0)
+    8000414c:	00178713          	addi	a4,a5,1
+    80004150:	fee43023          	sd	a4,-32(s0)
+    80004154:	fc442703          	lw	a4,-60(s0)
+    80004158:	0ff77713          	andi	a4,a4,255
+    8000415c:	00e78023          	sb	a4,0(a5)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:461
+    while (d < (char*)(dest + len))
+    80004160:	fc843703          	ld	a4,-56(s0)
+    80004164:	fb843783          	ld	a5,-72(s0)
+    80004168:	97ba                	add	a5,a5,a4
+    8000416a:	fe043703          	ld	a4,-32(s0)
+    8000416e:	fcf76de3          	bltu	a4,a5,80004148 <memset+0x98>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:464
+  }
+  return dest;
+    80004172:	fc843783          	ld	a5,-56(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:465
+}
+    80004176:	853e                	mv	a0,a5
+    80004178:	6426                	ld	s0,72(sp)
+    8000417a:	6161                	addi	sp,sp,80
+    8000417c:	8082                	ret
+
+000000008000417e <strlen>:
+strlen():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:468
+
+size_t strlen(const char *s)
+{
+    8000417e:	7179                	addi	sp,sp,-48
+    80004180:	f422                	sd	s0,40(sp)
+    80004182:	1800                	addi	s0,sp,48
+    80004184:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:469
+  const char *p = s;
+    80004188:	fd843783          	ld	a5,-40(s0)
+    8000418c:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:470
+  while (*p)
+    80004190:	a031                	j	8000419c <strlen+0x1e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:471
+    p++;
+    80004192:	fe843783          	ld	a5,-24(s0)
+    80004196:	0785                	addi	a5,a5,1
+    80004198:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:470
+  while (*p)
+    8000419c:	fe843783          	ld	a5,-24(s0)
+    800041a0:	0007c783          	lbu	a5,0(a5)
+    800041a4:	f7fd                	bnez	a5,80004192 <strlen+0x14>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:472
+  return p - s;
+    800041a6:	fe843703          	ld	a4,-24(s0)
+    800041aa:	fd843783          	ld	a5,-40(s0)
+    800041ae:	40f707b3          	sub	a5,a4,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:473
+}
+    800041b2:	853e                	mv	a0,a5
+    800041b4:	7422                	ld	s0,40(sp)
+    800041b6:	6145                	addi	sp,sp,48
+    800041b8:	8082                	ret
+
+00000000800041ba <strnlen>:
+strnlen():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:476
+
+size_t strnlen(const char *s, size_t n)
+{
+    800041ba:	7179                	addi	sp,sp,-48
+    800041bc:	f422                	sd	s0,40(sp)
+    800041be:	1800                	addi	s0,sp,48
+    800041c0:	fca43c23          	sd	a0,-40(s0)
+    800041c4:	fcb43823          	sd	a1,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:477
+  const char *p = s;
+    800041c8:	fd843783          	ld	a5,-40(s0)
+    800041cc:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:478
+  while (n-- && *p)
+    800041d0:	a031                	j	800041dc <strnlen+0x22>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:479
+    p++;
+    800041d2:	fe843783          	ld	a5,-24(s0)
+    800041d6:	0785                	addi	a5,a5,1
+    800041d8:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:478
+  while (n-- && *p)
+    800041dc:	fd043783          	ld	a5,-48(s0)
+    800041e0:	fff78713          	addi	a4,a5,-1
+    800041e4:	fce43823          	sd	a4,-48(s0)
+    800041e8:	c791                	beqz	a5,800041f4 <strnlen+0x3a>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:478 (discriminator 1)
+    800041ea:	fe843783          	ld	a5,-24(s0)
+    800041ee:	0007c783          	lbu	a5,0(a5)
+    800041f2:	f3e5                	bnez	a5,800041d2 <strnlen+0x18>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:480
+  return p - s;
+    800041f4:	fe843703          	ld	a4,-24(s0)
+    800041f8:	fd843783          	ld	a5,-40(s0)
+    800041fc:	40f707b3          	sub	a5,a4,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:481
+}
+    80004200:	853e                	mv	a0,a5
+    80004202:	7422                	ld	s0,40(sp)
+    80004204:	6145                	addi	sp,sp,48
+    80004206:	8082                	ret
+
+0000000080004208 <strcmp>:
+strcmp():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:484
+
+int strcmp(const char* s1, const char* s2)
+{
+    80004208:	7179                	addi	sp,sp,-48
+    8000420a:	f422                	sd	s0,40(sp)
+    8000420c:	1800                	addi	s0,sp,48
+    8000420e:	fca43c23          	sd	a0,-40(s0)
+    80004212:	fcb43823          	sd	a1,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:488
+  unsigned char c1, c2;
+
+  do {
+    c1 = *s1++;
+    80004216:	fd843783          	ld	a5,-40(s0)
+    8000421a:	00178713          	addi	a4,a5,1
+    8000421e:	fce43c23          	sd	a4,-40(s0)
+    80004222:	0007c783          	lbu	a5,0(a5)
+    80004226:	fef407a3          	sb	a5,-17(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:489
+    c2 = *s2++;
+    8000422a:	fd043783          	ld	a5,-48(s0)
+    8000422e:	00178713          	addi	a4,a5,1
+    80004232:	fce43823          	sd	a4,-48(s0)
+    80004236:	0007c783          	lbu	a5,0(a5)
+    8000423a:	fef40723          	sb	a5,-18(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:490 (discriminator 2)
+  } while (c1 != 0 && c1 == c2);
+    8000423e:	fef44783          	lbu	a5,-17(s0)
+    80004242:	0ff7f793          	andi	a5,a5,255
+    80004246:	cf81                	beqz	a5,8000425e <strcmp+0x56>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:490 (discriminator 1)
+    80004248:	fef44783          	lbu	a5,-17(s0)
+    8000424c:	873e                	mv	a4,a5
+    8000424e:	fee44783          	lbu	a5,-18(s0)
+    80004252:	0ff77713          	andi	a4,a4,255
+    80004256:	0ff7f793          	andi	a5,a5,255
+    8000425a:	faf70ee3          	beq	a4,a5,80004216 <strcmp+0xe>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:492
+
+  return c1 - c2;
+    8000425e:	fef44783          	lbu	a5,-17(s0)
+    80004262:	0007871b          	sext.w	a4,a5
+    80004266:	fee44783          	lbu	a5,-18(s0)
+    8000426a:	2781                	sext.w	a5,a5
+    8000426c:	40f707bb          	subw	a5,a4,a5
+    80004270:	2781                	sext.w	a5,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:493
+}
+    80004272:	853e                	mv	a0,a5
+    80004274:	7422                	ld	s0,40(sp)
+    80004276:	6145                	addi	sp,sp,48
+    80004278:	8082                	ret
+
+000000008000427a <strcpy>:
+strcpy():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:496
+
+char* strcpy(char* dest, const char* src)
+{
+    8000427a:	7179                	addi	sp,sp,-48
+    8000427c:	f422                	sd	s0,40(sp)
+    8000427e:	1800                	addi	s0,sp,48
+    80004280:	fca43c23          	sd	a0,-40(s0)
+    80004284:	fcb43823          	sd	a1,-48(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:497
+  char* d = dest;
+    80004288:	fd843783          	ld	a5,-40(s0)
+    8000428c:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:498
+  while ((*d++ = *src++))
+    80004290:	0001                	nop
+/cva6/verif/sim/../tests/custom/common/syscalls.c:498 (discriminator 1)
+    80004292:	fd043703          	ld	a4,-48(s0)
+    80004296:	00170793          	addi	a5,a4,1
+    8000429a:	fcf43823          	sd	a5,-48(s0)
+    8000429e:	fe843783          	ld	a5,-24(s0)
+    800042a2:	00178693          	addi	a3,a5,1
+    800042a6:	fed43423          	sd	a3,-24(s0)
+    800042aa:	00074703          	lbu	a4,0(a4)
+    800042ae:	00e78023          	sb	a4,0(a5)
+    800042b2:	0007c783          	lbu	a5,0(a5)
+    800042b6:	fff1                	bnez	a5,80004292 <strcpy+0x18>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:500
+    ;
+  return dest;
+    800042b8:	fd843783          	ld	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:501
+}
+    800042bc:	853e                	mv	a0,a5
+    800042be:	7422                	ld	s0,40(sp)
+    800042c0:	6145                	addi	sp,sp,48
+    800042c2:	8082                	ret
+
+00000000800042c4 <atol>:
+atol():
+/cva6/verif/sim/../tests/custom/common/syscalls.c:504
+
+long atol(const char* str)
+{
+    800042c4:	7179                	addi	sp,sp,-48
+    800042c6:	f422                	sd	s0,40(sp)
+    800042c8:	1800                	addi	s0,sp,48
+    800042ca:	fca43c23          	sd	a0,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:505
+  long res = 0;
+    800042ce:	fe043423          	sd	zero,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:506
+  int sign = 0;
+    800042d2:	fe042223          	sw	zero,-28(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:508
+
+  while (*str == ' ')
+    800042d6:	a031                	j	800042e2 <atol+0x1e>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:509
+    str++;
+    800042d8:	fd843783          	ld	a5,-40(s0)
+    800042dc:	0785                	addi	a5,a5,1
+    800042de:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:508
+  while (*str == ' ')
+    800042e2:	fd843783          	ld	a5,-40(s0)
+    800042e6:	0007c783          	lbu	a5,0(a5)
+    800042ea:	873e                	mv	a4,a5
+    800042ec:	02000793          	li	a5,32
+    800042f0:	fef704e3          	beq	a4,a5,800042d8 <atol+0x14>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:511
+
+  if (*str == '-' || *str == '+') {
+    800042f4:	fd843783          	ld	a5,-40(s0)
+    800042f8:	0007c783          	lbu	a5,0(a5)
+    800042fc:	873e                	mv	a4,a5
+    800042fe:	02d00793          	li	a5,45
+    80004302:	00f70b63          	beq	a4,a5,80004318 <atol+0x54>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:511 (discriminator 1)
+    80004306:	fd843783          	ld	a5,-40(s0)
+    8000430a:	0007c783          	lbu	a5,0(a5)
+    8000430e:	873e                	mv	a4,a5
+    80004310:	02b00793          	li	a5,43
+    80004314:	06f71263          	bne	a4,a5,80004378 <atol+0xb4>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:512
+    sign = *str == '-';
+    80004318:	fd843783          	ld	a5,-40(s0)
+    8000431c:	0007c783          	lbu	a5,0(a5)
+    80004320:	0007871b          	sext.w	a4,a5
+    80004324:	02d00793          	li	a5,45
+    80004328:	40f707b3          	sub	a5,a4,a5
+    8000432c:	0017b793          	seqz	a5,a5
+    80004330:	0ff7f793          	andi	a5,a5,255
+    80004334:	fef42223          	sw	a5,-28(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:513
+    str++;
+    80004338:	fd843783          	ld	a5,-40(s0)
+    8000433c:	0785                	addi	a5,a5,1
+    8000433e:	fcf43c23          	sd	a5,-40(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:516
+  }
+
+  while (*str) {
+    80004342:	a81d                	j	80004378 <atol+0xb4>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:517
+    res *= 10;
+    80004344:	fe843703          	ld	a4,-24(s0)
+    80004348:	87ba                	mv	a5,a4
+    8000434a:	078a                	slli	a5,a5,0x2
+    8000434c:	97ba                	add	a5,a5,a4
+    8000434e:	0786                	slli	a5,a5,0x1
+    80004350:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:518
+    res += *str++ - '0';
+    80004354:	fd843783          	ld	a5,-40(s0)
+    80004358:	00178713          	addi	a4,a5,1
+    8000435c:	fce43c23          	sd	a4,-40(s0)
+    80004360:	0007c783          	lbu	a5,0(a5)
+    80004364:	2781                	sext.w	a5,a5
+    80004366:	fd07879b          	addiw	a5,a5,-48
+    8000436a:	2781                	sext.w	a5,a5
+    8000436c:	873e                	mv	a4,a5
+    8000436e:	fe843783          	ld	a5,-24(s0)
+    80004372:	97ba                	add	a5,a5,a4
+    80004374:	fef43423          	sd	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:516
+  while (*str) {
+    80004378:	fd843783          	ld	a5,-40(s0)
+    8000437c:	0007c783          	lbu	a5,0(a5)
+    80004380:	f3f1                	bnez	a5,80004344 <atol+0x80>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:521
+  }
+
+  return sign ? -res : res;
+    80004382:	fe442783          	lw	a5,-28(s0)
+    80004386:	2781                	sext.w	a5,a5
+    80004388:	c791                	beqz	a5,80004394 <atol+0xd0>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:521 (discriminator 1)
+    8000438a:	fe843783          	ld	a5,-24(s0)
+    8000438e:	40f007b3          	neg	a5,a5
+/cva6/verif/sim/../tests/custom/common/syscalls.c:521
+    80004392:	a019                	j	80004398 <atol+0xd4>
+/cva6/verif/sim/../tests/custom/common/syscalls.c:521 (discriminator 2)
+    80004394:	fe843783          	ld	a5,-24(s0)
+/cva6/verif/sim/../tests/custom/common/syscalls.c:522
+}
+    80004398:	853e                	mv	a0,a5
+    8000439a:	7422                	ld	s0,40(sp)
+    8000439c:	6145                	addi	sp,sp,48
+    8000439e:	8082                	ret
