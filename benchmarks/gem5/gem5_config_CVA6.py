@@ -52,7 +52,7 @@ class CVA6FUPool(MinorFUPool):
     def __init__(self):
         super().__init__()
 
-        # Valores de Morillas
+        # Revisar todos estos valores
 
         int_alu_ops = ['IntAlu']
         int_alu = MinorFU()
@@ -97,7 +97,7 @@ class CVA6FUPool(MinorFUPool):
         )
         
         mem_ops = ['MemRead', 'MemWrite']
-        mem_fu = MinorDefaultMemFU()
+        mem_fu = MinorFU()
         mem_fu.opClasses = minorMakeOpClassSet(mem_ops)
         mem_fu.opLat = 3
         mem_fu.issueLat = 1
@@ -177,7 +177,7 @@ class CVA6FUPool(MinorFUPool):
             "SimdWholeRegisterLoad",
             "SimdWholeRegisterStore",
         ]
-        mem = MinorDefaultMemFU()
+        mem = MinorFU()
         mem.opClasses = minorMakeOpClassSet(mem_ops)
         mem.timings = [MinorFUTiming(description="Mem", srcRegsRelativeLats=[1], extraAssumedLat=2)] 
         mem.opLat = 1
@@ -333,13 +333,13 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1 
         self.fetch1ToFetch2BackwardDelay = 1 
-        self.fetch2InputBufferSize = 2 # Revisar. Pareciera ser 4
+        self.fetch2InputBufferSize = 1
         self.fetch2ToDecodeForwardDelay = 1 
-        self.fetch2CycleInput = True 
-        self.decodeInputBufferSize = 2 # Revisar. Pareciera ser 4
+        self.fetch2CycleInput = False 
+        self.decodeInputBufferSize = 4
         self.decodeToExecuteForwardDelay = 1
-        self.decodeInputWidth = 2 # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
-        self.decodeCycleInput = True # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
+        self.decodeInputWidth = 1 # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
+        self.decodeCycleInput = False # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
         self.executeInputWidth = 1
         self.executeCycleInput = False
         self.executeIssueLimit = 1
@@ -348,33 +348,33 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeMemoryCommitLimit = 1
         self.executeInputBufferSize = 8
         self.executeMemoryWidth = 8
-        self.executeMaxAccessesInMemory = 2 # Revisar
-        self.executeLSQMaxStoreBufferStoresPerCycle = 2 # Revisar
-        self.executeLSQRequestsQueueSize = 2 # Revisar
-        self.executeLSQTransfersQueueSize = 2 # Revisar
-        self.executeLSQStoreBufferSize = 8 # Revisar
+        self.executeMaxAccessesInMemory = 8
+        self.executeLSQMaxStoreBufferStoresPerCycle = 1
+        self.executeLSQRequestsQueueSize = 2
+        self.executeLSQTransfersQueueSize = 8
+        self.executeLSQStoreBufferSize = 4
         self.executeBranchDelay = 1
         self.executeSetTraceTimeOnCommit = True
         self.executeSetTraceTimeOnIssue = False
         self.executeAllowEarlyMemoryIssue = True
-        self.enableIdling = True
+        self.enableIdling = False
 
         self.branchPred = LocalBP(
-            localPredictorSize = 1024,
-            localCtrBits = 2, # Revisar (BHT localCtrBits ?)
-            instShiftAmt = 2  # Revisar (BHT Instruction Shift Amount ?)
+            localPredictorSize = 1024, # Revisar
+            localCtrBits = 2, # Revisar
+            instShiftAmt = 2  # Revisar
         )
 
         self.branchPred.btb = SimpleBTB(
-            numEntries = 64,
-            tagBits = 20,
-            associativity = 16,
-            instShiftAmt = 2,         # BTB Instruction Shift Amount
-            btbReplPolicy = LRURP()   # LRU Replacement Policy
+            numEntries = 64,          # Revisar
+            tagBits = 20,             # Revisar
+            associativity = 16,       # Revisar
+            instShiftAmt = 2,         # Revisar
+            btbReplPolicy = LRURP()   # Revisar
         )
 
         self.branchPred.ras = ReturnAddrStack(
-            numEntries = 2
+            numEntries = 2 # Revisar
         )
 
 # Wrapper para usarlo con la Standard Library de gem5
@@ -400,19 +400,20 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].response_latency = 2 # Revisar
             self.l1icaches[i].mshrs = 4 # Revisar
             self.l1icaches[i].tgts_per_mshr = 1 # Revisar
+            self.l1icaches[i].write_buffers = 8 # Revisar
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False
             self.l1icaches[i].writeback_clean = True
 
             self.l1dcaches[i].assoc = 8
-            self.l1dcaches[i].tag_latency = 1
+            self.l1dcaches[i].tag_latency = 1 # Revisar
             self.l1dcaches[i].data_latency = 2 # Revisar
             self.l1dcaches[i].response_latency = 2 # Revisar
             self.l1dcaches[i].mshrs = 2 # Revisar. Buscar definitivamente
             self.l1dcaches[i].tgts_per_mshr = 1 # Revisar. Buscar definitivamente
             self.l1dcaches[i].write_buffers = 8 # Revisar
             self.l1dcaches[i].is_read_only = False
-            self.l1dcaches[i].sequential_access = False
+            self.l1dcaches[i].sequential_access = False # Revisar
             self.l1dcaches[i].writeback_clean = True
 
 # -------------------------------------------------------------------------
@@ -446,4 +447,4 @@ board.set_se_binary_workload(binary)
 
 simulator = Simulator(board=board)
 print("Iniciando simulacion del CVA6")
-simulator.run()                                                                                                             
+simulator.run()
