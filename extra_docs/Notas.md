@@ -459,3 +459,9 @@ Tareas opcionales:
 - Cuando pedimos un dato de RAM ya sea de instrucciones o datos, se trae en un ciclo los primeros 64 bits y en el siguiente ciclo los segundos 64 bits. Solamente se busca una linea de cache (128 bits) y la latencia es de 2 ciclos (3 si contamos el ciclo de la direccion). Luego cuando escribimos en las caches, se escriben los 128 bits en un solo ciclo. Luego para la cache de instrucciones, el procesador lee solamente 32 bits de los 128 bits que se trajeron, mientras que para la cache de datos, el procesador lee o escribe solamente 64 bits.
 
 - Hay dos metricas en Verilator: Load Access y Store Access. Si sumo ambas me da el total de accesos a la cache de datos. Probando con el Daxpy me dio que los accesos a la cache de datos son similares a los de gem5.
+
+# Comando para obtener una traza de ejecucion en gem5
+
+```bash
+build/RISCV/gem5.opt --debug-flags=Minor,MinorTrace,MinorTiming,CacheAll,ExecAll,Fetch,Decode,IEW,Commit,LSQ,Scoreboard,Writeback --debug-file=daxpy_nop.txt --debug-start=0 --debug-end=80000000 cva6_config_test.py programs/daxpy
+```
