@@ -966,7 +966,7 @@ function buildLegend() {
     { key:'f1',      label:'Fetch1',          color: COL.f1,      desc:'Fetch1 issues a request to ICache and receives data (1 cycle on hit)' },
     { key:'f1miss',  label:'ICache miss',     color: COL.f1miss,  desc:'ICache request that missed — must go to memory' },
     { key:'f1stall', label:'ICache stall',    color: COL.f1stall, desc:'Waiting for memory after an ICache miss' },
-    { key:'f2buf',   label:'F2 input buf',    color: COL.f2buf,   desc:'Instruction queued in the Fetch2 input buffer (fetch2InputBufferSize)' },
+    { key:'f2buf',   label:'F2 input buf',    color: COL.f2buf,   desc:'Instruction queued in the Fetch2 input buffer. Two non-obvious points: (1) buffer size (fetch2InputBufferSize) is in cache lines of fetch1LineWidth bytes, NOT instructions — two RVC instructions packed into one 4-byte line share a single slot but appear as two rows. (2) Fetch1 reserves a slot at request issue time (not arrival) and releases it when Fetch2 pops the line, so a line holds its slot for AT LEAST 2 cycles. With size=N, the largest queue you can build up is N-1 ready lines plus 1 reservation in flight. Buffers sized for N lines effectively act like N-1 in steady state when Fetch2 is fast.' },
     { key:'f2',      label:'Fetch2',          color: COL.f2,      desc:'Fetch2 decodes raw bytes into an instruction (1 cycle)' },
     { key:'decbuf',  label:'Dec input buf',   color: COL.decbuf,  desc:'Instruction queued in the Decode input buffer (decodeInputBufferSize)' },
     { key:'dec',     label:'Decode',          color: COL.dec,     desc:'Decode splits macro-ops and assigns execSeqNum (1 cycle)' },
