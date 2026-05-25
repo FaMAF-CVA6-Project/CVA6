@@ -458,7 +458,7 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
     <div id="cfg-modal-head">
       <div>
         <h2>Inferred configuration</h2>
-        <div class="sub">Best-effort estimates derived from the <strong>full trace</strong>, not the currently filtered fetch-number range. Some values are exact; others are observed lower bounds because the trace may not exercise the full configured limit.</div>
+        <div class="sub">Best-effort estimates derived from the <strong>full trace</strong>, not the currently filtered fetch-number range. Some values are exact. Others are observed lower bounds, since the trace may not exercise the full configured limit.</div>
       </div>
       <button id="cfg-close" onclick="toggleConfigPanel()" title="Close">×</button>
     </div>
@@ -518,8 +518,9 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
   <span title="Total committed (retired) instructions in the visible window">Committed: <span class="hi" id="s-cmt">-</span></span>
   <span title="Total cycles spanned by the visible window (max − min + 1)">Cycles: <span class="hi" id="s-cyc">-</span></span>
   <span title="Wall-clock time across the visible window at the trace's simulated clock frequency. Computed as cycles ÷ frequency, where the frequency is inferred from the trace's tick rate (one tick = 1 ps under gem5's default Tick resolution, so f = 1e12 / ticks-per-cycle Hz). This is the real time the program would take on a processor running at that frequency.">Time: <span class="hi" id="s-time">-</span></span>
-  <span title="Total control-flow instructions (jal, jalr, beq, bne, blt, bge, c.j, c.jr, c.beqz, c.bnez, …) in the visible window">Branches: <span class="hi" id="s-br">-</span></span>
-  <span title="Branches whose predicted target differed from the resolved target. Caused a pipeline flush">Mispred: <span class="hi" id="s-misp">-</span></span>
+  <span title="Committed control-flow instructions with a resolution event from Execute (jal, jalr, beq, bne, blt, bge, c.j, c.jr, c.beqz, c.bnez, ...) in the visible window. Speculative wrong-path branches that were flushed before commit are not counted">Branches: <span class="hi" id="s-br">-</span></span>
+  <span title="Branches the predictor at Fetch2 predicted with the wrong direction or target. Execute corrected them and flushed the front end. Emitted as BadlyPredictedBranch or BadlyPredictedBranchTarget in the trace">Mispred: <span class="hi" id="s-misp">-</span></span>
+  <span title="Branches the predictor at Fetch2 stayed silent on. The default not-taken was wrong, so Execute redirected the front end after evaluating the branch. Emitted as UnpredictedBranch in the trace. Common on the first encounter of a control instruction">Unpred: <span class="hi" id="s-unpred">-</span></span>
   <span title="Instructions per cycle = committed / cycles">IPC: <span class="hi" id="s-ipc">-</span></span>
   <span title="Total L1 ICache miss EVENTS in the visible window, deduped by request cycle. Two instructions whose halves share the same missing cache line count as ONE miss event (because the cache hierarchy sees one fill), not two.">IC✗: <span class="hi" id="s-icm">-</span></span>
   <span title="Total L1 DCache miss EVENTS in the visible window, deduped by LSQ issue cycle, broken into load misses (ld) and store misses (st). These are the actual ReadReq / WriteReq misses the cache hierarchy reported. Not the count of instructions that happened to land on a missing line.">DC✗: <span class="hi" id="s-dcm">-</span></span>
@@ -561,28 +562,34 @@ const COL = {
  * IsSerializeAfter) forces after it commits. */
 const BUB = {
   taken: {
-    legendKey: 'bubTaken', label: 'Bubble: taken',
+    legendKey: 'bubTaken', label: 'Bubble: predicted taken',
     swatch: 'rgb(160,110,225)', fill: 'rgba(160,110,225,0.60)',
-    txt: '<span style="color:#40c0ff">taken-branch bubble (Fetch2 redirect)</span>',
-    desc: 'Predicted-taken bubble. A block on the resuming instruction row before its fetch: the Fetch2 prediction was right, but the target still has to walk the front end.',
+    txt: '<span style="color:#a06ee0">predicted-taken bubble (Fetch2 steering)</span>',
+    desc: 'Short bubble after a correctly predicted taken branch, while Fetch1 starts fetching the predicted target.',
+  },
+  unpred: {
+    legendKey: 'bubUnpred', label: 'Bubble: unpredicted',
+    swatch: 'rgb(230,180,90)', fill: 'rgba(230,180,90,0.55)',
+    txt: '<span style="color:#e6b45a">unpredicted refill (Execute redirect)</span>',
+    desc: 'Full refill bubble after an UnpredictedBranch redirect from Execute. Same depth as a mispredict refill, the colour just records the cause (predictor silence).',
   },
   refill: {
     legendKey: 'bubRefill', label: 'Bubble: refill',
     swatch: 'rgb(255,168,80)', fill: 'rgba(255,168,80,0.55)',
     txt: '<span style="color:#ffb060">pipeline refill (mispredict, Execute redirect)</span>',
-    desc: 'Mispredict refill bubble. A block on the resuming instruction row: the branch was resolved at Execute, the front end flushed and the correct path refetched.',
+    desc: 'Full refill bubble after a mispredict redirect from Execute.',
   },
   refillmiss: {
     legendKey: 'bubMiss', label: 'Bubble: refill + I$ miss',
     swatch: 'rgb(224,72,72)', fill: 'rgba(224,72,72,0.58)',
     txt: '<span style="color:#e05050">refill + I-cache miss on the speculative target</span>',
-    desc: 'A mispredict refill that also waited on the speculative wrong-path target fetch missing the instruction cache before Fetch1 could re-steer. The largest of the bubbles.',
+    desc: 'Late-redirect refill that also waited on the speculative wrong-path target missing the I-cache. The largest of the bubbles.',
   },
   serialize: {
     legendKey: 'bubSerialize', label: 'Bubble: serialize',
     swatch: 'rgb(90,160,170)', fill: 'rgba(90,160,170,0.55)',
     txt: '<span style="color:#5ab0c0">pipeline serialize (front-end flush after the instruction commits)</span>',
-    desc: 'Not a branch. A non-control serializing instruction (for example a gem5 M5Op carrying IsSerializeAfter, such as m5_reset_stats or m5_dump_stats) drains and refetches the front end after it commits. The refetch cost is drawn on the next instruction row.',
+    desc: 'Non-branch serialization (a gem5 M5Op carrying IsSerializeAfter, for example m5_reset_stats) drained and refetched the front end after committing.',
   },
 };
 
@@ -621,7 +628,7 @@ const MIN_CELL_FIT = 0.05;
 const CYCLE_KEYS = [
   'f1req','f1','f2','dec','dtoe','exbuf','ex','fuDone','cm',
   'memPush','memIssue','memComplete','sbPush','sbDelete',
-  'flushedCycle','flushCycle',
+  'flushCycle',
   'f1reqA','f1respA','f1reqB','f1respB',
 ];
 
@@ -866,7 +873,7 @@ function parse(text) {
 
     /* Branch-predictor header lines (emitted once at tick 0). These give the
      * predictor geometry that cannot otherwise be inferred from behaviour. */
-    const bp = l.match(/branchPred:\s+(local predictor size|local counter bits|instruction shift amount|index mask|global predictor size|choice predictor size|BTB entries|RAS size):\s+(\S+)/);
+    const bp = l.match(/branchPred:\s+(local predictor size|local counter bits|global predictor size|global counter bits|choice predictor size|choice counter bits|instruction shift amount|index mask|BTB entries|RAS size):\s+(\S+)/);
     if (bp) {
       if (!(bp[1] in branchPredInfo)) branchPredInfo[bp[1]] = bp[2];
       continue;
@@ -1058,11 +1065,10 @@ function parse(text) {
     /* Commit (T0 line). FetchSeq=N gives an exact instruction identity:
      * a PC discarded once and re-fetched would otherwise have the discarded
      * instance steal the commit cycle from the real one. */
-    const em = l.match(/T0\s+:\s+(0x[0-9a-f]+)\s+@\S+\s+:\s+(.+?)\s+:\s+(\w+)(?:.*?FetchSeq=(\d+))?(?:.*?CPSeq=(\d+))?/);
+    const em = l.match(/T0\s+:\s+(0x[0-9a-f]+)\s+@\S+\s+:\s+(.+?)\s+:\s+(\w+)(?:.*?FetchSeq=(\d+))?/);
     if (em && l.includes('T0')) {
       commitList.push({ cycle, pc: em[1], instr: em[2].trim(), fu: em[3],
-                         fetchSeq: em[4] !== undefined ? +em[4] : undefined,
-                         cpSeq: em[5] !== undefined ? +em[5] : null });
+                         fetchSeq: em[4] !== undefined ? +em[4] : undefined });
     }
   }
 
@@ -1116,22 +1122,19 @@ function parse(text) {
        * commit so the per-PC fallback cannot reuse it. On miss (and if
        * not discarded), take the next unclaimed commit for this PC. */
       const cmEntry = commitByFetchSeq[seq] ?? null;
-      let cmc, cpSeq;
+      let cmc;
       const isDiscarded = (seq in discardMap);
       if (cmEntry) {
         cmc = cmEntry.cycle;
-        cpSeq = cmEntry.cpSeq ?? null;
         cmEntry._used = true;
       } else {
         cmc = null;
-        cpSeq = null;
         if (!isDiscarded) {
           const pool = commitByPC[ex.pc] ?? [];
           let p = pcPtr[ex.pc] ?? 0;
           while (p < pool.length && pool[p]._used) p++;
           if (p < pool.length) {
-            cmc   = pool[p].cycle;
-            cpSeq = pool[p].cpSeq ?? null;
+            cmc = pool[p].cycle;
             pool[p]._used = true;
             p++;
           }
@@ -1249,15 +1252,29 @@ function parse(text) {
        * full picture rather than a single mispredict bit:
        *   - predicted: what the predictor said (predictedTaken flag)
        *   - actual:    what the branch finally did.
-       *   - caughtAt:  which stage produced the LAST redirect for this
-       *                seq. A branch can be predicted taken at Fetch2
-       *                (BranchPrediction) and then corrected at Execute
-       *                (BadlyPredictedBranch / UnpredictedBranch). The
-       *                final event is the decisive one. BranchPrediction
-       *                as the only/last event is a Fetch2 redirect
-       *                (correctly predicted taken). UnpredictedBranch and
-       *                Badly* as the last event mean the core discovered
-       *                the misprediction at Execute.
+       *   - caughtAt:  the stage at which the front end converged on the
+       *                correct path. In gem5's MinorCPU the branch
+       *                predictor itself lives inside Fetch2 (Fetch2 calls
+       *                BPredUnit::predict for every control instruction);
+       *                Fetch1 has no predictor of its own and only
+       *                receives redirects. All resolutions are emitted by
+       *                Execute. Three cases:
+       *                  fetch2  : predictor's call at Fetch2 stood. Either
+       *                            BranchPrediction (taken predicted and
+       *                            confirmed by Execute via
+       *                            CorrectlyPredictedBranch) or a default
+       *                            not-taken on a conditional that fell
+       *                            through with no event at all.
+       *                  execute : Execute had to redirect the front end.
+       *                            Two sub-cases distinguished by
+       *                            branchOutcome:
+       *                              mispred = predictor at Fetch2 fired
+       *                                with a wrong direction or target
+       *                                (BadlyPredictedBranch /
+       *                                BadlyPredictedBranchTarget).
+       *                              unpred  = predictor at Fetch2 was
+       *                                silent, default not-taken was
+       *                                wrong (UnpredictedBranch).
        * non-control or discarded -> all null. */
       const brEvs  = branchEvents[seq] ?? null;
       const brLast = brEvs ? brEvs[brEvs.length - 1] : null;
@@ -1268,8 +1285,9 @@ function parse(text) {
       const branchOutcome = (() => {
         if (isDiscarded || !isCtrl) return null;
         if (brType === null) return isCondCorrectNT ? 'correct' : null;
-        if (brType === 'UnpredictedBranch' || brType.startsWith('Badly')) return 'mispred';
-        return 'correct';                       // BranchPrediction / CorrectlyPredictedBranch
+        if (brType === 'UnpredictedBranch') return 'unpred';  // Execute redirect, predictor was silent
+        if (brType.startsWith('Badly'))     return 'mispred'; // Execute redirect, predictor was wrong
+        return 'correct';                                     // BranchPrediction / CorrectlyPredictedBranch
       })();
       const branchActualTaken = (() => {
         if (isDiscarded || !isCtrl) return null;
@@ -1284,13 +1302,14 @@ function parse(text) {
       const branchCaughtAt = (() => {
         if (isDiscarded || !isCtrl) return null;
         if (brType === null) return isCondCorrectNT ? 'fetch2' : null;
-        if (brType === 'BranchPrediction' || brType === 'CorrectlyPredictedBranch')
-          return 'fetch2';                      // shallow, predicted
-        return 'execute';                       // deep flush, discovered at Execute
+        if (brType === 'UnpredictedBranch') return 'execute';   // Execute had to redirect
+        if (brType.startsWith('Badly'))     return 'execute';   // Execute had to redirect
+        return 'fetch2';                                        // predictor's call stood, no Execute redirect
       })();
-      /* Resolve cycle = the cycle of the decisive (last) redirect: the
-       * Fetch2 prediction for a clean predicted-taken branch, or the
-       * Execute correction for a mispredict. */
+      /* Resolve cycle = the cycle of the decisive (last) redirect, or
+       * null when no redirect was needed (the predictor at Fetch2 was
+       * right and the branch simply committed). For mispredicted and
+       * unpredicted branches the cycle is the Execute correction. */
       const branchResolveCyc = brLast?.cycle ?? null;
       /* A non-control instruction that committed and still forced a
        * stream change is a serialization (IsSerializeAfter), not a
@@ -1302,7 +1321,6 @@ function parse(text) {
       return {
         seq,  pc: ex.pc,  instr: ex.instr,  fu: ex.fu,
         compressed: /^c[_.]/.test(ex.instr || ''),
-        cpSeq,
         src: ex.src,  dest: ex.dest,  flags: ex.flags,
         fuIdx,  lineSeq: ex.lineSeq,
         f1req: fetchReqCyc,  // fetch1 request issued (icache access cycle)
@@ -1316,7 +1334,6 @@ function parse(text) {
         cm:    cmc,          // commit
         icMiss,
         wrapsLine,
-        wrapPrevLineSeq,
         f1reqA, f1respA, icMissA,
         f1reqB, f1respB, icMissB,
         memPush:     lsqEvt?.pushCycle     ?? null,
@@ -1326,10 +1343,8 @@ function parse(text) {
         dcMissIsStore,
         sbPush:   sbEvt?.pushCycle   ?? null,
         sbDelete: sbEvt?.deleteCycle ?? null,
-        branchType:  brType,
         flushCycle:  branchResolveCyc,
         flushed:     isDiscarded,
-        flushedCycle: discardMap[seq] ?? null,
         isControl:   ex.flags.includes('IsControl'),
         predictedTaken: ex.predictedTaken ?? false,
         branchOutcome,
@@ -1338,9 +1353,7 @@ function parse(text) {
         serializeAfter,
         estimated: decReal === null && f1c === null && f2real === null,
         /* Internal flags so the tooltip can mark estimated cycles with "~". */
-        _real_f1: f1c, _real_f2: f2real, _real_dec: decReal,
-        _real_try: tryC, _real_iss: issC, _real_ret: retCyc,
-        _real_f1req: fetchReqCyc,
+        _real_f2: f2real, _real_dec: decReal, _real_ret: retCyc,
       };
     });
 
@@ -1395,28 +1408,31 @@ function parse(text) {
     }
   }
 
-  /* Branch-bubble attribution. EVERY taken branch leaves a bubble before
-   * the resuming instruction can be fetched, because the redirect target
-   * still has to walk the front end. The bubble now spans from the cycle
-   * the redirect is realised to the start of the resuming instruction's
-   * fetch (its f1req), and it is attached to the RESUMING instruction so
-   * it can be drawn on that instruction's own row, in the empty band
-   * before its fe1, not on the branch row.
-   *   - correctly predicted taken: redirect realised at Fetch2 (the
-   *     BranchPrediction stream change), small bubble, little/no squash.
-   *   - mispredicted: redirect realised at Execute (the UnpredictedBranch
-   *     stream change, i.e. when the core discovers it mispredicted),
-   *     larger bubble, whole wrong path squashed. If the speculative
-   *     wrong-path fetch of the target missed the I-cache, Fetch1 had to
-   *     drain that outstanding miss first, so the bubble is much larger.
-   *     The corrected fetch itself then HITS (the miss already filled the
+  /* Branch-bubble attribution. Any redirect leaves a bubble before the
+   * resuming instruction can be fetched, because the redirect target
+   * still has to walk the front end. The bubble spans from the cycle
+   * the redirect was realised to the start of the resuming
+   * instruction's fetch (its f1req), and is attached to the RESUMING
+   * instruction so it can be drawn on that instruction's own row, in
+   * the empty band before its fe1, not on the branch row. Three cases:
+   *   - correct (BranchPrediction confirmed by Execute): redirect was
+   *     realised at Fetch2 when the predictor fired. Small bubble.
+   *   - mispred (BadlyPredictedBranch[Target]): predictor at Fetch2
+   *     fired with the wrong direction or target, Execute corrected
+   *     it. Full pipeline refill bubble. If the speculative wrong-path
+   *     fetch of the target missed the I-cache, Fetch1 had to drain
+   *     that outstanding miss first, so the bubble is much larger. The
+   *     corrected fetch itself then HITS (the miss already filled the
    *     line), so the resuming instruction's own icMiss is the wrong
-   *     signal. The honest test is whether any I-cache miss was serviced
-   *     anywhere across the bubble window.
-   * The branch's flushCycle is the cycle of its "Changing stream" line,
-   * which is exactly the Fetch2 redirect cycle for a predicted-taken
-   * branch and the Execute redirect cycle for a mispredict. A correctly
-   * predicted NOT-taken branch has no bubble (fall-through continues). */
+   *     signal. The honest test is whether any I-cache miss was
+   *     serviced anywhere across the bubble window.
+   *   - unpred (UnpredictedBranch): predictor at Fetch2 stayed silent,
+   *     the default not-taken was wrong, Execute redirected. Same
+   *     refill depth as mispred.
+   * The branch's flushCycle is the cycle of its "Changing stream" line:
+   * the Fetch2 redirect cycle for a correctly predicted taken branch
+   * and the Execute redirect cycle for mispred and unpred. A correctly
+   * predicted not-taken branch has no bubble (fall-through continues). */
   {
     const committedAll = allInstrs.filter(i => !i.flushed && i.cm !== null);
     const seqMap = new Map();
@@ -1450,6 +1466,7 @@ function parse(text) {
       const isSer = !isBr && ins.serializeAfter;   // M5Op-style flush
       if (!isBr && !isSer) continue;               // no redirect -> no bubble
       const isMis = ins.branchOutcome === 'mispred';
+      const isUnp = ins.branchOutcome === 'unpred';
       let next = null;
       if (haveCommitOrder) {
         const idx = posInCommit.get(ins.seq);
@@ -1468,11 +1485,12 @@ function parse(text) {
       const end   = next.f1req;                  // start of resuming fetch
       if (start == null || end == null) continue;
       const gap     = Math.max(0, end - start);
-      const hadMiss = isMis && gap > 0 && missInWindow(start, end);
-      const kind = isSer  ? 'serialize'
-                 : !isMis ? 'taken'
-                 : hadMiss ? 'refillmiss'
-                 :           'refill';
+      const hadMiss = (isMis || isUnp) && gap > 0 && missInWindow(start, end);
+      const kind = isSer            ? 'serialize'
+                 : isMis && hadMiss ? 'refillmiss'
+                 : isMis            ? 'refill'
+                 : isUnp            ? 'unpred'
+                 :                    'taken';
       /* Attach to the resuming instruction (drawn on its row). Store only
        * the rebase-invariant gap length. The draw reconstructs the span
        * from the resuming instruction's own (rebased) f1req. */
@@ -1657,9 +1675,8 @@ function computeInferredConfig(observedLineSize, fetch1Req, fetch1Map, icMissCyc
   for (const ins of allInstrs) {
     if (ins.fuIdx == null || ins.ex == null || ins.fuDone == null) continue;
     if (ins.flushed) continue;
-    if (!(ins.fuIdx in byFu)) byFu[ins.fuIdx] = { lats: [], issues: [], classes: new Set() };
-    byFu[ins.fuIdx].lats.push(ins.fuDone - ins.ex);
-    byFu[ins.fuIdx].issues.push(ins.ex);
+    if (!(ins.fuIdx in byFu)) byFu[ins.fuIdx] = { ops: [], classes: new Set() };
+    byFu[ins.fuIdx].ops.push({ ex: ins.ex, fuDone: ins.fuDone });
     if (ins.fu) byFu[ins.fuIdx].classes.add(ins.fu);
   }
   const fuRows = [];
@@ -1668,23 +1685,42 @@ function computeInferredConfig(observedLineSize, fetch1Req, fetch1Map, icMissCyc
     /* opLat: the most common (mode) of (fuDone - ex), since pipelined units
      * have a single deterministic latency. */
     const latCount = {};
-    for (const l of data.lats) latCount[l] = (latCount[l] || 0) + 1;
+    for (const op of data.ops) {
+      const lat = op.fuDone - op.ex;
+      latCount[lat] = (latCount[lat] || 0) + 1;
+    }
     let opLat = 0, best = 0;
     for (const l in latCount) if (latCount[l] > best) { best = latCount[l]; opLat = +l; }
-    /* issueLat: the minimum positive gap between consecutive issue cycles to
-     * the same FU. With pipelined FUs this is 1. With serial FUs it equals
-     * the operation latency. */
-    const sortedIssues = [...data.issues].sort((a, b) => a - b);
+    /* issueLat. The naive estimate, the minimum gap between consecutive
+     * issues to this FU, is only a LOWER BOUND when the FU is not driven
+     * back to back. To recover the actual cadence we also detect
+     * pipelining: if any two ops to this FU overlap in time (the second
+     * was issued before the first finished), we know the FU accepts a
+     * new op before the previous one completes, so it must be at least
+     * partially pipelined and its true issueLat is at most the observed
+     * minimum gap. Without any observed overlap the FU could be serial
+     * OR pipelined-but-sparse, and we cap the reported value at opLat
+     * because issueLat can never exceed opLat in a sensible config. */
+    const sortedOps = [...data.ops].sort((a, b) => a.ex - b.ex);
     let minGap = Infinity;
-    for (let i = 1; i < sortedIssues.length; i++) {
-      const d = sortedIssues[i] - sortedIssues[i - 1];
-      if (d > 0 && d < minGap) minGap = d;
+    let pipelined = false;
+    for (let i = 1; i < sortedOps.length; i++) {
+      const gap = sortedOps[i].ex - sortedOps[i - 1].ex;
+      if (gap > 0 && gap < minGap) minGap = gap;
+      if (sortedOps[i].ex < sortedOps[i - 1].fuDone) pipelined = true;
     }
-    const issueLat = minGap === Infinity ? '?' : minGap;
+    let issueLat;
+    if (minGap === Infinity) {
+      issueLat = '?';
+    } else if (pipelined) {
+      issueLat = minGap;                       /* pipelining confirmed by overlap */
+    } else {
+      issueLat = Math.min(minGap, opLat);      /* cap at opLat in the absence of overlap */
+    }
     fuRows.push([
       `FU ${fuIdx}`,
       `opLat=${opLat}, issueLat=${issueLat}`,
-      `${data.lats.length} insts · ${[...data.classes].join(', ')}`,
+      `${data.ops.length} insts · ${[...data.classes].join(', ')}`,
     ]);
   }
   if (fuRows.length) {
@@ -1748,46 +1784,97 @@ function computeInferredConfig(observedLineSize, fetch1Req, fetch1Map, icMissCyc
   });
 
   /* ---- Branch prediction ---- */
-  let totalBr = 0, mispred = 0, predicted = 0;
-  let taken = 0, notTaken = 0, caughtF2 = 0, caughtEx = 0;
+  let totalBr = 0, mispred = 0, unpred = 0, correct = 0;
+  let taken = 0, notTaken = 0;
   let recoveryMiss = 0;
   for (const ins of allInstrs) {
     if (!ins.branchOutcome) continue;
     totalBr++;
-    if (ins.branchOutcome === 'mispred') { mispred++; if (ins.recoveryHadMiss) recoveryMiss++; }
-    else predicted++;
+    if      (ins.branchOutcome === 'mispred') { mispred++; if (ins.recoveryHadMiss) recoveryMiss++; }
+    else if (ins.branchOutcome === 'unpred')  { unpred++;  if (ins.recoveryHadMiss) recoveryMiss++; }
+    else                                        correct++;
     if (ins.branchActualTaken === false) notTaken++; else taken++;
-    if (ins.branchCaughtAt === 'fetch2') caughtF2++;
-    else if (ins.branchCaughtAt === 'execute') caughtEx++;
   }
-  const accuracy = totalBr > 0 ? `${((1 - mispred / totalBr) * 100).toFixed(1)}%` : 'n/a';
+  /* Two distinct quality metrics, since the trace tells us both how often
+   * the predictor was right (accuracy) and how often it had an opinion at
+   * all (coverage). Cold branches show up as unpredicted, not as
+   * mispredictions, so a low coverage with high accuracy and a high
+   * coverage with low accuracy are very different failure modes. */
+  const accuracy = totalBr > 0 ? `${((correct / totalBr) * 100).toFixed(1)}%` : 'n/a';
+  const coverage = totalBr > 0 ? `${(((correct + mispred) / totalBr) * 100).toFixed(1)}%` : 'n/a';
 
   const bpRows = [];
+
+  /* Detect predictor type from the subset of header fields gem5 actually
+   * emitted. Each BP class in gem5 prints only the parameters it owns:
+   *   LocalBP       prints local* and indexing fields
+   *   BiModeBP      prints global* and choice* (no local)
+   *   TournamentBP  prints local*, global*, and choice*
+   * Anything we don't recognise falls back to 'unknown'. */
+  const hasLocal  = 'local predictor size'  in branchPredInfo;
+  const hasGlobal = 'global predictor size' in branchPredInfo;
+  const hasChoice = 'choice predictor size' in branchPredInfo;
+  let bpType;
+  if      (hasLocal && hasGlobal && hasChoice) bpType = 'TournamentBP';
+  else if (hasGlobal && hasChoice)             bpType = 'BiModeBP';
+  else if (hasLocal)                           bpType = 'LocalBP';
+  else                                         bpType = 'unknown';
+  if (bpType !== 'unknown')
+    bpRows.push(['predictor type', bpType, 'inferred from the set of parameter fields present in the trace header']);
+
   const bpMap = [
-    ['local predictor size',     'local predictor entries'],
-    ['local counter bits',       'saturating-counter width per entry'],
-    ['global predictor size',    'global predictor entries'],
-    ['choice predictor size',    'choice (meta) predictor entries'],
-    ['index mask',               'index mask applied to the PC'],
-    ['instruction shift amount', 'low PC bits dropped before indexing'],
-    ['BTB entries',              'branch target buffer entries'],
-    ['RAS size',                 'return address stack depth'],
+    ['local predictor size',     'local BHT entries',           'per-PC saturating counters predicting taken or not-taken'],
+    ['local counter bits',       'local counter width (bits)',  'bits per local BHT counter (2 gives the four strongly/weakly taken/not-taken states)'],
+    ['global predictor size',    'global BHT entries',          'global-history-indexed pattern history (used by tournament and bi-mode predictors)'],
+    ['global counter bits',      'global counter width (bits)', 'bits per global BHT counter'],
+    ['choice predictor size',    'choice (meta) entries',       'picks between competing sub-predictors on a per-PC basis (tournament and bi-mode)'],
+    ['choice counter bits',      'choice counter width (bits)', 'bits per choice predictor counter'],
+    ['instruction shift amount', 'PC shift before indexing',    'low PC bits dropped before indexing the BHT'],
+    ['index mask',               'index mask',                  'bitmask applied to (PC >> shift) to pick a BHT entry'],
+    ['BTB entries',              'BTB entries',                 'branch target buffer, caches the target address of each taken branch'],
+    ['RAS size',                 'RAS depth',                   'return address stack depth, used to predict the target of returns'],
   ];
-  for (const [k, note] of bpMap)
-    if (k in branchPredInfo) bpRows.push([k, branchPredInfo[k], note]);
+  for (const [k, label, note] of bpMap)
+    if (k in branchPredInfo) bpRows.push([label, branchPredInfo[k], note]);
+
+  /* Cold-start warm-up estimate.
+   *
+   * gem5's BHT counters are N-bit saturating counters that initialise to
+   * 0 (strongly not-taken) and predict taken when the value crosses the
+   * midpoint of their range. So a previously unseen branch needs
+   *   2^(N-1)
+   * taken outcomes at the same PC before the predictor starts firing
+   * BranchPrediction events for it. For LocalBP with 2-bit counters that
+   * is 2 outcomes (matches the two leading UnpredictedBranch events seen
+   * on the first iterations of any taken loop branch). For tournament
+   * and bi-mode predictors the actual warm-up can be longer because the
+   * choice meta-predictor also has to warm up, so the value below is a
+   * lower bound on those. */
+  const localBits  = +branchPredInfo['local counter bits']  || 0;
+  const globalBits = +branchPredInfo['global counter bits'] || 0;
+  const counterBits = localBits || globalBits;
+  if (counterBits > 0) {
+    const warmUp = Math.pow(2, counterBits - 1);
+    const note   = bpType === 'LocalBP'
+      ? `with ${counterBits}-bit saturating counters starting at strongly-not-taken, a cold branch needs ${warmUp} taken outcomes before the predictor predicts it as taken`
+      : `lower bound. With ${counterBits}-bit saturating counters a cold branch needs at least ${warmUp} taken outcomes before the predictor fires for it; tournament and bi-mode also have to warm up the choice meta-predictor`;
+    bpRows.push(['cold-start warm-up', `${warmUp} taken outcomes`, note]);
+  }
+
   if (bpRows.length)
-    cfg.sections.push({ title: 'Branch predictor (from trace header)', rows: bpRows });
+    cfg.sections.push({ title: 'Branch predictor (consulted at Fetch2)', rows: bpRows });
 
   cfg.sections.push({
     title: 'Branch behaviour (observed)',
     rows: [
-      ['total branches',      `${totalBr}`,   'committed control instructions with a resolution event'],
-      ['predicted correctly', `${predicted}`, 'resolved without a deep flush'],
-      ['mispredictions',      `${mispred}`,   'resolved at Execute, full front-end flush + refill'],
-      ['prediction accuracy', accuracy,       ''],
-      ['taken / not taken',   `${taken} / ${notTaken}`, 'actual direction at resolution'],
-      ['resolved at Fetch2 / Execute', `${caughtF2} / ${caughtEx}`, 'Fetch2 = shallow squash, Execute = deep flush'],
-      ['mispredicts whose bubble includes an I-cache miss', `${recoveryMiss}`, 'oversized gaps: Fetch1 was blocked draining a missed speculative target fetch before it could re-steer, on top of the refill depth'],
+      ['total branches',            `${totalBr}`,                'committed control instructions with a resolution event'],
+      ['correctly predicted',       `${correct}`,                'predictor at Fetch2 made the right call, no Execute redirect was needed'],
+      ['mispredicted',              `${mispred}`,                'predictor at Fetch2 fired with the wrong direction or target, Execute corrected it (BadlyPredictedBranch / BadlyPredictedBranchTarget)'],
+      ['unpredicted',               `${unpred}`,                 'predictor at Fetch2 stayed silent, the default not-taken was wrong, Execute redirected (UnpredictedBranch)'],
+      ['prediction accuracy',       accuracy,                    'correctly predicted divided by total, treating unpredicted as not-correct'],
+      ['predictor coverage',        coverage,                    'fraction of branches the predictor fired on at Fetch2 (correct + mispredicted), the rest were unpredicted'],
+      ['taken / not taken',         `${taken} / ${notTaken}`,    'actual direction at resolution'],
+      ['late redirects with I-cache miss in the refill', `${recoveryMiss}`, 'mispredicts and unpredicteds whose refill bubble overlapped a speculative-target I-cache miss, leaving Fetch1 blocked on top of the normal refill depth'],
     ],
   });
 
@@ -2028,7 +2115,7 @@ function resetRange() {
  * SECTION 6 - Live summary stats
  * ========================================================================== */
 function updateStats() {
-  let nCommit = 0, nFlush = 0, nMisp = 0, nBr = 0;
+  let nCommit = 0, nFlush = 0, nMisp = 0, nUnpred = 0, nBr = 0;
   const icMissSet = new Set();              // distinct f1req cycles where icMiss=true
   const dcLoadSet = new Set();              // distinct memIssue cycles where dcMiss=true and not a store
   const dcStoreSet = new Set();             // distinct memIssue cycles where dcMiss=true and isStore
@@ -2036,7 +2123,8 @@ function updateStats() {
     if      (i.flushed)        nFlush++;
     else if (i.cm !== null)    nCommit++;
     if (i.branchOutcome === 'mispred') nMisp++;
-    if (i.isControl)           nBr++;
+    if (i.branchOutcome === 'unpred')  nUnpred++;
+    if (i.branchOutcome)       nBr++;
     /* Cache miss counters are EVENT counts (deduped by the cycle of the
      * triggering request). Two instructions sharing the same cache line
      * count as one miss event. That's what gem5 actually reports as a
@@ -2073,6 +2161,7 @@ function updateStats() {
   set('s-br',   nBr);
   set('s-ipc',  ipc);
   set('s-misp', nMisp);
+  set('s-unpred', nUnpred);
   set('s-icm',  `${icMissSet.size}`);
   set('s-dcm',  `${dcLoad + dcStore} (${dcLoad} ld, ${dcStore} st)`);
   set('s-flsh', nFlush);
@@ -2114,12 +2203,13 @@ function buildLegend() {
     { key:'memreq',  label:'Mem request',     color: COL.memreq,  desc:'A load or store in flight, from the LSQ through the data cache to its response.' },
     { key:'dcmiss',  label:'DCache miss',     color: COL.dcmiss,  desc:'A cycle a data-cache miss occurred. The label shows the kind: "ld✗" for a load miss, "st✗" for a store miss. Both count toward the data-cache totals in the config panel.' },
     { key:'sbbuf',   label:'Store buffer',    color: COL.sbbuf,   desc:'A store waiting in the store buffer until it is written to the data cache.' },
-    { key:'flush',   label:'Mispredict (T✗/N✗)', color: '#ff4040', desc:'Marker on the Execute cell where the core discovered the misprediction. The letter is the actual direction (T taken, N not taken), the cross means the prediction was wrong. The front end is flushed and the correct path refetched. The cost shows as a branch-bubble block on the resuming instruction row, not on the branch.' },
-    { key:'correct', label:'Predicted (T✓/N✓)', color: '#40c0ff', desc:'Marker on the Fetch2 cell where the predictor resolved the branch. A correctly predicted not-taken branch is free, the fall-through just continues. A correctly predicted taken branch still pays a bubble: the redirect is at Fetch2, so the target must still be fetched and walk the front end before it executes. The letter is the actual direction, the check means the prediction matched.' },
-    ...['taken', 'refill', 'refillmiss', 'serialize'].map(k => ({
+    { key:'flush',   label:'Mispredict (T✗/N✗)',  color: '#ff4040', desc:'Execute cell. The predictor at Fetch2 fired but called the wrong direction or target, so Execute redirected. Cost shows as a refill bubble on the resuming row.' },
+    { key:'unpred',  label:'Unpredicted (T!/N!)', color: '#f0a030', desc:'Execute cell. The predictor at Fetch2 stayed silent and the default not-taken was wrong, so Execute redirected. Same refill depth as a mispredict.' },
+    { key:'correct', label:'Predicted (T✓/N✓)',   color: '#40c0ff', desc:'Fetch2 cell. The predictor at Fetch2 was right and no Execute redirect was needed. A correctly predicted taken branch still pays a small bubble while Fetch1 starts the target fetch.' },
+    ...['taken', 'unpred', 'refill', 'refillmiss', 'serialize'].map(k => ({
       key: BUB[k].legendKey, label: BUB[k].label, color: BUB[k].swatch, desc: BUB[k].desc,
     })),
-    { key:'flushed', label:'Flushed instr',   color: COL.flushed, desc:'A wrong-path instruction fetched before the branch ahead of it resolved, then discarded. It reaches only fetch or decode, so it is a short stub with no execute or commit.' },
+    { key:'flushed', label:'Flushed instr',   color: COL.flushed, desc:'A wrong-path instruction fetched before the branch ahead of it resolved, then discarded. It may advance through Fetch and Decode, and sometimes into Execute, but it never reaches Commit, so its effects are never made architecturally visible.' },
     { key:'wb',      label:'Commit wait',     color: COL.wb,      desc:'A completed instruction waiting for in-order commit because an older instruction is still in a functional unit. This is NOT a write-back stage, MinorCPU has none, it is purely the wait for commit.' },
     { key:'cm',      label:'Commit',          color: COL.cm,      desc:'The instruction committed and its architectural state is now visible.' },
   ];
@@ -2152,6 +2242,7 @@ function buildLegend() {
     if (ins.dcMiss === true) present.add('dcmiss');
     if (ins.sbPush !== null)                                             present.add('sbbuf');
     if (ins.branchOutcome === 'mispred')                                 present.add('flush');
+    if (ins.branchOutcome === 'unpred')                                  present.add('unpred');
     if (ins.branchOutcome === 'correct')                                 present.add('correct');
     if (ins._bubble && ins._bubble.gap >= 1) {
       const meta = BUB[ins._bubble.kind];
@@ -2644,19 +2735,30 @@ function drawBars(ctx, ins, ry, firstCyc) {
     strip(ins.sbPush,   ins.sbDelete,     COL.sbbuf,  sH + 1,   sH, 'sb');
 
   /* ---- Branch resolution marker. A thin coloured strip on top of the
-   * stage cell that actually resolved the branch: the Fetch2 cell for a
-   * predicted branch, the Execute cell for a mispredict discovered at
-   * Execute. The label is the actual direction plus the outcome glyph
-   * (T/N, ✓ correct, ✗ mispredict), so position shows WHEN/WHERE it was
-   * resolved and the glyph shows the outcome. */
+   * stage cell that produced the decisive call for this branch:
+   *   - Fetch2 cell for a correctly handled branch. The predictor lives
+   *     in Fetch2; its call (explicit prediction OR default not-taken)
+   *     held all the way to Commit, no Execute redirect was needed.
+   *   - Execute cell for both kinds of late redirect:
+   *       mispred = predictor at Fetch2 fired with a wrong direction or
+   *                 target, Branch Resolution corrected it
+   *       unpred  = predictor at Fetch2 was silent (no prediction), the
+   *                 default not-taken was wrong and Execute had to
+   *                 redirect after evaluating the branch
+   * The label combines the actual direction (T taken, N not taken) with
+   * an outcome glyph: T✓/N✓ predicted correctly, T✗/N✗ mispredicted,
+   * T!/N! unpredicted. The cost of either late redirect shows as a
+   * branch-bubble block on the resuming instruction row, not here. */
   if (ins.branchOutcome) {
-    const mis  = ins.branchOutcome === 'mispred';
-    const bCol = mis ? '#ff4040' : '#40c0ff';
-    const dir  = ins.branchActualTaken === false ? 'N' : 'T';
-    const lbl  = dir + (mis ? '✗' : '✓');
-    const cell = ins.branchCaughtAt === 'fetch2'
-               ? ins.f2
-               : (ins.ex ?? ins.flushCycle ?? ins.dec);
+    const out  = ins.branchOutcome;
+    const bCol = out === 'mispred' ? '#ff4040'
+              :  out === 'unpred'  ? '#f0a030'
+              :                      '#40c0ff';
+    const dir   = ins.branchActualTaken === false ? 'N' : 'T';
+    const glyph = out === 'mispred' ? '✗' : out === 'unpred' ? '!' : '✓';
+    const lbl   = dir + glyph;
+    const cell  = ins.branchCaughtAt === 'fetch2' ? ins.f2
+                :                                   (ins.ex ?? ins.flushCycle ?? ins.dec);
     if (cell !== null) strip(cell, cell + 1, bCol, 0, sH, lbl);
   }
 
@@ -2777,9 +2879,9 @@ scroller.addEventListener('mousemove', ev => {
       <tr><td style="color:#505050">srcRegs</td>                    <td style="color:#f0a030">${ins.src  || '-'}</td></tr>
       <tr><td style="color:#505050">destRegs</td>                   <td style="color:#3ecf9a">${ins.dest || '-'}</td></tr>
       <tr><td colspan=2 style="padding-top:4px"></td></tr>
-      <tr><td style="color:#505050">F1 req</td>   <td>C${ins.f1req ?? '?'}${ins.wrapsLine ? ` <span style="color:#f0a030">(L${ins.wrapPrevLineSeq})</span>` : ''}</td></tr>
-      <tr><td style="color:#505050">F1 resp</td>  <td>C${ins.f1    ?? '?'}${ins.wrapsLine ? ` <span style="color:#f0a030">(L${ins.lineSeq})</span>` : ''}${ins.icMiss ? ' <span style="color:#e05050">MISS</span>' : ins.icMiss === false ? ' <span style="color:#3ecf9a">hit</span>' : ''}</td></tr>
-      ${ins.wrapsLine ? `<tr><td style="color:#505050">Wraps</td><td style="color:#f0a030">low half in L${ins.wrapPrevLineSeq}, high half in L${ins.lineSeq}</td></tr>` : ''}
+      <tr><td style="color:#505050">F1 req</td>   <td>C${ins.f1req ?? '?'}</td></tr>
+      <tr><td style="color:#505050">F1 resp</td>  <td>C${ins.f1    ?? '?'}${ins.icMiss ? ' <span style="color:#e05050">MISS</span>' : ins.icMiss === false ? ' <span style="color:#3ecf9a">hit</span>' : ''}</td></tr>
+      ${ins.wrapsLine ? `<tr><td style="color:#505050">Wraps</td><td style="color:#f0a030">low half at C${ins.f1respA ?? ins.f1reqA ?? '?'}, high half at C${ins.f1respB ?? ins.f1reqB ?? '?'}</td></tr>` : ''}
       <tr><td style="color:#505050">F2</td>       <td>C${ins.f2    ?? '?'}${f2src}</td></tr>
       <tr><td style="color:#505050">Dec</td>      <td>C${ins.dec   ?? '?'}${decsrc}</td></tr>
       <tr><td style="color:#505050">dToE</td>     <td>C${ins.dtoe  ?? '?'}</td></tr>
@@ -2802,17 +2904,18 @@ scroller.addEventListener('mousemove', ev => {
         <td>C${ins.sbPush}→C${ins.sbDelete ?? '?'} (${ins.sbDelete && ins.sbPush ? (ins.sbDelete - ins.sbPush) + 'c' : '?'})</td></tr>` : ''}
       ${ins.branchOutcome ? `<tr><td colspan=2 style="padding-top:3px"></td></tr>
         <tr><td style="color:#505050">Branch</td>
-          <td style="color:${ins.branchOutcome === 'mispred' ? '#ff4040' : '#40c0ff'}">${
-            ins.branchOutcome === 'mispred' ? '✗ Mispredicted' : '✓ Predicted correctly'}</td></tr>
-        <tr><td style="color:#505050">Predicted</td><td>${ins.predictedTaken ? 'taken' : 'not taken'}</td></tr>
+          <td style="color:${ins.branchOutcome === 'mispred' ? '#ff4040' : ins.branchOutcome === 'unpred' ? '#f0a030' : '#40c0ff'}">${
+            ins.branchOutcome === 'mispred' ? '✗ Mispredicted'
+              : ins.branchOutcome === 'unpred' ? '! Unpredicted'
+              : '✓ Predicted correctly'}</td></tr>
+        <tr><td style="color:#505050">Predicted</td><td>${
+            ins.branchOutcome === 'unpred' ? 'predictor silent at Fetch2, default not taken'
+              : ins.predictedTaken ? 'taken' : 'not taken'}</td></tr>
         <tr><td style="color:#505050">Actual</td><td>${ins.branchActualTaken === false ? 'not taken' : 'taken'}</td></tr>
-        ${ins.branchCaughtAt ? `<tr><td style="color:#505050">Resolved at</td><td>${
-            ins.branchCaughtAt === 'fetch2'
-              ? (ins.branchActualTaken === false
-                   ? 'Fetch2 (predicted not-taken, fell through)'
-                   : 'Fetch2 (predicted taken, little/no squash)')
-              : 'Execute (mispredict, full flush)'}</td></tr>` : ''}
-        ${ins.flushCycle ? `<tr><td style="color:#505050">Redirects at</td><td>C${ins.flushCycle}</td></tr>` : ''}` : ''}
+        <tr><td style="color:#505050">Resolved at</td><td>${
+            ins.branchCaughtAt === 'fetch2' ? 'Fetch2 (predictor call stood)'
+              : 'Execute (Branch Resolution redirected)'}</td></tr>
+        ${ins.flushCycle && ins.branchCaughtAt === 'execute' ? `<tr><td style="color:#505050">Redirects at</td><td>C${ins.flushCycle}</td></tr>` : ''}` : ''}
     </table>
     ${stage     ? `<div style="margin-top:5px;font-size:11px;color:${stageColor(stage)}">● ${stage}</div>` : ''}
     ${ins.flushed   ? `<div style="margin-top:4px;font-size:10px;color:#ff4040">✗ Flushed instruction (misprediction). Never committed</div>` : ''}
