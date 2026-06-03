@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MinorFlow - gem5 v25 RISC-V trace viewer</title>
+<title>MinorFlow - gem5 RISC-V trace viewer</title>
 <style>
 /* ============================================================================
  * Base & color tokens
@@ -56,7 +56,7 @@ body {
   letter-spacing: 0.02em;
 }
 
-.vsep  { width: 0.5px; height: 18px; background: var(--border2); }
+.vsep  { color: var(--border2); font-size: 14px; user-select: none; }
 .tlbl  { font-size: 11px; color: var(--text3); }
 #tracename {
   font-size: 11px;
@@ -411,20 +411,20 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
 <div id="top">
   <h1>💻 MinorFlow</h1>
   <span class="scope"
-        title="This viewer is built and tested against MinorCPU traces produced by gem5 version 25 running a RISC-V workload. Other gem5 versions or instruction-set architectures (Arm, x86, …) emit subtly different debug output and are NOT guaranteed to parse correctly. Some events may be missing, misclassified, or rendered incorrectly.">gem5 v25 · RISC-V</span>
+        title="This viewer is built and tested against MinorCPU traces produced by gem5 running a RISC-V workload. Other gem5 versions or instruction-set architectures (Arm, x86, …) emit subtly different debug output and are NOT guaranteed to parse correctly. Some events may be missing, misclassified, or rendered incorrectly.">gem5 · RISC-V</span>
 
-  <div class="vsep"></div>
+  <span class="vsep">│</span>
   <button class="tbtn" onclick="document.getElementById('fi').click()">📂 Open trace</button>
   <input type="file" id="fi" accept=".txt,.log">
   <span id="tracename" title=""></span>
 
-  <div class="vsep"></div>
+  <span class="vsep">│</span>
   <span class="tlbl">Zoom X</span>
-  <input type="range" id="zx" min="1" max="80" value="4" oninput="setZoom()">
+  <input type="range" id="zx" min="1" max="200" value="4" oninput="setZoom()">
   <span id="zoom-val">4px</span>
   <button class="tbtn" onclick="fitAll()" title="Fit the entire program timeline into the viewport">Fit all</button>
 
-  <div class="vsep"></div>
+  <span class="vsep">│</span>
   <span class="tlbl">Fetch range</span>
   <input type="number" id="rfrom" class="rng" placeholder="from" min="1"
          onkeydown="onRangeKeyDown(event)" onpaste="onRangePaste(event)"
@@ -437,7 +437,7 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
          title="Last instruction to show (fetch number)">
   <button class="tbtn" onclick="resetRange()" title="Show all instructions">Reset</button>
 
-  <div class="vsep"></div>
+  <span class="vsep">│</span>
   <label class="chk" title="Show the rich hover tooltip while moving the cursor">
     <input type="checkbox" id="tt-on" checked onchange="onTooltipToggle()">
     Tooltip
@@ -448,7 +448,10 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
     Forwarding
   </label>
 
-  <div class="vsep"></div>
+  <span class="vsep">│</span>
+  <button class="tbtn" id="lblToggleBtn" onclick="toggleLabelPanel()" title="Collapse the left label panel to give the timeline more room. Click again to bring the labels back.">◀ Hide labels</button>
+
+  <span class="vsep">│</span>
   <button class="tbtn" onclick="toggleConfigPanel()" title="Show inferred MinorCPU configuration extracted from the current trace">⚙ Config</button>
 </div>
 
@@ -513,15 +516,18 @@ label.chk input { accent-color: var(--accent); cursor: pointer; }
   <span title="Instruction at the row under the cursor">Instr: <span class="hi" id="s-i">-</span></span>
   <span title="Functional-unit class that handled the instruction">FU: <span class="hi" id="s-f">-</span></span>
   <span title="Program counter">PC: <span class="hi" id="s-p">-</span></span>
-  <span style="color:var(--border2)">│</span>
+  <span class="vsep">│</span>
   <span title="Total instructions fetched into the front end in the visible window. Includes both committed and flushed (discarded after a misprediction) instructions">Fetched: <span class="hi" id="s-fet">-</span></span>
   <span title="Total committed (retired) instructions in the visible window">Committed: <span class="hi" id="s-cmt">-</span></span>
   <span title="Total cycles spanned by the visible window (max − min + 1)">Cycles: <span class="hi" id="s-cyc">-</span></span>
-  <span title="Wall-clock time across the visible window at the trace's simulated clock frequency. Computed as cycles ÷ frequency, where the frequency is inferred from the trace's tick rate (one tick = 1 ps under gem5's default Tick resolution, so f = 1e12 / ticks-per-cycle Hz). This is the real time the program would take on a processor running at that frequency.">Time: <span class="hi" id="s-time">-</span></span>
+  <span title="Wall-clock time across the visible window at the trace's simulated clock frequency. Frequency is derived from the cycle period detected in the trace's tick rate. This is the real time the program would take on a processor running at that frequency.">Time: <span class="hi" id="s-time">-</span></span>
   <span title="Committed control-flow instructions with a resolution event from Execute (jal, jalr, beq, bne, blt, bge, c.j, c.jr, c.beqz, c.bnez, ...) in the visible window. Speculative wrong-path branches that were flushed before commit are not counted">Branches: <span class="hi" id="s-br">-</span></span>
   <span title="Branches the predictor at Fetch2 predicted with the wrong direction or target. Execute corrected them and flushed the front end. Emitted as BadlyPredictedBranch or BadlyPredictedBranchTarget in the trace">Mispred: <span class="hi" id="s-misp">-</span></span>
   <span title="Branches the predictor at Fetch2 stayed silent on. The default not-taken was wrong, so Execute redirected the front end after evaluating the branch. Emitted as UnpredictedBranch in the trace. Common on the first encounter of a control instruction">Unpred: <span class="hi" id="s-unpred">-</span></span>
   <span title="Instructions per cycle = committed / cycles">IPC: <span class="hi" id="s-ipc">-</span></span>
+  <span title="Instruction cache accesses in the visible window. Every distinct fetch request cycle counts as one access regardless of whether it hit or missed.">I$ acc: <span class="hi" id="s-ica">-</span></span>
+  <span title="Data cache accesses in the visible window. Every load and every store is one access. Split into loads (ld) and stores (st).">D$ acc: <span class="hi" id="s-dca">-</span></span>
+  <span title="Cycles where the front end did not issue a new fetch request. Includes I-cache miss waits, fetch buffer backpressure, mispredict refill bubbles, and any other stall that prevented a new Fetch1 from firing.">Idle: <span class="hi" id="s-idle">-</span></span>
   <span title="Total L1 ICache miss EVENTS in the visible window, deduped by request cycle. Two instructions whose halves share the same missing cache line count as ONE miss event (because the cache hierarchy sees one fill), not two.">IC✗: <span class="hi" id="s-icm">-</span></span>
   <span title="Total L1 DCache miss EVENTS in the visible window, deduped by LSQ issue cycle, broken into load misses (ld) and store misses (st). These are the actual ReadReq / WriteReq misses the cache hierarchy reported. Not the count of instructions that happened to land on a missing line.">DC✗: <span class="hi" id="s-dcm">-</span></span>
   <span title="Speculative instructions discarded after a misprediction">Flush: <span class="hi" id="s-flsh">-</span></span>
@@ -613,7 +619,7 @@ const RULER_H = 18;      // ruler height
 /* Zoom range driven by the slider. fitAll() may set cellW below MIN_CELL when
  * a very long trace needs sub-pixel cycles to fit the whole thing. */
 const MIN_CELL = 1;
-const MAX_CELL = 80;
+const MAX_CELL = 200;
 const MIN_CELL_FIT = 0.05;
 
 /* All cycle-typed fields on an instruction record.
@@ -1553,6 +1559,26 @@ function computeInferredConfig(observedLineSize, fetch1Req, fetch1Map, icMissCyc
   const totalCyc  = Math.max(0, maxCyc - minCyc + 1);
   const ipc       = totalCyc > 0 ? (cmCycs.length / totalCyc) : 0;
   const flushed   = allInstrs.filter(i => i.flushed).length;
+  /* I-cache accesses across the whole trace. Each distinct Fetch1
+   * request cycle counts once, with line-wrapping instructions
+   * adding their second-line request cycle. Idle cycles are total
+   * minus distinct active fetch cycles, capturing all fronts of
+   * stall (cache misses, FE buffer backpressure, refill bubbles,
+   * branch bubbles). */
+  const fetchReqSet = new Set();
+  let nLoads = 0, nStores = 0;
+  for (const i of allInstrs) {
+    if (i.f1req !== null) fetchReqSet.add(i.f1req);
+    if (i.wrapsLine && i.f1reqB !== null) fetchReqSet.add(i.f1reqB);
+    if (i.memIssue !== null) {
+      if (i.fu && /Store/.test(i.fu))    nStores++;
+      else if (i.fu && /Mem|Load/.test(i.fu)) nLoads++;
+    }
+  }
+  const icAcc   = fetchReqSet.size;
+  const dcAcc   = nLoads + nStores;
+  const idleCyc = Math.max(0, totalCyc - icAcc);
+  const idlePct = totalCyc > 0 ? Math.round(100 * idleCyc / totalCyc) : 0;
 
   cfg.sections.push({
     title: 'Simulation',
@@ -1562,6 +1588,9 @@ function computeInferredConfig(observedLineSize, fetch1Req, fetch1Map, icMissCyc
       ['total cycles',       `${totalCyc}`,                             'span from first fetch to last commit'],
       ['total instructions', `${numInst}`,                              `${cmCycs.length} committed · ${flushed} squashed`],
       ['IPC',                ipc.toFixed(3),                            'committed / total cycles'],
+      ['I-cache accesses',   `${icAcc}`,                                'distinct cycles where the front end issued a fetch request (lo or hi line)'],
+      ['D-cache accesses',   `${dcAcc} (${nLoads} ld, ${nStores} st)`,  'every load and every store generates one access (counted at LSQ memory dispatch)'],
+      ['idle cycles',        `${idleCyc} (${idlePct}%)`,                'cycles with no new fetch request fired (cache miss waits, buffer backpressure, refill bubbles)'],
     ],
   });
 
@@ -1903,6 +1932,27 @@ function toggleConfigPanel() {
   bd.classList.toggle('show');
 }
 
+/* Toggle the left label panel. When hidden the main timeline gets
+ * the full width. The button label flips arrow direction so it is
+ * obvious which way collapsed/expanded points. */
+let LBL_PANEL_HIDDEN = false;
+function toggleLabelPanel() {
+  LBL_PANEL_HIDDEN = !LBL_PANEL_HIDDEN;
+  const panel = document.getElementById('lblpanel');
+  const head  = document.getElementById('lblhead');
+  const btn   = document.getElementById('lblToggleBtn');
+  if (LBL_PANEL_HIDDEN) {
+    panel.style.display = 'none';
+    head.style.display  = 'none';
+    btn.textContent = '▶ Show labels';
+  } else {
+    panel.style.display = '';
+    head.style.display  = '';
+    btn.textContent = '◀ Hide labels';
+  }
+  if (vis && vis.length) { setupScrollers(); redraw(); }
+}
+
 
 /* Infer the three forward-delay constants from observed cycle deltas.
  * For each pair of consecutive stages, take the minimum delta across all
@@ -2116,9 +2166,16 @@ function resetRange() {
  * ========================================================================== */
 function updateStats() {
   let nCommit = 0, nFlush = 0, nMisp = 0, nUnpred = 0, nBr = 0;
-  const icMissSet = new Set();              // distinct f1req cycles where icMiss=true
-  const dcLoadSet = new Set();              // distinct memIssue cycles where dcMiss=true and not a store
+  let nLoads = 0, nStores = 0;
+  const icMissSet  = new Set();             // distinct f1req cycles where icMiss=true
+  const dcLoadSet  = new Set();             // distinct memIssue cycles where dcMiss=true and not a store
   const dcStoreSet = new Set();             // distinct memIssue cycles where dcMiss=true and isStore
+  /* Active fetch cycles for the I-cache-access and idle-cycle
+   * derivations. A cycle is "active" on the fetch front if any
+   * instruction has its Fetch1 request (f1req) in it. Wrapping
+   * instructions also count their second-line request (f1reqB).
+   * Idle cycles = total cycles - distinct active cycles. */
+  const fetchReqSet = new Set();
   for (const i of vis) {
     if      (i.flushed)        nFlush++;
     else if (i.cm !== null)    nCommit++;
@@ -2134,19 +2191,31 @@ function updateStats() {
       if (i.dcMissIsStore === true) dcStoreSet.add(i.memIssue);
       else                           dcLoadSet.add(i.memIssue);
     }
+    /* Distinct front-end fetch cycles. */
+    if (i.f1req !== null) fetchReqSet.add(i.f1req);
+    if (i.wrapsLine && i.f1reqB !== null) fetchReqSet.add(i.f1reqB);
+    /* D-cache access count. Every load and every store generates one
+     * access (regardless of whether it hit or missed). The FU class
+     * tells us which is which; flushed records are still LSQ
+     * accesses if they reached memIssue. */
+    if (i.memIssue !== null) {
+      if (i.fu && /Store/.test(i.fu))    nStores++;
+      else if (i.fu && /Mem|Load/.test(i.fu)) nLoads++;
+    }
   }
   const nFetch = vis.length;
   const span = (cMax > cMin) ? (cMax - cMin + 1) : 0;
   const ipc  = (span > 0) ? (nCommit / span).toFixed(2) : '-';
+  /* Active fetch cycles inside [cMin, cMax]. */
+  let activeFetchInRange = 0;
+  for (const c of fetchReqSet) if (c >= cMin && c <= cMax) activeFetchInRange++;
+  const idle    = Math.max(0, span - activeFetchInRange);
+  const idlePct = span > 0 ? Math.round(100 * idle / span) : 0;
 
   /* Real wall-clock time across the visible window.
    *   simulated frequency = 1 / (TPC × tick_resolution)
-   *                       = 1e12 / TPC Hz   (gem5's default tick is 1 ps)
-   *   real time           = total_cycles / frequency
-   *                       = span × TPC × 1 ps
-   *                       = span × TPC × 1e-3 ns
-   * We compute in nanoseconds directly so the unit matches the scale a
-   * real processor actually operates at (1 ns ≈ 1 cycle at 1 GHz). */
+   * The viewer assumes the trace's tick unit is picoseconds, which
+   * is gem5's default. real time = total_cycles / frequency. */
   const freqHz   = TPC > 0 ? (1e12 / TPC) : 0;
   const totalNs  = (freqHz > 0) ? (span / freqHz) * 1e9 : 0;
 
@@ -2162,6 +2231,9 @@ function updateStats() {
   set('s-ipc',  ipc);
   set('s-misp', nMisp);
   set('s-unpred', nUnpred);
+  set('s-ica',  activeFetchInRange);
+  set('s-dca',  `${nLoads + nStores} (${nLoads} ld, ${nStores} st)`);
+  set('s-idle', `${idle} (${idlePct}%)`);
   set('s-icm',  `${icMissSet.size}`);
   set('s-dcm',  `${dcLoad + dcStore} (${dcLoad} ld, ${dcStore} st)`);
   set('s-flsh', nFlush);
@@ -2184,34 +2256,47 @@ function fmtTime(ns) {
  * ========================================================================== */
 function buildLegend() {
   const STAGES = [
+    /* Bubbles caused by frontend redirects manifest BEFORE Fetch1 of
+     * the resuming instruction, so they come first in pipeline order. */
+    ...['taken', 'unpred', 'refill', 'refillmiss', 'serialize'].map(k => ({
+      key: BUB[k].legendKey, label: BUB[k].label, color: BUB[k].swatch, desc: BUB[k].desc,
+    })),
+    /* Fetch1 + its annotations (ICache miss, ICache stall). */
     { key:'f1',      label:'Fetch1',          color: COL.f1,      desc:'A line held by Fetch1, from when the line is requested until its response is consumed. On a miss the request and response cells stay this colour (the line is still in Fetch1), only the fill wait is coloured separately. An instruction whose bytes span more than one line draws one Fetch1 segment per line it needed.' },
     { key:'f1miss',  label:'ICache miss',     color: COL.f1miss,  desc:'Thin strip on the request cell of a fetch that missed in the instruction cache. It marks the cycle the miss was reported. The cell underneath is still ordinary Fetch1.' },
     { key:'f1stall', label:'ICache stall',    color: COL.f1stall, desc:'Fetch1 blocked waiting for an instruction-cache fill. MinorCPU has no separate I-cache stage, so the line stays in Fetch1 for the whole fill.' },
+    /* Predicted cap lives on the Fetch2 cell (predictor consulted at Fetch2),
+     * so it sits between ICache stall and Fetch2 just like in CVA6Flow. */
+    { key:'correct', label:'Predicted (T✓/N✓)',   color: '#40c0ff', desc:'Fetch2 cell. The predictor at Fetch2 was right and no Execute redirect was needed. A correctly predicted taken branch still pays a small bubble while Fetch1 starts the target fetch.' },
+    /* Fetch2 + its surroundings. */
+    { key:'f2',      label:'Fetch2',          color: COL.f2,      desc:'Fetch2 turns raw fetched bytes into a decoded instruction and consults the branch predictor.' },
     { key:'feStall', label:'Front-end stall', color: COL.feStall, desc:'Gap between the line fetches of an instruction whose bytes span more than one line, while Fetch1 issues the request for the next line. Only appears on such instructions.' },
     { key:'f2buf',   label:'Fetch2 buf',      color: COL.f2buf,   desc:'A fetched line waiting in the Fetch2 input buffer before Fetch2 takes it.' },
-    { key:'f2',      label:'Fetch2',          color: COL.f2,      desc:'Fetch2 turns raw fetched bytes into a decoded instruction and consults the branch predictor.' },
+    /* Decode + transit + execute buffer + execute. */
     { key:'decbuf',  label:'Dec buf',         color: COL.decbuf,  desc:'Instruction waiting in the Decode input buffer before Decode takes it.' },
     { key:'dec',     label:'Decode',          color: COL.dec,     desc:'Decode finalises the instruction and assigns its execute sequence number.' },
     { key:'dtoe',    label:'dToE transit',    color: COL.dtoe,    desc:'Transit between Decode and Execute. Only visible when that hand-off takes more than one cycle.' },
     { key:'exbuf',   label:'Exec buf',        color: COL.exbuf,   desc:'Instruction waiting ahead of a functional unit for the unit and for its operands (scoreboard).' },
     { key:'int',     label:'Execute Int',     color: COL.int,     desc:'Executing on an integer functional unit.' },
-    { key:'branch',  label:'Execute Branch',  color: COL.branch,  desc:'Executing a control instruction (jal, jalr, blt, beq, and so on).' },
     { key:'fp',      label:'Execute FP',      color: COL.fp,      desc:'Executing on a floating-point functional unit.' },
     { key:'vec',     label:'Execute Vector',  color: COL.vec,     desc:'Executing a vector, SIMD or matrix instruction.' },
     { key:'atomic',  label:'Execute Atomic',  color: COL.atomic,  desc:'Executing an atomic memory instruction (lr, sc, amo).' },
     { key:'mem',     label:'Execute Mem',     color: COL.mem,     desc:'Memory functional unit: load or store dispatch.' },
+    { key:'branch',  label:'Execute Branch',  color: COL.branch,  desc:'Executing a control instruction (jal, jalr, blt, beq, and so on).' },
+    /* Branch outcomes that originate at Execute. Mispredict and Unpredicted
+     * both redirect the front end from Execute, so they sit right after
+     * Execute Branch like in CVA6Flow. */
+    { key:'flush',   label:'Mispredict (T✗/N✗)',  color: '#ff4040', desc:'Execute cell. The predictor at Fetch2 fired but called the wrong direction or target, so Execute redirected. Cost shows as a refill bubble on the resuming row.' },
+    { key:'unpred',  label:'Unpredicted (T!/N!)', color: '#f0a030', desc:'Execute cell. The predictor at Fetch2 stayed silent and the default not-taken was wrong, so Execute redirected. Same refill depth as a mispredict.' },
+    /* Memory subsystem follows Execute Mem in pipeline order. */
     { key:'memreq',  label:'Mem request',     color: COL.memreq,  desc:'A load or store in flight, from the LSQ through the data cache to its response.' },
     { key:'dcmiss',  label:'DCache miss',     color: COL.dcmiss,  desc:'A cycle a data-cache miss occurred. The label shows the kind: "ld✗" for a load miss, "st✗" for a store miss. Both count toward the data-cache totals in the config panel.' },
     { key:'sbbuf',   label:'Store buffer',    color: COL.sbbuf,   desc:'A store waiting in the store buffer until it is written to the data cache.' },
-    { key:'flush',   label:'Mispredict (T✗/N✗)',  color: '#ff4040', desc:'Execute cell. The predictor at Fetch2 fired but called the wrong direction or target, so Execute redirected. Cost shows as a refill bubble on the resuming row.' },
-    { key:'unpred',  label:'Unpredicted (T!/N!)', color: '#f0a030', desc:'Execute cell. The predictor at Fetch2 stayed silent and the default not-taken was wrong, so Execute redirected. Same refill depth as a mispredict.' },
-    { key:'correct', label:'Predicted (T✓/N✓)',   color: '#40c0ff', desc:'Fetch2 cell. The predictor at Fetch2 was right and no Execute redirect was needed. A correctly predicted taken branch still pays a small bubble while Fetch1 starts the target fetch.' },
-    ...['taken', 'unpred', 'refill', 'refillmiss', 'serialize'].map(k => ({
-      key: BUB[k].legendKey, label: BUB[k].label, color: BUB[k].swatch, desc: BUB[k].desc,
-    })),
-    { key:'flushed', label:'Flushed instr',   color: COL.flushed, desc:'A wrong-path instruction fetched before the branch ahead of it resolved, then discarded. It may advance through Fetch and Decode, and sometimes into Execute, but it never reaches Commit, so its effects are never made architecturally visible.' },
+    /* Commit at the end of the pipeline. */
     { key:'wb',      label:'Commit wait',     color: COL.wb,      desc:'A completed instruction waiting for in-order commit because an older instruction is still in a functional unit. This is NOT a write-back stage, MinorCPU has none, it is purely the wait for commit.' },
     { key:'cm',      label:'Commit',          color: COL.cm,      desc:'The instruction committed and its architectural state is now visible.' },
+    /* Metadata last (mirrors CVA6Flow). */
+    { key:'flushed', label:'Flushed instr',   color: COL.flushed, desc:'A wrong-path instruction fetched before the branch ahead of it resolved, then discarded. It may advance through Fetch and Decode, and sometimes into Execute, but it never reaches Commit, so its effects are never made architecturally visible.' },
   ];
 
   const present = new Set();
@@ -2328,9 +2413,23 @@ function redraw() {
   const rulerW = rulerEl.clientWidth;
   const ROW_H  = getRowH();
 
-  tlCanvas.width  = vpW;     tlCanvas.height  = vpH;
-  lblCanvas.width = LBL_W;   lblCanvas.height = vpH;
-  rulerC.width    = rulerW;  rulerC.height    = RULER_H;
+  /* Device-pixel-ratio aware canvas sizing. The internal pixel buffer
+   * is allocated at dpr times the CSS size so text and 1-pixel lines
+   * stay crisp on retina and HiDPI displays. The CSS size still maps
+   * 1:1 to logical layout coordinates, and the 2D context is scaled
+   * by dpr so all the rest of the draw code keeps writing in CSS
+   * coordinates without changes. */
+  const dpr = window.devicePixelRatio || 1;
+  const sizeCanvas = (cv, w, h) => {
+    cv.style.width  = w + 'px';
+    cv.style.height = h + 'px';
+    cv.width  = Math.floor(w * dpr);
+    cv.height = Math.floor(h * dpr);
+    cv.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  sizeCanvas(tlCanvas,  vpW,    vpH);
+  sizeCanvas(lblCanvas, LBL_W,  vpH);
+  sizeCanvas(rulerC,    rulerW, RULER_H);
 
   const ctx  = tlCanvas.getContext('2d');
   const lctx = lblCanvas.getContext('2d');
@@ -2950,6 +3049,68 @@ scroller.addEventListener('mousemove', ev => {
 scroller.addEventListener('mouseleave', () => {
   document.getElementById('tt').style.display        = 'none';
   document.getElementById('crosshair').style.display = 'none';
+});
+
+/* Click on a mnemonic in the left label panel: jump the main view
+ * to the first cycle of that instruction's pipeline. The row's
+ * starting cycle is its Fetch1 request (f1req) if available, else
+ * the earliest defined stage cycle. Scrolls the row to about 1/3
+ * of the visible width so the user can see context on both sides
+ * of the instruction's start. Also brings the row into vertical
+ * view if it was scrolled off. */
+const lblCanvasEl = document.getElementById('lblcanvas');
+lblCanvasEl.style.cursor = 'pointer';
+lblCanvasEl.addEventListener('click', (e) => {
+  if (!vis.length) return;
+  const lblPanelEl = document.getElementById('lblpanel');
+  const rect = lblPanelEl.getBoundingClientRect();
+  const my = e.clientY - rect.top;
+  const ROW_H = getRowH();
+  const rowInView = Math.floor(my / ROW_H);
+  const row = scrollY + rowInView;
+  if (row < 0 || row >= vis.length) return;
+  const ins = vis[row];
+  const startCyc = (ins.f1req != null) ? ins.f1req
+                 : (ins.f1    != null) ? ins.f1
+                 : (ins.f2    != null) ? ins.f2
+                 : (ins.dec   != null) ? ins.dec
+                 : (ins.ex    != null) ? ins.ex : null;
+  if (startCyc == null) return;
+  const tlPanel = document.getElementById('tlpanel');
+  const vpW = tlPanel.clientWidth;
+  /* Place the instruction's first cycle at about 1/3 of the visible
+   * width so the user can see context before and after. */
+  const targetX = (startCyc - cMin) * cellW - Math.floor(vpW / 3);
+  scroller.scrollLeft = Math.max(0, targetX);
+  /* Vertical scroll only if the row is out of view. */
+  const vpH = tlPanel.clientHeight;
+  const rowTopPx = row * ROW_H;
+  const rowBotPx = rowTopPx + ROW_H;
+  if (rowTopPx < scroller.scrollTop) {
+    scroller.scrollTop = rowTopPx;
+  } else if (rowBotPx > scroller.scrollTop + vpH) {
+    scroller.scrollTop = rowBotPx - vpH;
+  }
+});
+
+/* Forward wheel events from anywhere in the viewer to the scroller
+ * so vertical scrolling works whether the mouse is over the
+ * timeline, the label panel, the ruler, the label header, or any
+ * other region inside the main view container. Without this the
+ * wheel does nothing when hovering outside the scroller. Vertical
+ * wheel rolls scrollTop. Horizontal wheel (or shift+wheel which
+ * browsers map to deltaX) rolls scrollLeft. */
+function forwardWheelToScroller(e) {
+  if (!vis.length) return;
+  if (e.currentTarget === scroller) return;
+  let consumed = false;
+  if (e.deltaY) { scroller.scrollTop  += e.deltaY; consumed = true; }
+  if (e.deltaX) { scroller.scrollLeft += e.deltaX; consumed = true; }
+  if (consumed) e.preventDefault();
+}
+['lblpanel', 'lblhead', 'ruler'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('wheel', forwardWheelToScroller, { passive: false });
 });
 
 function onTooltipToggle() {
