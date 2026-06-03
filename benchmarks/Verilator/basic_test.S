@@ -38,8 +38,8 @@ main:
   csrw    CSR_MHPMEVENT4, t0    # L1 D-Cache Miss
   li      t0, 16
   csrw    CSR_MHPMEVENT5, t0    # L1 I-Cache Access
-  li      t0, 22
-  csrw    CSR_MHPMEVENT6, t0    # Pipeline Stall
+  li      t0, 17
+  csrw    CSR_MHPMEVENT6, t0    # L1 D-Cache Access
   li      t0, 9
   csrw    CSR_MHPMEVENT7, t0    # Branch Instr
   li      t0, 10
@@ -210,7 +210,7 @@ main:
   ld      t0, 32(sp)
   sub     s6, s6, t0
 
-  # x23 (s7) = Pipeline Stall
+  # x23 (s7) = D-Cache Access
   csrr    s7, CSR_MHPMCOUNTER6
   ld      t0, 40(sp)
   sub     s7, s7, t0

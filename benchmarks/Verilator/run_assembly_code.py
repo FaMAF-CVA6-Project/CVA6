@@ -9,15 +9,15 @@ import shlex
 import shutil
 
 # ==============================================================================
-# CONSTANTES DE OVERHEAD
+# CONSTANTES DE OVERHEAD (cv64a6_imafdc_sv39_hpdcache_wb)
 # ==============================================================================
 OVERHEAD_CONSTANTS = {
     'x18': 40,   # Ciclos
     'x19': 17,   # Instrucciones
-    'x20': 4,    # Misses I-Cache
-    'x21': 1,    # Misses D-Cache (Read)
-    'x22': 31,   # Accesos I-Cache 
-    'x23': 24,   # Pipeline Stall
+    'x20': 3,    # Misses I-Cache
+    'x21': 0,    # Misses D-Cache
+    'x22': 34,   # Accesos I-Cache 
+    'x23': 9,    # Accesos D-Cache
     'x24': 0,    # Branches
     'x25': 0,    # Branch Mispredicts
     'x26': 0     # Tiempo (us)
@@ -30,9 +30,9 @@ METRICS_MAP = {
     'x18': 'Ciclos',               # s2
     'x19': 'Instrucciones',        # s3
     'x20': 'Misses I-Cache',       # s4
-    'x21': 'Misses D-Cache (Read)',# s5
+    'x21': 'Misses D-Cache',       # s5
     'x22': 'Accesos I-Cache',      # s6
-    'x23': 'Pipeline Stall',       # s7
+    'x23': 'Accesos D-Cache',      # s7
     'x24': 'Branches',             # s8
     'x25': 'Branch Mispredicts',   # s9
     'x26': 'Tiempo (us)'           # s10
@@ -43,10 +43,11 @@ ORDERED_KEYS = ['x18', 'x19', 'x20', 'x21', 'x22', 'x23', 'x24', 'x25', 'x26']
 def generate_and_show_codelist(binary_path):
     """
     Genera el archivo .list usando objdump y muestra la seccion de CODIGO filtrada.
+    Devuelve la ruta del archivo limpio para posterior escritura.
     """
     if not os.path.exists(binary_path):
         print(f"[ERROR] No se encontro el binario para desmontar: {binary_path}")
-        return
+        return None
 
     list_path = os.path.splitext(binary_path)[0] + ".list"
     clean_path = os.path.splitext(binary_path)[0] + "_clean.txt"
@@ -59,10 +60,10 @@ def generate_and_show_codelist(binary_path):
             subprocess.run(shlex.split(cmd), stdout=f, check=True)
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] {e}")
-        return
+        return None
     except FileNotFoundError:
         print("[ERROR] No se encontro 'riscv64-unknown-elf-objdump'")
-        return
+        return None
 
     # Visualizacion Filtrada
     print("\n" + "="*70)
@@ -106,9 +107,11 @@ def generate_and_show_codelist(binary_path):
 
     except Exception as e:
         print(f"[ERROR] {e}")
+        return None
     
     print("=" * 70 + "\n")
     print(f"[INFO] Archivo limpio guardado en: {clean_path}")
+    return clean_path
 
 def main():
     # Configuracion de Directorios
@@ -201,7 +204,7 @@ def main():
     # GENERAR Y MOSTRAR CODIGO 
     # --------------------------------------------------------------------------
     binary_path = os.path.join(binary_dir_compilation, f"{test_name}.o")
-    generate_and_show_codelist(binary_path)
+    clean_path = generate_and_show_codelist(binary_path)
 
     # --------------------------------------------------------------------------
     # PARSEAR METRICAS
@@ -229,11 +232,6 @@ def main():
     # CALCULOS E IMPRESION DE TABLA
     # --------------------------------------------------------------------------
     print("[INFO] Extrayendo estadisticas\n")
-    print("="*70)
-    print(f"TABLA DE RESULTADOS")
-    print("="*70)
-    print(f"{'METRICA':<25} | {'OFICIAL':>15} | {'NETO':>15}")
-    print("=" * 70)
 
     clean_official = []
     clean_corrected = []
@@ -250,6 +248,13 @@ def main():
     ipc_official = raw_inst / raw_cycles if raw_cycles > 0 else 0
     ipc_corrected = net_inst / net_cycles
 
+    output_buffer = []
+    output_buffer.append("=" * 70)
+    output_buffer.append("TABLA DE RESULTADOS")
+    output_buffer.append("=" * 70)
+    output_buffer.append(f"{'METRICA':<25} | {'OFICIAL':>15} | {'NETO':>15}")
+    output_buffer.append("=" * 70)
+
     # Iterar Metricas
     for key in ORDERED_KEYS:
         metric_name = METRICS_MAP[key]
@@ -263,20 +268,33 @@ def main():
         clean_official.append(val_official)
         clean_corrected.append(val_corrected)
         
-        print(f"{metric_name:<25} | {val_official:>15} | {val_corrected:>15}")
+        output_buffer.append(f"{metric_name:<25} | {val_official:>15} | {val_corrected:>15}")
 
     # Imprimir IPC
-    print(f"{'IPC':<25} | {ipc_official:>15.4f} | {ipc_corrected:>15.4f}")
+    output_buffer.append(f"{'IPC':<25} | {ipc_official:>15.4f} | {ipc_corrected:>15.4f}")
     
     # Agregar IPC a las listas limpias
     clean_official.append(round(ipc_official, 4))
     clean_corrected.append(round(ipc_corrected, 4))
 
-    print("="*70)
-    
-    # Clean Results
-    print(f"\nClean result (OFICIAL):  {clean_official}")
-    print(f"Clean result (NETO):     {clean_corrected}\n")
+    output_buffer.append("=" * 70)
+    output_buffer.append(f"\nClean result (OFICIAL):  {clean_official}")
+    output_buffer.append(f"Clean result (NETO):     {clean_corrected}\n")
+
+    # Mostrar todo en la consola
+    for line in output_buffer:
+        print(line)
+
+    # Guardar exactamente el mismo bloque en el archivo _clean.txt
+    if clean_path and os.path.exists(clean_path):
+        try:
+            with open(clean_path, "a") as f_clean:
+                f_clean.write("\n\n")
+                for line in output_buffer:
+                    f_clean.write(line + "\n")
+            print(f"[INFO] Metricas consolidadas exitosamente en: {clean_path}")
+        except Exception as e:
+            print(f"[WARN] No se pudieron guardar las metricas en el archivo: {e}")
 
 if __name__ == "__main__":
     main()
