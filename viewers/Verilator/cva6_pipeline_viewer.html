@@ -1,0 +1,2458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CVA6Flow - Verilator RISC-V stage viewer</title>
+<style>
+/* ============================================================================
+ * Base & color tokens (matched to MinorFlow.html).
+ * ========================================================================== */
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#18181a; --bg2:#222224; --bg3:#2a2a2d; --bg4:#313135;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.14);
+  --text:#e4e2dc; --text2:#a0a09a; --text3:#505050;
+  --accent:#3ecf9a; --warn:#f0a030; --bad:#e2585e;
+}
+body {
+  font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background:var(--bg); color:var(--text); font-size:13px;
+  height:100vh; overflow:hidden; display:flex; flex-direction:column;
+}
+/* top bar */
+#top {
+  height:42px; flex-shrink:0; background:var(--bg2);
+  border-bottom:0.5px solid var(--border2); padding:0 14px;
+  display:flex; align-items:center; gap:10px;
+}
+#top h1 { font-size:12px; font-weight:500; color:var(--text2); white-space:nowrap; }
+#top .scope {
+  font-size:10px; font-weight:500; color:var(--text3); background:var(--bg);
+  border:0.5px solid var(--border2); border-radius:3px; padding:2px 6px;
+  white-space:nowrap; cursor:help; letter-spacing:0.02em;
+}
+.vsep { color:var(--border2); font-size:14px; line-height:1; align-self:center; user-select:none; }
+.tlbl { font-size:11px; color:var(--text3); }
+#tracename {
+  font-size:11px; color:var(--text2); max-width:200px; overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; display:inline-block; vertical-align:middle;
+}
+#tracename:empty { display:none; }
+.tbtn {
+  padding:3px 9px; background:var(--bg3); border:0.5px solid var(--border2);
+  border-radius:5px; color:var(--text2); font-size:11px; cursor:pointer;
+}
+.tbtn:hover { background:var(--bg4); color:var(--text); }
+#zoom-val { font-size:11px; color:var(--warn); font-weight:500; min-width:42px; }
+input[type=range]  { width:90px; accent-color:var(--accent); cursor:pointer; }
+input[type=file]   { display:none; }
+input[type=number] {
+  background:var(--bg3); border:0.5px solid var(--border2); border-radius:4px;
+  padding:2px 4px; color:var(--text); font-size:11px; width:42px;
+}
+input.rng { width:72px; }
+label.chk {
+  display:flex; align-items:center; gap:4px; font-size:11px;
+  color:var(--text2); cursor:pointer; user-select:none;
+}
+label.chk input { accent-color:var(--accent); cursor:pointer; }
+/* drop zone */
+#dropzone {
+  flex:1; margin:20px; border:1.5px dashed var(--border2); border-radius:8px;
+  color:var(--text3); cursor:pointer; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:8px;
+}
+#dropzone.ov { border-color:var(--accent); color:var(--accent); }
+#dropzone h2 { font-size:13px; color:var(--text2); }
+/* main view */
+#view { flex:1; display:none; flex-direction:column; min-height:0; }
+#leg {
+  flex-shrink:0; min-height:26px; background:var(--bg2); border-bottom:0.5px solid var(--border);
+  display:flex; flex-wrap:wrap; align-items:center; gap:5px 12px; padding:4px 12px;
+}
+.li { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--text3);
+  cursor:help; flex-shrink:0; white-space:nowrap; }
+.ld { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
+#main { flex:1; display:flex; min-height:0; }
+#lblpanel { width:340px; flex-shrink:0; background:var(--bg2);
+  border-right:1px solid var(--border2); position:relative; }
+#lblhead { height:18px; flex-shrink:0; border-bottom:0.5px solid var(--border);
+  padding:0 8px; font-size:10px; color:var(--text3);
+  display:flex; align-items:center; gap:10px; }
+#lblhead .cmpkey { color:#3ec0b0; }
+#lblhead .wrapkey { color:#f0a030; font-size:12px; }
+#lblcanvas { position:absolute; top:18px; left:0; }
+#tlwrap { flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
+#ruler { height:18px; flex-shrink:0; background:#1c1c1e; border-bottom:0.5px solid var(--border);
+  position:relative; overflow:hidden; }
+#rulercanvas { position:absolute; top:0; left:0; }
+#tlscroll { flex:1; overflow:auto; position:relative; background:#1a1a1c; }
+#tlspacer { position:absolute; top:0; left:0; }
+#tlcanvas { position:absolute; top:0; left:0; pointer-events:none; }
+#crosshair { position:absolute; top:0; width:1px; background:var(--warn); opacity:.5;
+  pointer-events:none; display:none; }
+/* writeback track */
+#wbpanel { flex-shrink:0; height:140px; background:var(--bg2);
+  border-top:0.5px solid var(--border2); display:flex; }
+#wbhead { width:340px; flex-shrink:0; border-right:0.5px solid var(--border2);
+  padding:8px 12px; font-size:10px; color:var(--text3); }
+#wbhead .t { color:#e6b45a; font-size:11px; font-weight:500; letter-spacing:0.02em; }
+#wbhead .s { margin-top:4px; line-height:1.5; }
+#wbhead .num { font-family:'SF Mono',Menlo,Consolas,monospace; color:var(--text2); }
+#wbwrap { flex:1; position:relative; overflow:hidden; background:#1a1a1c; cursor:crosshair; }
+#wbcanvas { position:absolute; top:0; left:0; }
+/* status bar */
+#status {
+  min-height:36px; flex-shrink:0; background:var(--bg3); border-top:0.5px solid var(--border);
+  padding:6px 14px; display:flex; align-items:center; gap:14px;
+  flex-wrap:wrap; overflow:hidden;
+}
+#status span { font-size:12px; color:var(--text3); white-space:nowrap; }
+#status .hi  { color:var(--text2); }
+#status .sep { color:var(--border2); }
+/* tooltip */
+#tt {
+  position:fixed; z-index:200; display:none;
+  background:var(--bg2); border:0.5px solid var(--border2); border-radius:6px;
+  padding:9px 11px; max-width:380px;
+  box-shadow:0 6px 24px rgba(0,0,0,.5);
+  color:var(--text); font-size:11px; line-height:1.45;
+  pointer-events:none;
+}
+#tt table { border-collapse:collapse; font-size:11px; }
+#tt td { padding:1px 0; vertical-align:top; }
+#tt td:first-child {
+  padding-right:18px; white-space:nowrap; color:#505050;
+}
+/* Config modal (MinorFlow ids and table layout). */
+#cfg-backdrop {
+  position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.5);
+  display:none; align-items:flex-start; justify-content:center; padding-top:60px;
+}
+#cfg-backdrop.show { display:flex; }
+#cfg-modal {
+  width:720px; max-width:95vw; max-height:85vh;
+  background:var(--bg2); border:0.5px solid var(--border2); border-radius:8px;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+#cfg-modal-head {
+  flex-shrink:0; padding:14px 18px; border-bottom:0.5px solid var(--border2);
+  display:flex; align-items:center; justify-content:space-between;
+}
+#cfg-modal-head h2 { font-size:14px; font-weight:500; color:var(--text); }
+#cfg-modal-head .sub { font-size:11px; color:var(--text3); margin-top:2px; line-height:1.5; max-width:560px; }
+#cfg-close {
+  background:transparent; border:none; color:var(--text2); font-size:18px;
+  cursor:pointer; padding:0 6px; line-height:1;
+}
+#cfg-close:hover { color:var(--text); }
+#cfg-body { flex:1; overflow-y:auto; padding:14px 18px 22px; }
+#cfg-body h3 {
+  font-size:11px; font-weight:500; color:var(--accent); text-transform:uppercase;
+  letter-spacing:0.05em; margin:16px 0 6px;
+}
+#cfg-body h3:first-child { margin-top:0; }
+#cfg-body table { width:100%; border-collapse:collapse; font-size:11px; }
+#cfg-body td { padding:4px 6px; border-bottom:0.5px solid var(--border); vertical-align:top; }
+#cfg-body td:first-child {
+  color:var(--text2); width:230px;
+  font-family:'SF Mono',Menlo,Consolas,monospace;
+}
+#cfg-body td:nth-child(2) {
+  color:var(--text); font-family:'SF Mono',Menlo,Consolas,monospace; width:140px;
+}
+#cfg-body td:nth-child(3) { color:var(--text3); font-style:italic; font-size:10px; }
+.hist-card {
+  margin-top:6px; padding:24px 16px 28px;
+  background:var(--bg); border:0.5px solid var(--border);
+  border-radius:6px;
+}
+.hist {
+  display:flex; align-items:flex-end; gap:4px; height:64px;
+  padding-bottom:2px;
+}
+.hist .b {
+  background:#b08020; flex:1; min-width:18px; max-width:42px;
+  border-radius:2px 2px 0 0; position:relative; min-height:2px;
+}
+.hist .b span {
+  position:absolute; top:-15px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:var(--text2);
+  font-family:'SF Mono',Menlo,Consolas,monospace;
+}
+.hist .b em {
+  position:absolute; bottom:-16px; left:50%; transform:translateX(-50%);
+  font-size:9px; color:var(--text3); font-style:normal;
+  font-family:'SF Mono',Menlo,Consolas,monospace;
+}
+/* error modal */
+#err-backdrop {
+  position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.6);
+  display:none; align-items:flex-start; justify-content:center; padding-top:80px;
+}
+#err-backdrop.show { display:flex; }
+#err-modal {
+  width:560px; max-width:92vw; background:var(--bg2);
+  border:0.5px solid var(--border2); border-radius:8px;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+}
+#err-modal-head {
+  flex-shrink:0; padding:14px 18px; border-bottom:0.5px solid var(--border2);
+  display:flex; align-items:center; justify-content:space-between;
+}
+#err-modal-head h2 { font-size:14px; font-weight:500; color:var(--text); }
+#err-close {
+  background:transparent; border:none; color:var(--text2); font-size:18px;
+  cursor:pointer; padding:0 6px; line-height:1;
+}
+#err-close:hover { color:var(--text); }
+#err-body { padding:14px 18px 18px; color:var(--text2); font-size:12px; line-height:1.55; }
+#err-body p { margin:6px 0; }
+#err-body code, #err-body pre {
+  font-family:'SF Mono', Menlo, Consolas, monospace;
+}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <h1>💻 CVA6Flow</h1>
+  <span class="scope"
+        title="A pipeline trace viewer for CVA6 RISC-V cores. Designed to look and feel like MinorFlow so the two cores can be compared side by side. Drag a JSON trace in to start.">cv64a6 · RISC-V</span>
+
+  <span class="vsep">│</span>
+  <button class="tbtn" onclick="document.getElementById('fi').click()" title="Open a CVA6 trace JSON from disk">📂 Open trace</button>
+  <input type="file" id="fi" accept=".json,application/json">
+  <span id="tracename" title=""></span>
+
+  <span class="vsep">│</span>
+  <span class="tlbl">Zoom X</span>
+  <input type="range" id="zx" min="1" max="200" value="6" oninput="setZoom()" title="Pixels per cycle. Higher means more detail per cycle and fewer cycles visible at once.">
+  <span id="zoom-val">6px</span>
+  <button class="tbtn" onclick="fitAll()" title="Shrink cycles until the whole program fits in the viewport">Fit all</button>
+
+  <span class="vsep">│</span>
+  <span class="tlbl">Fetch range</span>
+  <input type="number" id="rfrom" class="rng" placeholder="from" min="1"
+         onkeydown="onRangeKeyDown(event)" onpaste="onRangePaste(event)"
+         oninput="onRangeInput(event)" onchange="onRangeChange()"
+         title="First fetched instruction to show">
+  <span style="color:var(--text3);font-size:11px">-</span>
+  <input type="number" id="rto" class="rng" placeholder="to" min="1"
+         onkeydown="onRangeKeyDown(event)" onpaste="onRangePaste(event)"
+         oninput="onRangeInput(event)" onchange="onRangeChange()"
+         title="Last fetched instruction to show">
+  <button class="tbtn" onclick="resetRange()" title="Show every instruction in the trace">Reset</button>
+  <button class="tbtn" onclick="showMainCode()" title="Filter to instructions starting at the program entry PC, hiding boot ROM and CSR setup">Main code</button>
+
+  <span class="vsep">│</span>
+  <label class="chk" title="Show a detailed information panel as the mouse hovers over an instruction">
+    <input type="checkbox" id="tt-on" checked>
+    Tooltip
+  </label>
+  <label class="chk" title="Draw an arrow from each producer to its consumer. The arrow ends at the consumer's IS cycle (where the muxing happens in issue_read_operands). Teal-green is the wb-path (back-to-back forwarding). Purple-magenta is the sb-path (value sat in the scoreboard before issue).">
+    <input type="checkbox" id="fwd-on" onchange="redraw()">
+    Forwarding
+  </label>
+  <label class="chk" title="Show the memory writeback track at the bottom. Each bar is a dirty cache line being written back to memory, plus the eviction that caused it.">
+    <input type="checkbox" id="wb-on" checked onchange="onWbToggle()">
+    Writebacks
+  </label>
+
+  <span class="vsep">│</span>
+  <button class="tbtn" id="lblToggleBtn" onclick="toggleLabelPanel()" title="Collapse the left label panel to give the timeline more room. Click again to bring the labels back.">◀ Hide labels</button>
+
+  <span class="vsep">│</span>
+  <button class="tbtn" onclick="toggleConfigPanel()" title="Show the pipeline configuration and aggregate statistics for this trace">⚙ Config</button>
+</div>
+
+<div id="cfg-backdrop" onclick="if (event.target.id === 'cfg-backdrop') toggleConfigPanel()">
+  <div id="cfg-modal">
+    <div id="cfg-modal-head">
+      <div>
+        <h2>Configuration parameters</h2>
+        <div class="sub">Configuration parameters are exact, taken from the build the trace was captured on. Per trace statistics summarize the full trace, not just the currently filtered fetch range.</div>
+      </div>
+      <button id="cfg-close" onclick="toggleConfigPanel()" title="Close">×</button>
+    </div>
+    <div id="cfg-body">
+      <p style="color:var(--text3);font-size:11px">Load a trace to populate this panel.</p>
+    </div>
+  </div>
+</div>
+
+<div id="err-backdrop" onclick="if (event.target.id === 'err-backdrop') closeModalMessage()">
+  <div id="err-modal">
+    <div id="err-modal-head">
+      <h2 id="err-title">Notice</h2>
+      <button id="err-close" onclick="closeModalMessage()" title="Close">×</button>
+    </div>
+    <div id="err-body"></div>
+  </div>
+</div>
+
+<div id="dropzone"
+     ondragover="event.preventDefault(); this.classList.add('ov')"
+     ondragleave="this.classList.remove('ov')"
+     ondrop="event.preventDefault(); this.classList.remove('ov'); loadF(event.dataTransfer.files[0])"
+     onclick="document.getElementById('fi').click()">
+  <h2>Drag a CVA6 trace here, or click to browse</h2>
+  <p style="font-size:11px">JSON produced by <code>cva6_pipeline_tracer.py</code> from a Verilator generated VCD.</p>
+  <p style="font-size:10px;margin-top:4px">Keys: arrows to navigate, Esc to close panels</p>
+</div>
+
+<div id="view">
+  <div id="leg"></div>
+  <div id="main">
+    <div id="lblpanel">
+      <div id="lblhead"><span class="cmpkey">▪</span> compressed&nbsp;&nbsp;<span class="wrapkey">↪</span> wraps fetch line</div>
+      <canvas id="lblcanvas"></canvas>
+    </div>
+    <div id="tlwrap">
+      <div id="ruler"><canvas id="rulercanvas"></canvas></div>
+      <div id="tlscroll">
+        <div id="tlspacer"></div>
+        <canvas id="tlcanvas"></canvas>
+      </div>
+      <div id="crosshair"></div>
+    </div>
+  </div>
+  <div id="wbpanel">
+    <div id="wbhead">
+      <div class="t">Memory writebacks</div>
+      <div class="s" id="wbstat">dirty victim to memory</div>
+    </div>
+    <div id="wbwrap"><canvas id="wbcanvas"></canvas></div>
+  </div>
+  <div id="status">
+    <span title="Cycle the mouse cursor is over">Cycle: <span class="hi" id="s-c">-</span></span>
+    <span title="Instruction at the row under the cursor">Instr: <span class="hi" id="s-i">-</span></span>
+    <span title="Functional unit class that handled the instruction">FU: <span class="hi" id="s-f">-</span></span>
+    <span title="Program counter">PC: <span class="hi" id="s-p">-</span></span>
+    <span class="sep">│</span>
+    <span title="Instructions that reached the front end in the visible window. Includes both committed and flushed.">Fetched: <span class="hi" id="s-fet">-</span></span>
+    <span title="Committed (retired) instructions in the visible window">Committed: <span class="hi" id="s-cmt">-</span></span>
+    <span title="Cycles spanned by the visible window (last cycle minus first cycle plus one)">Cycles: <span class="hi" id="s-cyc">-</span></span>
+    <span title="Control flow instructions that resolved (jal, jalr, branches and compressed variants) in the visible window">Branches: <span class="hi" id="s-br">-</span></span>
+    <span title="Branches the predictor got wrong (direction or target) and Execute had to correct">Mispred: <span class="hi" id="s-misp">-</span></span>
+    <span title="Instructions per cycle (committed divided by cycles)">IPC: <span class="hi" id="s-ipc">-</span></span>
+    <span title="Total elapsed cycles in the visible window (last cycle minus first cycle plus one). Same metric the perf counter for elapsed time would report.">Time: <span class="hi" id="s-time">-</span></span>
+    <span title="I-cache accesses in the visible window. When the JSON has the icache_events array (modern tracer), counts every event in [cMin, cMax] from the icache FSM — matches the hardware perf counter for icache accesses. Older JSONs fall back to distinct fetch cycles from records.">I$ acc: <span class="hi" id="s-ica">-</span></span>
+    <span title="Data cache accesses in the visible window, derived from records (one access per load or store instruction). The hardware perf counter for dcache accesses can be substantially larger because it sees every cache lookup including PTW page-table-walk reads, load retries after a miss, AMO sub-accesses, and hardware prefetcher reads.">D$ acc: <span class="hi" id="s-dca">-</span></span>
+    <span title="Cycles where the front end did not issue a new fetch request. Includes icache miss waits, FE FIFO backpressure, mispredict refill bubbles, and any other stall that prevented a new IF1 from firing.">Idle: <span class="hi" id="s-idle">-</span></span>
+    <span title="I-cache miss EVENTS in the visible window. When the JSON has the icache_events array (modern tracer), sampled directly from the icache FSM (state_q==MISS at the fe2 latching cycle) — matches the hardware perf counter for icache misses (l1_icache_miss). Older JSONs fall back to a record-dedup count.">IC✗: <span class="hi" id="s-icm">-</span></span>
+    <span title="D-cache miss EVENTS in the visible window. When the JSON has the dcache_alloc_events array (modern tracer), sampled directly from mshr_alloc_o filtered by ~is_prefetch_i — same signal as evt_cache_read_miss_o that drives the hardware perf counter (l1_dcache_miss). Split by adapter: ld (LSU loads, sid=1), st (LSU stores, sid=3), other (PTW sid=0, accel sid=2, CMO, etc.). Older JSONs fall back to per-record dc_primary_miss counts which miss PTW etc.">DC✗: <span class="hi" id="s-dcm">-</span></span>
+    <span title="Speculative instructions discarded before they could commit">Flush: <span class="hi" id="s-flsh">-</span></span>
+    <span style="margin-left:auto" title="Rows rendered, then total fetched in the visible window">Visible: <span class="hi" id="s-vis">-</span> / <span class="hi" id="s-tot">-</span></span>
+  </div>
+</div>
+
+<div id="tt"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+ * Color palette (MinorFlow's, plus a teal blue for fe so it stays distinct
+ * from if2).
+ * ========================================================================== */
+const COL = {
+  f1:'#1e4a7a',                /* if1 cell (lo / non-wrapping fetch) */
+  f2:'#163a6a',                /* if2 cell, darker than if1 */
+  f1_hi:'#3a7aaa',             /* if1 cell. hi fetch on wraps_line records */
+  f2_hi:'#306a99',             /* if2 cell. hi fetch on wraps_line records */
+  fe:'#1a5060',                /* fe cell, teal blue, distinct from if2 */
+  f1miss:'#c03030', f1stall:'#8a2020',
+  f2buf:'#0e2a50',             /* fe buf */
+  dec:'#4a2a80', decbuf:'#352060',
+  dec_is_merged:'#5a3590',     /* ID and IS share a cycle (the common case). brighter purple to make the merge obvious. */
+  dec_is_split:'#3a2070',      /* IS cell when split from ID (operand-wait case). darker than ID. */
+  exbuf:'#1a3050',             /* is buf */
+  int:'#1a6040', branch:'#6a3090', fp:'#106060', mem:'#5a4010',
+  wb:'#1a5050',                /* co wait */
+  cm:'#1a5535',                /* co cell */
+  memreq:'#b08020', dcmiss:'#d03030', sbbuf:'#c07020',
+  fwd_wb:'#20a8a0',            /* forwarding via wb path (consumer's IS) */
+  fwd_sb:'#a050a0',            /* forwarding via sb path (consumer's IS) */
+  flushed:'#3a1515',
+};
+/* Bubble-kind metadata, modeled on MinorFlow's BUB dictionary. The
+ * Phase 8c tagger emits four kinds, each rendered as a transparent
+ * fill bar drawn BEFORE the resuming instruction's IF1. Same
+ * convention as MinorFlow. The bubble is on the resuming
+ * instruction's row. The causer is named in the tooltip via
+ * cross-reference. */
+const BUBBLE_KIND_META = {
+  mispred: {
+    label: 'Bubble: mispredict',
+    swatch: 'rgb(255,100,80)',
+    fill:   'rgba(255,100,80,0.55)',
+    txt:    '<span style="color:#ff7060">mispredict (Execute redirect)</span>',
+    desc:   'Predictor had a specific guess and Execute resolved differently. Pipeline drains and refetches from the resolved target.',
+  },
+  unpred: {
+    label: 'Bubble: unpredicted',
+    swatch: 'rgb(230,180,90)',
+    fill:   'rgba(230,180,90,0.55)',
+    txt:    '<span style="color:#e6b45a">unpredicted (predictor was silent)</span>',
+    desc:   'Predictor said nothing (predicted_cf == NoCF), so the front end fell through. Any redirect from such a branch is unpredicted by definition.',
+  },
+  flush_other: {
+    label: 'Bubble: csr / fence flush',
+    swatch: 'rgb(90,170,170)',
+    fill:   'rgba(90,170,170,0.55)',
+    txt:    '<span style="color:#5ab0aa">CSR / FENCE flush</span>',
+    desc:   'Pipeline flush from a CSR write or fence. The writing instruction commits and drains everything in flight.',
+  },
+  pred_taken: {
+    label: 'Bubble: predicted taken',
+    swatch: 'rgb(160,110,225)',
+    fill:   'rgba(160,110,225,0.55)',
+    txt:    '<span style="color:#a06ee0">predicted-taken bubble (FE redirect)</span>',
+    desc:   'Short bubble after a correctly predicted taken branch. The predictor steered the next FE1 toward the target but the redirect takes a few cycles. No records are flushed.',
+  },
+};
+const LBL_W = 340, RULER_H = 18;
+const MIN_CELL = 1, MAX_CELL = 200, MIN_CELL_FIT = 0.05;
+/* Fallback program bounds when the trace doesn't record user_entry_pc /
+ * user_end_pc explicitly. Adjust these per program if needed. Currently set
+ * for the standard daxpy/fadd/compress test programs whose main code lives
+ * between 0x80003000 (the entry "addi sp,sp,-80") and 0x8000314c (the
+ * "jal ra, <exit>" that returns to the runtime). */
+const DEFAULT_USER_ENTRY_PC = '0x80003000';
+const DEFAULT_USER_END_PC   = '0x8000314c';
+let cellW = 6;
+function getRowH(){ return cellW >= 40 ? 26 : cellW >= 20 ? 20 : 15; }
+
+let DATA = null, ROWS = [], WBS = [], VISIBLE_WBS = [];
+let DC_ALLOCS = [], IC_EVENTS = [];
+let ROW_BY_ID = new Map();
+let ROW_INDEX_BY_ID = new Map();
+let cMin = 0, cMax = 0;
+let scrollX = 0, scrollY = 0;
+let minId = 1, maxId = 1;
+let waitMax = { icStall:0, feBuf:0, idBuf:0, isBuf:0, exLat:0, coWait:0 };
+
+const tlscroll = document.getElementById('tlscroll');
+const tlcanvas = document.getElementById('tlcanvas');
+const lblcanvas = document.getElementById('lblcanvas');
+const rulercanvas = document.getElementById('rulercanvas');
+const wbcanvas = document.getElementById('wbcanvas');
+const crosshair = document.getElementById('crosshair');
+const tt = document.getElementById('tt');
+
+function cycDisp(c){ return c - cMin; }
+function dispId(id){ return id + 1; }
+
+/* ============================================================================
+ * File loading and validation
+ * ========================================================================== */
+document.getElementById('fi').addEventListener('change', e => {
+  if (e.target.files[0]) loadF(e.target.files[0]);
+});
+function loadF(f){
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const text = ev.target.result;
+    let json;
+    try { json = JSON.parse(text); }
+    catch (err){
+      showModalMessage('Not a CVA6 trace',
+        `<p><b>"${escapeHtml(f.name)}"</b> isn't valid JSON.</p>` +
+        `<p>Parser said: <code>${escapeHtml(err.message)}</code>.</p>` +
+        `<p>The current view has not been changed.</p>`);
+      return;
+    }
+    const why = whyNotCVA6Trace(json);
+    if (why){
+      showModalMessage('Not a CVA6 trace',
+        `<p><b>"${escapeHtml(f.name)}"</b> doesn't look like a CVA6 pipeline trace.</p>` +
+        `<p>${why}</p>` +
+        `<p>The current view has not been changed.</p>` +
+        `<p style="margin-top:14px;color:var(--text3);font-size:11px;line-height:1.5">` +
+        `A CVA6 trace is the JSON produced by <code>cva6_pipeline_tracer.py</code> ` +
+        `running over a Verilator generated VCD. The file should look like:</p>` +
+        `<pre style="background:var(--bg);color:var(--text2);padding:8px 12px;border-radius:4px;` +
+        `font-size:11px;border:0.5px solid var(--border2);overflow-x:auto">` +
+        `{ "metadata":     { ... },\n` +
+        `  "config_params":{ ... },\n` +
+        `  "instructions": [ { "id":0, "pc":"0x10000", "if1_lo":..., ... }, ... ],\n` +
+        `  "writebacks":   [ { "send_cycle":..., "ack_cycle":..., ... }, ... ] }</pre>`);
+      return;
+    }
+    ingest(json, f.name);
+  };
+  r.onerror = () => showModalMessage('File error',
+    '<p>Could not read that file. It may be unreadable or too large for the browser.</p>');
+  r.readAsText(f);
+}
+function whyNotCVA6Trace(j){
+  if (j == null || typeof j !== 'object')   return 'Top level is not a JSON object.';
+  if (!Array.isArray(j.instructions))       return 'Missing the <code>instructions</code> array.';
+  if (j.instructions.length === 0)          return 'The <code>instructions</code> array is empty.';
+  const r = j.instructions[0];
+  const need = ['id','pc','if1_lo','if2_lo','fe_cycle','id_cycle','is_cycle','ex_cycle','wb_cycle','co_cycle'];
+  for (const k of need){
+    if (!(k in r)) return `Instruction records are missing the <code>${k}</code> field that the CVA6 tracer always emits.`;
+  }
+  return null;
+}
+function showModalMessage(title, htmlBody){
+  document.getElementById('err-title').textContent = title || 'Notice';
+  document.getElementById('err-body').innerHTML = htmlBody || '';
+  document.getElementById('err-backdrop').classList.add('show');
+}
+function closeModalMessage(){
+  document.getElementById('err-backdrop').classList.remove('show');
+}
+function escapeHtml(s){ return String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function ingest(json, name){
+  DATA = json;
+  WBS = Array.isArray(json.writebacks) ? json.writebacks : [];
+  /* Phase 6b extra: per-cycle MSHR alloc events. Used for the
+   * perf-counter-equivalent miss metric, which includes PTW (sid=0),
+   * accel (sid=2), and CMO misses that have no instruction record. */
+  DC_ALLOCS = Array.isArray(json.dcache_alloc_events) ? json.dcache_alloc_events : [];
+  /* Phase 4b extra: per-cycle icache events with miss flag. Used for
+   * window-filtered icache miss count straight from the cache FSM. */
+  IC_EVENTS = Array.isArray(json.icache_events) ? json.icache_events : [];
+  const base = name.replace(/\.json$/i, '');
+  const shown = base.length > 30 ? base.slice(0,14) + '…' + base.slice(-14) : base;
+  const tn = document.getElementById('tracename');
+  tn.textContent = shown; tn.title = base;
+
+  ROWS = DATA.instructions.slice();
+  /* Bubble propagation across instructions sharing the same fetch.
+   * In a wide fetch (INSTR_PER_FETCH greater than 1 with RVC enabled),
+   * one fetch line can deliver multiple instructions. If the leading
+   * instruction had a branch bubble before it (a redirect from a prior
+   * branch), the trailing instructions in the same fetch were affected
+   * by the same redirect. Copy bubble_cycles and bubble_from_branch_id
+   * onto those trailing records so both the visualization and the
+   * tooltip reflect the shared cause. We only propagate within a
+   * contiguous run that shares if1_lo and is in committed order. */
+  for (let i = 1; i < ROWS.length; i++){
+    const cur = ROWS[i];
+    const prev = ROWS[i - 1];
+    if (cur.bubble_cycles != null) continue;  // already has its own
+    if (cur.if1_lo == null || prev.if1_lo == null) continue;
+    if (cur.if1_lo !== prev.if1_lo) continue;
+    if (prev.bubble_cycles == null || prev.bubble_cycles < 1) continue;
+    cur.bubble_cycles = prev.bubble_cycles;
+    cur.bubble_from_branch_id = prev.bubble_from_branch_id;
+    cur.bubble_shared_with = prev.id;
+  }
+  precomputeForwardingProducers();
+  /* Build id -> record map for fast producer lookup in the popup. */
+  ROW_BY_ID = new Map(ROWS.map(r => [r.id, r]));
+  ROW_INDEX_BY_ID = new Map(ROWS.map((r, i) => [r.id, i]));
+  minId = Math.min(...ROWS.map(r => dispId(r.id)));
+  maxId = Math.max(...ROWS.map(r => dispId(r.id)));
+  const rfromEl = document.getElementById('rfrom');
+  const rtoEl   = document.getElementById('rto');
+  rfromEl.min = String(minId); rfromEl.max = String(maxId);
+  rtoEl.min   = String(minId); rtoEl.max   = String(maxId);
+  rfromEl.value = String(minId); rtoEl.value = String(maxId);
+  computeBoundsAndStats();
+  buildLegend();
+  renderConfigPanel();
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('view').style.display = 'flex';
+  /* The view was display:none until this point, so its descendants
+   * had no layout. Defer fitAll into a rAF so the browser computes
+   * sizes for the flex tree (including the writeback panel's
+   * wbwrap.clientHeight) before we sample them. Without this defer
+   * the wbcanvas sometimes came back zero-tall on the very first
+   * load and the top lanes of the writeback track were clipped. */
+  requestAnimationFrame(() => {
+    fitAll();
+    fillStatus();
+  });
+}
+function computeBoundsAndStats(){
+  let lo = Infinity, hi = -Infinity;
+  const keys = ['if1_lo','if2_lo','if1_hi','if2_hi','fe_cycle','id_cycle','is_cycle','ex_cycle','wb_cycle','co_cycle'];
+  for (const r of ROWS) for (const k of keys){
+    const c = r[k]; if (c != null){ if (c<lo)lo=c; if (c>hi)hi=c; }
+  }
+  /* Include bubble extents. A bubble is drawn from (if1_lo - bubble_cycles)
+   * to if1_lo on the recovery instruction's row. If the user filters to a
+   * range starting at a recovery, the bubble's left edge sits BEFORE
+   * if1_lo and would be clipped off the canvas. Extend lo to cover it. */
+  for (const r of ROWS){
+    if (r.bubble_cycles != null && r.bubble_cycles >= 1 && r.if1_lo != null){
+      const bubLo = r.if1_lo - r.bubble_cycles;
+      if (bubLo < lo) lo = bubLo;
+    }
+  }
+  /* NOTE: we deliberately do NOT extend lo/hi to cover writebacks here.
+   * The cycle range must match the filtered ROWS so that applying a
+   * fetch range filter narrows the visible cycles in BOTH the main
+   * timeline AND the writeback panel. Writebacks whose cycles fall
+   * outside [cMin, cMax] are clipped by drawWritebacks per writeback,
+   * keeping the two views cycle-synchronized. */
+  if (!isFinite(lo)){ lo = 0; hi = 1; }
+  cMin = lo; cMax = hi;
+  /* Visible writebacks for the current cycle range. A writeback is
+   * visible if any part of its alloc..ack span overlaps [cMin, cMax].
+   * Stats and the status bar use VISIBLE_WBS so writeback counts
+   * track the fetch range filter. */
+  VISIBLE_WBS = WBS.filter(w => {
+    const a = w.alloc_cycle != null ? w.alloc_cycle : w.send_cycle;
+    const e = w.ack_cycle != null ? w.ack_cycle : (w.send_cycle != null ? w.send_cycle : a);
+    if (a == null || e == null) return false;
+    return e >= cMin && a <= cMax;
+  });
+  waitMax = { icStall:0, icStallHi:0, feBuf:0, idBuf:0, isBuf:0, exLat:0, coWait:0 };
+  for (const r of ROWS){
+    const w = waitsOf(r);
+    for (const k in w) if (w[k] != null && w[k] > waitMax[k]) waitMax[k] = w[k];
+  }
+}
+function waitsOf(r){
+  /* For wraps_line records the "last fetch cycle" before FE is if2_hi
+   * rather than if2_lo, so the FE-buf gap is measured from there. */
+  const lastIf2 = r.wraps_line && r.if2_hi != null ? r.if2_hi : r.if2_lo;
+  return {
+    icStall:   (r.if1_lo != null && r.if2_lo != null) ? Math.max(0, r.if2_lo - r.if1_lo - 1) : null,
+    icStallHi: (r.wraps_line && r.if1_hi != null && r.if2_hi != null) ? Math.max(0, r.if2_hi - r.if1_hi - 1) : null,
+    feBuf:     (lastIf2 != null && r.fe_cycle != null) ? Math.max(0, r.fe_cycle  - lastIf2 - 1) : null,
+    idBuf:     (r.fe_cycle  != null && r.id_cycle  != null) ? Math.max(0, r.id_cycle  - r.fe_cycle  - 1) : null,
+    isBuf:     (r.id_cycle  != null && r.is_cycle  != null) ? Math.max(0, r.is_cycle  - r.id_cycle  - 1) : null,
+    exLat:     (r.ex_cycle  != null && r.wb_cycle  != null) ? Math.max(0, r.wb_cycle  - r.ex_cycle)     : null,
+    coWait:    (r.wb_cycle  != null && r.co_cycle  != null) ? Math.max(0, r.co_cycle  - r.wb_cycle - 1) : null,
+  };
+}
+
+/* ============================================================================
+ * Fetch range input handlers
+ * ========================================================================== */
+function onRangeKeyDown(ev){
+  if (ev.key.length > 1) return;
+  if (ev.ctrlKey || ev.metaKey) return;
+  if (!/^[0-9]$/.test(ev.key)) ev.preventDefault();
+}
+function onRangePaste(ev){
+  const cb = ev.clipboardData || window.clipboardData;
+  if (!cb) return;
+  const pasted = cb.getData('text');
+  if (!/^[0-9]+$/.test(pasted)) ev.preventDefault();
+}
+function onRangeInput(ev){
+  const el = ev.target;
+  const cleaned = el.value.replace(/[^0-9]/g, '');
+  if (cleaned !== el.value) el.value = cleaned;
+  if (el.value === '') return;
+  const v = parseInt(el.value, 10);
+  const minS = parseInt(el.min), maxS = parseInt(el.max);
+  if (Number.isFinite(maxS) && v > maxS) el.value = String(maxS);
+  else if (Number.isFinite(minS) && v < minS) el.value = String(minS);
+}
+function onRangeChange(){
+  if (!DATA) return;
+  const rfromEl = document.getElementById('rfrom');
+  const rtoEl   = document.getElementById('rto');
+  const minS = parseInt(rfromEl.min), maxS = parseInt(rfromEl.max);
+  const clamp = el => {
+    if (el.value === '' || el.value === null) return;
+    let v = parseInt(el.value, 10);
+    if (Number.isNaN(v)){ el.value = ''; return; }
+    if (Number.isFinite(minS) && v < minS) v = minS;
+    if (Number.isFinite(maxS) && v > maxS) v = maxS;
+    el.value = String(v);
+  };
+  clamp(rfromEl); clamp(rtoEl);
+  if (rfromEl.value !== '' && rtoEl.value !== '' && +rfromEl.value > +rtoEl.value)
+    [rfromEl.value, rtoEl.value] = [rtoEl.value, rfromEl.value];
+  applyFilter();
+  scrollX = 0; scrollY = 0;
+  tlscroll.scrollLeft = 0; tlscroll.scrollTop = 0;
+  setupGeometry(); redraw();
+}
+function applyFilter(){
+  const f = document.getElementById('rfrom').value;
+  const t = document.getElementById('rto').value;
+  const lo = f === '' ? -Infinity : +f, hi = t === '' ? Infinity : +t;
+  ROWS = DATA.instructions.filter(r => dispId(r.id) >= lo && dispId(r.id) <= hi);
+  ROW_INDEX_BY_ID = new Map(ROWS.map((r, i) => [r.id, i]));
+  computeBoundsAndStats(); fillStatus();
+}
+function resetRange(){
+  document.getElementById('rfrom').value = String(minId);
+  document.getElementById('rto').value   = String(maxId);
+  applyFilter(); setupGeometry(); redraw();
+}
+function showMainCode(){
+  if (!DATA) return;
+  const m = DATA.metadata || {};
+  /* Prefer the values the tracer recorded. Fall back to the per-program
+   * defaults at the top of this script. */
+  const entryPc = m.user_entry_pc || DEFAULT_USER_ENTRY_PC;
+
+  /* Hex PCs in the trace can be written with or without leading zeros, so
+   * normalize both sides before comparing. */
+  const norm = pc => {
+    let s = String(pc || '').toLowerCase().trim();
+    if (!s.startsWith('0x')) s = '0x' + s;
+    s = s.replace(/^0x0+/, '0x');
+    if (s === '0x') s = '0x0';
+    return s;
+  };
+  const tEntry = norm(entryPc);
+
+  const startIdx = DATA.instructions.findIndex(r => norm(r.pc) === tEntry);
+  if (startIdx < 0){
+    showModalMessage('Entry PC not in trace',
+      `<p>Neither the trace's <code>user_entry_pc</code> nor the fallback ` +
+      `<code>${escapeHtml(DEFAULT_USER_ENTRY_PC)}</code> matches any instruction in this trace.</p>` +
+      `<p>The fallbacks can be edited near the top of the viewer script ` +
+      `(<code>DEFAULT_USER_ENTRY_PC</code>, <code>DEFAULT_USER_END_PC</code>).</p>` +
+      `<p>For now you can still narrow the view manually.</p>`);
+    return;
+  }
+
+  /* End-PC resolution order:
+   *   (1) metadata.user_end_pc if it appears in the trace at or after startIdx
+   *   (2) the first record at or after startIdx whose disasm mentions a
+   *       jump to <exit>. pattern: "<exit>" or "<exit+" anywhere in the
+   *       disasm string. This catches `jal ra, 0x... <exit>` and friends.
+   *   (3) DEFAULT_USER_END_PC if it appears in the trace
+   *   (4) end of trace */
+  let endIdx = -1;
+  if (m.user_end_pc){
+    const tMeta = norm(m.user_end_pc);
+    for (let i = DATA.instructions.length - 1; i >= startIdx; i--){
+      if (norm(DATA.instructions[i].pc) === tMeta){ endIdx = i; break; }
+    }
+  }
+  if (endIdx < 0){
+    /* Disasm-based detection. Look for the FIRST jal/j/jr to <exit>
+     * after entry. that's where user code finishes. */
+    const exitRe = /<exit(?:[+>])/;
+    for (let i = startIdx; i < DATA.instructions.length; i++){
+      if (exitRe.test(DATA.instructions[i].disasm || '')){
+        endIdx = i;
+        break;
+      }
+    }
+  }
+  if (endIdx < 0 && DEFAULT_USER_END_PC){
+    const tFallback = norm(DEFAULT_USER_END_PC);
+    for (let i = DATA.instructions.length - 1; i >= startIdx; i--){
+      if (norm(DATA.instructions[i].pc) === tFallback){ endIdx = i; break; }
+    }
+  }
+  document.getElementById('rfrom').value = String(dispId(DATA.instructions[startIdx].id));
+  document.getElementById('rto').value   = String(
+    endIdx >= 0 ? dispId(DATA.instructions[endIdx].id) : maxId
+  );
+  onRangeChange();
+}
+
+/* ============================================================================
+ * Zoom and layout. setZoom preserves the cycle at the viewport center so
+ * zooming feels like a magnifying glass instead of a teleport.
+ * ========================================================================== */
+function setZoom(){
+  const vpW = tlscroll.clientWidth || 800;
+  const vpH = tlscroll.clientHeight || 600;
+  const oldRh = getRowH();
+  /* Save the cycle at the viewport's horizontal center, and the (fractional)
+   * row index at the viewport's top, so they can be restored exactly after
+   * the new cellW is applied. The row index is the missing piece: when the
+   * zoom slider crosses cellW = 20 or 40, getRowH() jumps, and a fixed
+   * scrollY in pixels then maps to a different row index. Saving the row
+   * index instead of the pixel coordinate keeps the instructions at the top
+   * of the viewport pinned to where they were before. */
+  const centerCyc = cMin + (scrollX + vpW / 2) / cellW;
+  const topRow    = scrollY / oldRh;
+  cellW = +document.getElementById('zx').value;
+  const newRh = getRowH();
+  document.getElementById('zoom-val').textContent = cellW + 'px';
+  setupGeometry();
+  const totalW = (cMax - cMin + 4) * cellW;
+  const totalH = ROWS.length * newRh;
+  const desX = (centerCyc - cMin) * cellW - vpW / 2;
+  const desY = topRow * newRh;
+  scrollX = Math.max(0, Math.min(Math.max(0, totalW - vpW), desX));
+  scrollY = Math.max(0, Math.min(Math.max(0, totalH - vpH), desY));
+  tlscroll.scrollLeft = scrollX;
+  tlscroll.scrollTop  = scrollY;
+  tlcanvas.style.transform = `translate(${scrollX}px,${scrollY}px)`;
+  redraw();
+}
+function fitAll(){
+  const vpW = tlscroll.clientWidth || 800;
+  const span = Math.max(1, cMax - cMin + 4);
+  cellW = Math.max(MIN_CELL_FIT, Math.min(MAX_CELL, vpW / span));
+  const sl = document.getElementById('zx');
+  sl.value = String(Math.max(MIN_CELL, Math.min(MAX_CELL, Math.round(cellW))));
+  document.getElementById('zoom-val').textContent =
+    (cellW < 1 ? cellW.toFixed(2) : Math.round(cellW)) + 'px';
+  setupGeometry(); redraw();
+}
+function onWbToggle(){
+  const show = document.getElementById('wb-on').checked;
+  document.getElementById('wbpanel').style.display = show ? 'flex' : 'none';
+  setupGeometry(); redraw();
+}
+function setupGeometry(){
+  const totalW = (cMax - cMin + 4) * cellW;
+  const totalH = ROWS.length * getRowH();
+  const sp = document.getElementById('tlspacer');
+  sp.style.width = totalW + 'px'; sp.style.height = totalH + 'px';
+  sizeCanvas(tlcanvas, tlscroll.clientWidth, tlscroll.clientHeight);
+  sizeCanvas(lblcanvas, document.getElementById('lblpanel').clientWidth,
+             document.getElementById('lblpanel').clientHeight - 18);
+  sizeCanvas(rulercanvas, document.getElementById('ruler').clientWidth, RULER_H);
+  sizeCanvas(wbcanvas, document.getElementById('wbwrap').clientWidth,
+             document.getElementById('wbwrap').clientHeight);
+}
+function sizeCanvas(cv, wCss, hCss){
+  const dpr = window.devicePixelRatio || 1;
+  cv.style.width = wCss + 'px'; cv.style.height = hCss + 'px';
+  cv.width = Math.floor(wCss * dpr); cv.height = Math.floor(hCss * dpr);
+  cv.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+}
+tlscroll.addEventListener('scroll', () => {
+  /* Clamp vertical scroll so empty space below the last row never becomes
+   * a scrollable region. */
+  const maxY = Math.max(0, ROWS.length * getRowH() - tlscroll.clientHeight);
+  if (tlscroll.scrollTop > maxY) tlscroll.scrollTop = maxY;
+  scrollX = tlscroll.scrollLeft;
+  scrollY = tlscroll.scrollTop;
+  tlcanvas.style.transform = `translate(${scrollX}px,${scrollY}px)`;
+  redraw();
+});
+window.addEventListener('resize', () => { if (DATA){ setupGeometry(); redraw(); } });
+
+/* Forward wheel events from anywhere in the viewer to tlscroll, so
+ * vertical scrolling works whether the mouse is over the timeline,
+ * the label panel, the writeback panel, the ruler, or any other
+ * region inside the main view container. Without this the wheel
+ * does nothing when hovering outside the timeline scroll area.
+ * Vertical wheel rolls scrollTop. Horizontal wheel (or shift+wheel
+ * which browsers map to deltaX) rolls scrollLeft. */
+function forwardWheelToTimeline(e){
+  if (!DATA) return;
+  /* If the event already came from tlscroll, its native handler
+   * already moved the scrollbar. Don't double-apply. */
+  if (e.currentTarget === tlscroll) return;
+  let consumed = false;
+  if (e.deltaY){ tlscroll.scrollTop  += e.deltaY; consumed = true; }
+  if (e.deltaX){ tlscroll.scrollLeft += e.deltaX; consumed = true; }
+  if (consumed) e.preventDefault();
+}
+/* Attach to the elements outside tlscroll where the user may rest
+ * the mouse. Passive false is required to allow preventDefault. */
+['lblpanel','wbpanel','ruler','wbcanvas','lblcanvas','wbhead','lblhead'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('wheel', forwardWheelToTimeline, { passive:false });
+});
+
+/* FU color and mnemonic helpers */
+function fuColor(rec){
+  if (rec.flushed) return COL.flushed;
+  const fu = rec.fu || '', cat = rec.fu_category || '';
+  if (fu === 'STORE' || fu === 'LOAD')      return COL.mem;
+  if (fu === 'FPU' || cat === 'FP')         return COL.fp;
+  if (fu === 'CTRL_FLOW')                   return COL.branch;
+  return COL.int;
+}
+function fuTextColor(rec){
+  const fu = rec.fu || '', cat = rec.fu_category || '';
+  if (fu === 'STORE' || fu === 'LOAD') return '#e0a030';
+  if (fu === 'FPU' || cat === 'FP')    return '#5aabf0';
+  if (fu === 'CTRL_FLOW')              return '#c890e8';
+  return '#70d090';
+}
+function execLabel(rec){
+  if (rec.flushed) return '✗' + mnemonicHead(rec);
+  const fu = rec.fu || '';
+  if (fu === 'LOAD')  return rec.fu_category === 'FP' ? 'fld' : 'ld';
+  if (fu === 'STORE') return rec.fu_category === 'FP' ? 'fsd' : 'st';
+  return mnemonicHead(rec);
+}
+function mnemonicHead(rec){
+  const d = rec.disasm || '';
+  if (!d) return rec.fu ? rec.fu.toLowerCase() : 'ex';
+  let m = d.split(/[\s,]/)[0];
+  if (rec.is_compressed) m = m.replace(/^c[._]/, '');
+  return m;
+}
+function dispMnem(rec){
+  return rec.is_compressed ? (rec.disasm || '').replace(/^c[._]/, '') : (rec.disasm || '');
+}
+
+function redraw(){
+  if (!DATA) return;
+  drawTimeline();
+  drawRuler();
+  if (document.getElementById('wb-on').checked) drawWritebacks();
+}
+function drawTimeline(){
+  const ctx = tlcanvas.getContext('2d');
+  const lctx = lblcanvas.getContext('2d');
+  const W = tlcanvas.clientWidth, H = tlcanvas.clientHeight;
+  const LW = lblcanvas.clientWidth, LH = lblcanvas.clientHeight;
+  const rh = getRowH();
+  ctx.clearRect(0,0,W,H); lctx.clearRect(0,0,LW,LH);
+
+  const firstRow = Math.max(0, Math.floor(scrollY / rh));
+  const lastRow  = Math.min(ROWS.length - 1, firstRow + Math.ceil(H / rh) + 1);
+  const firstCyc = cMin + Math.floor(scrollX / cellW);
+  const lastCyc  = firstCyc + Math.ceil(W / cellW) + 1;
+
+  if (cellW >= 8){
+    /* Faint cycle grid. Drawn per row AFTER drawBars so it overlays
+     * the bars (matching MinorFlow's approach). Outside the bars it
+     * appears against the row background; over the bars it shows as
+     * a faint vertical hint of cycle boundaries. */
+  }
+  for (let r = firstRow; r <= lastRow; r++){
+    const ins = ROWS[r];
+    const ry = r * rh - scrollY;
+    ctx.fillStyle = (r % 2 === 0) ? '#1c1c1e' : '#1a1a1c'; ctx.fillRect(0, ry, W, rh);
+    drawBars(ctx, ins, ry, firstCyc, W);
+    /* Cycle separator lines, drawn after bars so they are visible
+     * everywhere across the row. Every 5th cycle is brighter to make
+     * scanning by cycle count easier. */
+    if (cellW >= 8){
+      for (let c = firstCyc; c <= lastCyc; c++){
+        const x = (c - firstCyc) * cellW;
+        ctx.fillStyle = c % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
+        ctx.fillRect(x, ry, 1, rh);
+      }
+    } else {
+      const cycStep = cellW < 3 ? 50 : cellW < 6 ? 20 : 10;
+      const cStart  = Math.ceil(firstCyc / cycStep) * cycStep;
+      for (let c = cStart; c <= lastCyc; c += cycStep){
+        const x = (c - firstCyc) * cellW;
+        ctx.fillStyle = 'rgba(255,255,255,.05)';
+        ctx.fillRect(x, ry, 1, rh);
+      }
+    }
+  }
+  /* Forwarding arrows (toggle). Drawn on top of bars so the lines and
+   * arrowheads sit above everything else and remain visible against
+   * busy cells. See drawForwardingArrows for the geometry. */
+  if (document.getElementById('fwd-on')?.checked){
+    drawForwardingArrows(ctx, firstRow, lastRow, firstCyc, W, H);
+  }
+  for (let r = firstRow; r <= lastRow; r++){
+    const ins = ROWS[r];
+    const ry = r * rh - scrollY;
+    lctx.fillStyle = (r % 2 === 0) ? '#1e1e21' : '#1c1c1e'; lctx.fillRect(0, ry, LW, rh);
+    lctx.font = '9px monospace';
+    lctx.fillStyle = '#383838';
+    lctx.fillText(String(dispId(ins.id)).padStart(5,' '), 2, ry + rh - 3);
+    lctx.fillStyle = '#505070';
+    lctx.fillText(ins.pc || '', 42, ry + rh - 3);
+    /* Markers just before the mnemonic. ▪ (cyan) = RVC compressed
+     * (16-bit). ↪ (amber) = wraps_line. instruction's bytes wrap a
+     * fetch-block boundary (tracer condition: pc & 7 == 6 on a non-
+     * compressed instruction, verified against the realigner's
+     * serving_unaligned_o), requiring two cache lookups (lo + hi).
+     * Two slots so both can show on the rare instruction that is both
+     * (note: by construction wraps_line is never set on compressed
+     * instructions in CVA6, but be future-proof). */
+    const bothMarks = ins.is_compressed && ins.wraps_line;
+    if (ins.is_compressed){
+      lctx.fillStyle = '#3ec0b0';
+      lctx.font = '10px -apple-system,sans-serif';
+      lctx.fillText('▪', bothMarks ? 102 : 106, ry + rh - 3);
+    }
+    if (ins.wraps_line){
+      lctx.fillStyle = '#f0a030';
+      lctx.font = '11px -apple-system,sans-serif';
+      lctx.fillText('↪', bothMarks ? 110 : 106, ry + rh - 3);
+    }
+    lctx.fillStyle = ins.flushed ? '#804040' : fuTextColor(ins);
+    lctx.font = '10px -apple-system,sans-serif';
+    const lbl = clip(lctx, dispMnem(ins), LW - 124);
+    lctx.fillText(lbl, bothMarks ? 120 : 118, ry + rh - 2);
+  }
+}
+
+function drawBars(ctx, ins, ry, firstCyc, vpW){
+  const ROW_H = getRowH();
+  const h = ROW_H - 2;
+  const y0 = ry + 1;
+
+  function seg(c0, c1, color, hFrac, label){
+    if (c0 == null || c1 == null || c1 <= c0) return;
+    const x = (c0 - firstCyc) * cellW;
+    const w = Math.max(1, (c1 - c0) * cellW - 1);
+    if (x + w < 0 || x > vpW) return;
+    const hh = Math.max(1, Math.round(h * hFrac));
+    const yy = y0 + h - hh;
+    ctx.fillStyle = color; ctx.fillRect(x, yy, w, hh);
+    if (label && cellW >= 14 && w >= 14){
+      const fs = Math.min(10, Math.max(8, hh - 3));
+      ctx.font = `${fs}px -apple-system,sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.save(); ctx.beginPath(); ctx.rect(x + 1, yy, w - 2, hh); ctx.clip();
+      ctx.fillText(label, x + 3, yy + hh - 2);
+      ctx.restore();
+    }
+  }
+  function strip(c0, c1, color, yOff, stripH, label){
+    if (c0 == null || c1 == null || c1 <= c0) return;
+    const x = (c0 - firstCyc) * cellW;
+    const w = Math.max(1, (c1 - c0) * cellW - 1);
+    if (x + w < 0 || x > vpW) return;
+    const yy = y0 + yOff;
+    ctx.fillStyle = color; ctx.fillRect(x, yy, w, stripH);
+    if (label && cellW >= 14 && w >= 14){
+      ctx.font = `${Math.min(stripH, 11)}px -apple-system,sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.save(); ctx.beginPath(); ctx.rect(x + 1, yy, w - 2, stripH); ctx.clip();
+      ctx.fillText(label, x + 2, yy + stripH - 1);
+      ctx.restore();
+    }
+  }
+  /* segSplit: a single-cycle cell rendered as a vertical split. left
+   * half colorLeft, right half colorRight. Used for the lo-IF2 / hi-IF1
+   * overlap on wraps_line records, where the cache's pipelined response
+   * to lo and request for hi happen in the same cycle. Visually we
+   * order them left-then-right as if sequential within the cycle. this
+   * is NOT temporally precise (both events are concurrent), but it
+   * reads much better than the more-honest top/bottom split or one
+   * color overriding the other. Convention mirrors Konata's split-cell
+   * idea for simultaneous events. Each half carries its own label so
+   * the user sees which cycle-half belongs to which event. */
+  function segSplit(c0, c1, colorLeft, colorRight, hFrac, labelLeft, labelRight){
+    if (c0 == null || c1 == null || c1 <= c0) return;
+    const x = (c0 - firstCyc) * cellW;
+    const w = Math.max(2, (c1 - c0) * cellW - 1);
+    if (x + w < 0 || x > vpW) return;
+    const hh = Math.max(2, Math.round(h * hFrac));
+    const yy = y0 + h - hh;
+    const halfW = Math.max(1, Math.floor(w / 2));
+    ctx.fillStyle = colorLeft;  ctx.fillRect(x,         yy, halfW,     hh);
+    ctx.fillStyle = colorRight; ctx.fillRect(x + halfW, yy, w - halfW, hh);
+    const fs = Math.min(10, Math.max(8, hh - 3));
+    ctx.font = `${fs}px -apple-system,sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    if (labelLeft && cellW >= 14 && halfW >= 10){
+      ctx.save(); ctx.beginPath(); ctx.rect(x + 1, yy, halfW - 1, hh); ctx.clip();
+      ctx.fillText(labelLeft, x + 2, yy + hh - 2);
+      ctx.restore();
+    }
+    if (labelRight && cellW >= 14 && (w - halfW) >= 10){
+      ctx.save(); ctx.beginPath(); ctx.rect(x + halfW + 1, yy, w - halfW - 1, hh); ctx.clip();
+      ctx.fillText(labelRight, x + halfW + 2, yy + hh - 2);
+      ctx.restore();
+    }
+  }
+  const sc = (color) => ins.flushed ? COL.flushed : color;
+  const H_EXEC = 0.85;
+
+  /* Execute / writeback / co_wait. The FU's wb_cycle is the cycle the
+   * value arrives on the writeback bus. that IS the last cycle of
+   * execution, not a separate "wait" cycle. So execute spans
+   * [ex_cycle, wb_cycle+1) inclusive of wb_cycle. co_wait then starts
+   * at wb_cycle+1 and lasts until co_cycle. When co_cycle == wb_cycle+1
+   * the commit fires the cycle after writeback and there's no wait at
+   * all. no co_wait cell is drawn. This matches the waitsOf
+   * accounting (coWait = co - wb - 1). */
+  if (ins.co_cycle != null && ins.wb_cycle != null && ins.co_cycle > ins.wb_cycle + 1)
+    seg(ins.wb_cycle + 1, ins.co_cycle, sc(COL.wb), H_EXEC, 'co wait');
+  if (ins.ex_cycle != null && ins.wb_cycle != null && ins.wb_cycle >= ins.ex_cycle){
+    seg(ins.ex_cycle, ins.wb_cycle + 1, fuColor(ins), H_EXEC, execLabel(ins));
+  } else if (ins.ex_cycle != null){
+    seg(ins.ex_cycle, ins.ex_cycle + 1, fuColor(ins), H_EXEC, execLabel(ins));
+  }
+  if (ins.co_cycle != null) seg(ins.co_cycle, ins.co_cycle + 1, sc(COL.cm), 1.0, 'co');
+  /* ID and IS rendering. Three cases.
+   * (a) id_cycle == is_cycle (the common CVA6 case). Draw a SINGLE
+   *     cell labeled "ID/IS" using a dedicated merged color so the
+   *     viewer makes the same-cycle behavior visually obvious.
+   * (b) is_cycle > id_cycle (operand wait or scoreboard pressure
+   *     forced them apart). Draw ID at id_cycle, IS at is_cycle,
+   *     and the gap [id_cycle+1, is_cycle) as "is buf".
+   * (c) is_cycle is missing (very old traces). Fall back to drawing
+   *     ID alone with the gap-filling buf logic. */
+  const haveID = ins.id_cycle != null;
+  const haveIS = ins.is_cycle != null;
+  if (haveID && haveIS && ins.is_cycle === ins.id_cycle){
+    /* (a) merged */
+    seg(ins.id_cycle, ins.id_cycle + 1, sc(COL.dec_is_merged || COL.dec), 0.65, 'id/is');
+  } else if (haveID && haveIS && ins.is_cycle > ins.id_cycle){
+    /* (b) split */
+    seg(ins.id_cycle, ins.id_cycle + 1, sc(COL.dec), 0.65, 'id');
+    if (ins.is_cycle > ins.id_cycle + 1)
+      seg(ins.id_cycle + 1, ins.is_cycle, sc(COL.exbuf), 0.65, 'is buf');
+    seg(ins.is_cycle, ins.is_cycle + 1, sc(COL.dec_is_split || COL.dec), 0.65, 'is');
+    /* In the split case is buf BETWEEN is_cycle and ex_cycle is unusual
+     * (scoreboard issued but the FU was busy). Keep the legacy gap fill
+     * for that residual case. */
+    if (ins.ex_cycle != null && ins.ex_cycle > ins.is_cycle + 1)
+      seg(ins.is_cycle + 1, ins.ex_cycle, sc(COL.exbuf), H_EXEC, 'is buf');
+  } else if (haveID){
+    /* (c) fallback. ID only. */
+    seg(ins.id_cycle, ins.id_cycle + 1, sc(COL.dec), 0.65, 'id');
+    if (ins.ex_cycle != null && ins.ex_cycle > ins.id_cycle + 1)
+      seg(ins.id_cycle + 1, ins.ex_cycle, sc(COL.exbuf), H_EXEC, 'is buf');
+  }
+  if (ins.fe_cycle != null && ins.id_cycle != null && ins.id_cycle > ins.fe_cycle + 1)
+    seg(ins.fe_cycle + 1, ins.id_cycle, sc(COL.decbuf), 0.65, 'id buf');
+  if (ins.fe_cycle != null) seg(ins.fe_cycle, ins.fe_cycle + 1, sc(COL.fe), 0.60, 'fe out');
+  /* FE buf: the gap between the LAST fetch cycle and the FE cell. For
+   * wraps_line records the last fetch is if2_hi. for non-wrapping
+   * fetches it's if2_lo. Using the larger of the two handles both
+   * uniformly. */
+  const lastIf2 = ins.wraps_line && ins.if2_hi != null ? ins.if2_hi : ins.if2_lo;
+  if (lastIf2 != null && ins.fe_cycle != null && ins.fe_cycle > lastIf2 + 1)
+    seg(lastIf2 + 1, ins.fe_cycle, sc(COL.f2buf), 0.60, 'fe buf');
+  if (ins.if1_lo != null && ins.if2_lo != null)
+    renderIF12(ins.if1_lo, ins.if2_lo, ins.ic_miss, sc, seg, strip, segSplit, h,
+               ins.if1_hi, ins.if2_hi, ins.wraps_line);
+  /* Phase 8c bubble. Recovery records carry bubble_cycles (the count
+   * of flushed records between their causer and them). Draw a
+   * transparent colored bar in the cycles immediately preceding
+   * if1_lo, colored by the causer's bubble_kind (mispred/unpred/
+   * flush_other). Same visual convention as MinorFlow's '_bubble'
+   * fill bar. sits at IF1 height (0.55) on the resuming row. */
+  if (ins.bubble_cycles != null && ins.bubble_cycles >= 1 && ins.if1_lo != null){
+    const causer = ROW_BY_ID.get(ins.bubble_from_branch_id);
+    const meta = (causer && BUBBLE_KIND_META[causer.bubble_kind])
+                  || BUBBLE_KIND_META.flush_other;
+    const g1 = ins.if1_lo;
+    const g0 = g1 - ins.bubble_cycles;
+    seg(g0, g1, meta.fill, 0.55, 'bub');
+  }
+
+  const sH = Math.max(6, Math.round(h * 0.36));
+  const isLoad = ins.fu === 'LOAD', isStore = ins.fu === 'STORE';
+  if ((isLoad || isStore) && ins.ex_cycle != null && ins.wb_cycle != null
+      && ins.wb_cycle > ins.ex_cycle){
+    if (ins.dc_primary_miss && ins.wb_cycle > ins.ex_cycle + 1){
+      strip(ins.ex_cycle,     ins.ex_cycle + 1, COL.memreq, 0, sH);
+      strip(ins.ex_cycle + 1, ins.wb_cycle,     COL.memreq, 0, sH, 'mem');
+    } else {
+      strip(ins.ex_cycle,     ins.wb_cycle,     COL.memreq, 0, sH, 'mem');
+    }
+  }
+  if (ins.dc_primary_miss && ins.ex_cycle != null){
+    strip(ins.ex_cycle, ins.ex_cycle + 1, COL.dcmiss, 0, sH, isStore ? 'st✗' : 'ld✗');
+  } else if (ins.dc_refill_overlap && ins.ex_cycle != null){
+    strip(ins.ex_cycle, ins.ex_cycle + 1, COL.sbbuf, 0, sH, 'rfl');
+  }
+  if (ins.fu === 'CTRL_FLOW' && ins.bp_mispredict && ins.ex_cycle != null){
+    const taken = ins.bp_resolved_taken === false ? 'N' : 'T';
+    /* Mispredict cap on the EX cell. The EX cell is rendered with
+     * hFrac = H_EXEC = 0.85, so its top sits at y = h * 0.15. The
+     * strip height matches that to be flush with the cell. */
+    const psH = Math.max(6, Math.round(h * 0.15));
+    strip(ins.ex_cycle, ins.ex_cycle + 1, '#ff4040', 0, psH, taken + '✗');
+  } else if (ins.fu === 'CTRL_FLOW' && ins.bp_predicted_cf
+             && ins.bp_predicted_cf !== 'NoCF' && ins.if2_lo != null){
+    const taken = ins.bp_resolved_taken === false ? 'N' : 'T';
+    /* Predict cap on the if2 cell. In CVA6's frontend the BHT/BTB
+     * lookups happen combinationally at if1, but cf_type (the
+     * actual prediction verdict carried with the instruction) is
+     * only finalized at if2 when instr_scan has identified the
+     * instruction type. Strip height matches if2's 0.60 cell
+     * height (top sits at y = h * 0.4). */
+    const psH = Math.max(6, Math.round(h * 0.4));
+    strip(ins.if2_lo, ins.if2_lo + 1, '#40c0ff', 0, psH, taken + '✓');
+  }
+}
+
+/* Draw forwarding arrows from producer wb_cycle to consumer is_cycle.
+ * Only fires when the "Forwarding" toolbar checkbox is on. The list of
+ * producers is precomputed (fwd_rsN_producer_id stamped at load).
+ * Arrows whose producer is outside the current filter (= not in ROWS
+ * therefore not in ROW_INDEX_BY_ID) are silently skipped. the popup
+ * still has the textual producer info for inspection in that case.
+ *
+ * The arrow's start point sits at the center of the producer's wb cell
+ * (= last visibly-execute cycle under the corrected exec/co_wait
+ * boundary). End point sits slightly INSIDE the consumer's IS cycle so
+ * the arrowhead lands on the bar instead of touching its leading edge.
+ * Color encodes the via path. */
+function drawForwardingArrows(ctx, firstRow, lastRow, firstCyc, vpW, vpH){
+  const rh = getRowH();
+  ctx.lineWidth = 2.5;
+  for (let r = firstRow; r <= lastRow; r++){
+    const cons = ROWS[r];
+    if (!cons || cons.is_cycle == null) continue;
+    const consX = (cons.is_cycle + 0.5 - firstCyc) * cellW;
+    const consY = r * rh - scrollY + rh * 0.5;
+    if (consX < -50 || consX > vpW + 50) continue;
+    for (const rs of ['rs1','rs2','rs3']){
+      if (!cons[`fwd_${rs}_used`]) continue;
+      const prodId = cons[`fwd_${rs}_producer_id`];
+      if (prodId == null) continue;
+      const prodRow = ROW_INDEX_BY_ID.get(prodId);
+      if (prodRow === undefined) continue;          /* producer filtered out */
+      const prod = ROWS[prodRow];
+      if (!prod || prod.wb_cycle == null) continue;
+      const prodX = (prod.wb_cycle + 0.5 - firstCyc) * cellW;
+      const prodY = prodRow * rh - scrollY + rh * 0.5;
+      /* Cull if both endpoints are off the same edge of the viewport. */
+      if (Math.max(prodX, consX) < -50 || Math.min(prodX, consX) > vpW + 50) continue;
+      if (Math.max(prodY, consY) < -50 || Math.min(prodY, consY) > vpH + 50) continue;
+      const via = cons[`fwd_${rs}_via`];
+      const color = via === 'wb' ? 'rgba(80,210,200,0.85)' : 'rgba(190,110,200,0.85)';
+      const headColor = via === 'wb' ? 'rgba(80,210,200,1.0)' : 'rgba(190,110,200,1.0)';
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(prodX, prodY);
+      ctx.lineTo(consX, consY);
+      ctx.stroke();
+      const headSize = 10;
+      const angle = Math.atan2(consY - prodY, consX - prodX);
+      ctx.fillStyle = headColor;
+      ctx.beginPath();
+      ctx.moveTo(consX, consY);
+      ctx.lineTo(consX - headSize * Math.cos(angle - Math.PI / 6),
+                 consY - headSize * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(consX - headSize * Math.cos(angle + Math.PI / 6),
+                 consY - headSize * Math.sin(angle + Math.PI / 6));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+}
+
+function renderIF12(if1c, if2c, missed, sc, seg, strip, segSplit, h,
+                    if1hc, if2hc, wrapsLine){
+  if (if1c == null || if2c == null) return;
+  /* Lo fetch */
+  seg(if1c, if1c + 1, sc(COL.f1), 0.55, 'if1');
+  if (if2c > if1c + 1) seg(if1c + 1, if2c, sc(COL.f1stall), 0.55, 'icache stall');
+  /* Determine whether this is a wraps_line record whose hi IF1
+   * shares its cycle with lo IF2. the typical pipelined case in CVA6,
+   * where the cache responds for lo while accepting hi's request in
+   * the same cycle. When sharing, render a single split cell that
+   * shows both events as top/bottom halves. Otherwise draw lo IF2 as
+   * a plain cell and hi IF1 separately. */
+  const sharesCycle = wrapsLine && if1hc != null && if1hc === if2c;
+  if (sharesCycle){
+    segSplit(if2c, if2c + 1, sc(COL.f2), sc(COL.f1_hi), 0.60, 'if2', 'if1 hi');
+  } else {
+    seg(if2c, if2c + 1, sc(COL.f2), 0.60, 'if2');
+  }
+  if (missed){
+    const icStripH = Math.max(7, h - Math.round(h * 0.55));
+    strip(if1c, if1c + 1, sc(COL.f1miss), 0, icStripH, 'IC');
+  }
+  /* Hi fetch (wraps_line records only). When sharesCycle is true, hi
+   * IF1's cycle is already inside the split cell above. skip drawing
+   * it again. The stall bar between hi IF1 and hi IF2 captures any
+   * hi-side IC miss latency. */
+  if (wrapsLine && if1hc != null && if2hc != null){
+    /* fe stall. gap between lo IF2 response and hi IF1 request. Only
+     * appears when the two halves aren't in adjacent cycles. This is
+     * the front end "in transit": the lo half is already buffered but
+     * hi can't be fetched yet (cache busy, FE FIFO backpressure, or
+     * pipeline drain after the predictor steered the request). Same
+     * convention as MinorFlow's feStall fill. */
+    if (!sharesCycle && if1hc > if2c + 1){
+      seg(if2c + 1, if1hc, sc(COL.decbuf), 0.55, 'fe stall');
+    }
+    if (!sharesCycle){
+      seg(if1hc, if1hc + 1, sc(COL.f1_hi), 0.55, 'if1 hi');
+    }
+    if (if2hc > if1hc + 1)
+      seg(if1hc + 1, if2hc, sc(COL.f1stall), 0.55, 'icache stall hi');
+    seg(if2hc, if2hc + 1, sc(COL.f2_hi), 0.60, 'if2 hi');
+    /* Hi-side IC miss strip. The tracer doesn't emit a separate
+     * ic_miss_hi flag, so derive it: if the hi-fetch latency is
+     * greater than 1 cycle, the hi line missed. The strip sits at
+     * the hi-IF1 cycle (= shared cycle when sharesCycle), drawn on
+     * top of the row just like the lo-side strip. */
+    if (if2hc - if1hc > 1){
+      const icStripH = Math.max(7, h - Math.round(h * 0.55));
+      strip(if1hc, if1hc + 1, sc(COL.f1miss), 0, icStripH, 'IC');
+    }
+  }
+}
+
+function clip(ctx, s, maxW){
+  if (!s) return '';
+  if (ctx.measureText(s).width <= maxW) return s;
+  while (s.length && ctx.measureText(s + '…').width > maxW) s = s.slice(0,-1);
+  return s + '…';
+}
+
+/* Ruler. Labels show displayed (1 based) cycle numbers. */
+function drawRuler(){
+  const ctx = rulercanvas.getContext('2d');
+  const W = rulercanvas.clientWidth, H = RULER_H;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#1c1c1e'; ctx.fillRect(0,0,W,H);
+  ctx.font = '9px monospace';
+  const firstCyc = cMin + Math.floor(scrollX / cellW);
+  const lastCyc  = firstCyc + Math.ceil(W / cellW) + 1;
+  if (cellW >= 8){
+    for (let c = firstCyc; c <= lastCyc; c++){
+      const x = (c - firstCyc) * cellW;
+      ctx.fillStyle = c % 5 === 0 ? '#383838' : '#252525';
+      ctx.fillRect(x, 0, 1, H);
+    }
+  }
+  const cycStep = cellW >= 20 ? 1 : cellW >= 8 ? 5 : cellW < 3 ? 50 : cellW < 6 ? 20 : 10;
+  const dispMinV = cycDisp(firstCyc), dispMaxV = cycDisp(lastCyc);
+  const dStart = Math.max(0, Math.ceil(dispMinV / cycStep) * cycStep);
+  for (let d = dStart; d <= dispMaxV; d += cycStep){
+    const c = d + cMin;
+    const x = (c - firstCyc) * cellW;
+    ctx.fillStyle = '#383838'; ctx.fillRect(x, 0, 1, H);
+    ctx.fillStyle = '#909090'; ctx.fillText(String(d), x + 2, H - 3);
+  }
+}
+
+/* Memory writeback track. Lanes are scoreboard slots. */
+const WB_LANES = 8;
+let wbRender = [];
+function drawWritebacks(){
+  wbRender = [];
+  const ctx = wbcanvas.getContext('2d');
+  const W = wbcanvas.clientWidth, H = wbcanvas.clientHeight;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#1a1a1c'; ctx.fillRect(0,0,W,H);
+  if (!WBS.length){
+    ctx.fillStyle = '#505050'; ctx.font = '11px sans-serif';
+    ctx.fillText('no writebacks in this trace', 10, 18); return;
+  }
+  if (!VISIBLE_WBS.length){
+    ctx.fillStyle = '#505050'; ctx.font = '11px sans-serif';
+    ctx.fillText('no writebacks in the visible fetch range', 10, 18); return;
+  }
+  const laneH = Math.max(10, Math.floor(H / WB_LANES));
+  /* The writeback panel uses the same scrollX/cellW horizontal
+   * mapping as the main timeline. firstCyc is the cycle at the
+   * left edge of the visible area for both panels — they are
+   * cycle-synchronized by construction. */
+  const firstCyc = cMin + Math.floor(scrollX / cellW);
+  const lastCyc  = firstCyc + Math.ceil(W / cellW) + 1;
+  /* Cycle separator lines. Same cadence as the main timeline so
+   * a cycle column in the writeback panel lines up visually with
+   * the corresponding column in the timeline above. */
+  if (cellW >= 8){
+    for (let c = firstCyc; c <= lastCyc; c++){
+      const x = (c - firstCyc) * cellW;
+      ctx.fillStyle = c % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
+      ctx.fillRect(x, 0, 1, H);
+    }
+  } else {
+    const cycStep = cellW < 3 ? 50 : cellW < 6 ? 20 : 10;
+    const cStart  = Math.ceil(firstCyc / cycStep) * cycStep;
+    for (let c = cStart; c <= lastCyc; c += cycStep){
+      const x = (c - firstCyc) * cellW;
+      ctx.fillStyle = 'rgba(255,255,255,.05)';
+      ctx.fillRect(x, 0, 1, H);
+    }
+  }
+  /* Lane horizontal separators on top of the cycle grid. */
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+  for (let l = 0; l <= WB_LANES; l++){
+    const y = l*laneH + 0.5;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+  ctx.fillStyle = '#505050'; ctx.font = '9px monospace'; ctx.textBaseline = 'middle';
+  for (let l = 0; l < WB_LANES; l++) ctx.fillText('s'+l, 3, l*laneH + laneH/2);
+  ctx.font = '9px monospace';
+  /* VISIBLE_WBS is the subset of writebacks whose cycle span
+   * overlaps [cMin, cMax]. When the user narrows the fetch range
+   * filter, this set shrinks accordingly so the writeback panel
+   * stays synchronized with the main timeline window. */
+  for (const w of VISIBLE_WBS){
+    const lane = (w.flush_slot != null ? w.flush_slot : 0) % WB_LANES;
+    const y = lane * laneH + 2, h = laneH - 4;
+    const a = w.alloc_cycle != null ? w.alloc_cycle : w.send_cycle;
+    const xa = (a            - firstCyc) * cellW;
+    const xs = (w.send_cycle - firstCyc) * cellW;
+    const xe = (w.ack_cycle  - firstCyc) * cellW + cellW;
+    if (xe < 18 || xa > W) continue;
+    if (w.send_cycle != null && a != null && w.send_cycle > a){
+      ctx.fillStyle = '#352060';
+      ctx.fillRect(xa, y, Math.max(1, xs - xa), h);
+    }
+    ctx.fillStyle = COL.memreq;
+    ctx.fillRect(Math.max(18,xs), y, Math.max(2, xe - Math.max(18,xs)), h);
+    if (w.linked && w.evict_cycle != null){
+      const xv = (w.evict_cycle - firstCyc) * cellW;
+      if (xv >= 18 && xv <= W){
+        ctx.strokeStyle = '#40c0ff'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(xv+0.5, y-1); ctx.lineTo(xv+0.5, y+h+1); ctx.stroke();
+      }
+    }
+    if (cellW >= 8 && (xe - xs) > 26){
+      ctx.fillStyle = 'rgba(255,255,255,.78)';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(w.nline || ''), Math.max(18,xs)+2, y + h/2);
+    }
+    wbRender.push({ w, lane, x0: Math.max(0, xa), x1: xe, y, h });
+  }
+}
+
+/* Legend. Only stages actually present in the trace are shown.
+ * Order follows pipeline flow as it appears in the viewer left to
+ * right: bubble → IF1 → fetch internals → IF2 → wraps line extras
+ * → fe buf → Front end out → id buf → ID/IS → EX → LSU → CO. Branch caps
+ * and forwarding overlays go near the stage they decorate. */
+const LEGEND_ENTRIES = [
+  /* Bubbles drawn BEFORE if1 on the resuming instruction's row. */
+  { key:'bub_predtaken',  label: BUBBLE_KIND_META.pred_taken.label,
+    color: BUBBLE_KIND_META.pred_taken.swatch, desc: BUBBLE_KIND_META.pred_taken.desc },
+  { key:'bub_mispred',    label: BUBBLE_KIND_META.mispred.label,
+    color: BUBBLE_KIND_META.mispred.swatch, desc: BUBBLE_KIND_META.mispred.desc },
+  { key:'bub_unpred',     label: BUBBLE_KIND_META.unpred.label,
+    color: BUBBLE_KIND_META.unpred.swatch,  desc: BUBBLE_KIND_META.unpred.desc },
+  { key:'bub_flushother', label: BUBBLE_KIND_META.flush_other.label,
+    color: BUBBLE_KIND_META.flush_other.swatch, desc: BUBBLE_KIND_META.flush_other.desc },
+  /* Fetch lo */
+  { key:'if1',     label:'Fetch1 (req)',     color: COL.f1,
+    desc:'Cycle the front end asked the icache for this line.' },
+  { key:'icmiss',  label:'I-cache miss',     color: COL.f1miss,
+    desc:'Thin marker on the if1 cell when the request missed in the instruction cache. On wraps_line records the marker may also appear on the if1 hi cell if the second line missed.' },
+  { key:'icstall', label:'I-cache stall',    color: COL.f1stall,
+    desc:'Cycles waiting in the front end while the line is fetched from memory.' },
+  { key:'pred',    label:'Predicted',        color:'#40c0ff',
+    desc:'Cyan cap on the IF2 cell of a control flow instruction. The predictor had a verdict and was right. T means resolved taken, N means resolved not taken. In CVA6 the BHT/BTB lookups happen at IF1 but the prediction is finalized at IF2 when instr_scan has identified the instruction type.' },
+  { key:'if2',     label:'Fetch2 (resp)',    color: COL.f2,
+    desc:'Cycle the cache line came back and the instruction was extracted. On wraps_line records this cycle is shared with if1 hi, rendered as a split cell.' },
+  /* Wraps line extras */
+  { key:'if1_hi',  label:'Fetch1 Hi (req) (wraps line)', color: COL.f1_hi,
+    desc:'On cache line wrap, the front end issues a second fetch for the next block. Typically shares its cycle with if2 lo and appears as the right half of a split cell.' },
+  { key:'if2_hi',  label:'Fetch2 Hi (resp) (wraps line)', color: COL.f2_hi,
+    desc:'Response cycle for the second (hi) fetch of a wrapping unaligned instruction. A red IC strip on the if1 hi cycle plus a long stall to if2 hi means the hi line missed.' },
+  { key:'festall', label:'Front end stall (wraps)', color: COL.decbuf,
+    desc:'Gap between the lo and hi fetches of a wraps_line instruction. The hi half could not go out yet (cache busy, FIFO backpressure, or predictor steered elsewhere).' },
+  /* FE FIFO + Front end out */
+  { key:'febuf',   label:'Front end buffer', color: COL.f2buf,
+    desc:'Sitting in the front end FIFO waiting to be handed to decode. See the config panel for the FIFO depth.' },
+  { key:'fe',      label:'Front end out',    color: COL.fe,
+    desc:'Cycle the front end handed the instruction to the decode stage.' },
+  /* Decode + Issue */
+  { key:'idbuf',   label:'Decode buffer',    color: COL.decbuf,
+    desc:'Waiting in front of the decoder while decode is busy with an earlier instruction.' },
+  { key:'id_is_merged', label:'Decode + Issue (same cycle)', color: COL.dec_is_merged,
+    desc:'The common CVA6 case. Decode and issue happen in the same cycle. Shown as a single cell labeled "ID/IS".' },
+  { key:'id',      label:'Decode (split)',   color: COL.dec,
+    desc:'Decode stage when issue could not happen the same cycle. Operands were not ready, or the scoreboard was full.' },
+  { key:'isbuf',   label:'Issue buffer',     color: COL.exbuf,
+    desc:'Waiting in the scoreboard for operands or for a free functional unit. Only positive when a RAW dependency or busy FU forces a gap between decode and issue.' },
+  { key:'is',      label:'Issue (split)',    color: COL.dec_is_split,
+    desc:'Issue stage when decode and issue did not share a cycle. Drawn one cycle wide right after the issue buffer.' },
+  /* Forwarding arrows land on IS */
+  { key:'fwd_wb',  label:'Forward via wb',   color: COL.fwd_wb,
+    desc:'Source register forwarded from a producer\'s writeback. The arrow ends at the consumer\'s IS cycle.' },
+  { key:'fwd_sb',  label:'Forward via sb',   color: COL.fwd_sb,
+    desc:'Source register forwarded from a producer\'s scoreboard slot. The producer wrote back earlier and the value sits in the SB ring buffer.' },
+  /* Execute */
+  { key:'int',     label:'Execute Int',      color: COL.int,
+    desc:'Running on an integer unit (ALU, multiplier, CSR).' },
+  { key:'fp',      label:'Execute FP',       color: COL.fp,
+    desc:'Running on the floating point unit.' },
+  { key:'mem',     label:'Execute Mem',      color: COL.mem,
+    desc:'A load or store handed to the load store unit.' },
+  { key:'branch',  label:'Execute Branch',   color: COL.branch,
+    desc:'Running a control flow instruction. Branch resolution happens here.' },
+  { key:'misp',    label:'Mispredict',       color:'#ff4040',
+    desc:'Red cap on the EX cell of a control flow instruction. The predictor was wrong and execute had to redirect.' },
+  /* LSU strip extends EX for loads and stores */
+  { key:'memreq',  label:'LSU in flight',    color: COL.memreq,
+    desc:'A load or store that left the FU and is now in flight through the data cache.' },
+  { key:'dcmiss',  label:'D-cache miss',     color: COL.dcmiss,
+    desc:'A primary miss in the data cache. Labeled ld✗ for a load miss, st✗ for a store miss.' },
+  /* Commit */
+  { key:'cowait',  label:'Commit wait',      color: COL.wb,
+    desc:'Finished execute, waiting in the scoreboard for in order commit.' },
+  { key:'co',      label:'Commit',           color: COL.cm,
+    desc:'Instruction committed. Architectural state is now visible.' },
+  /* Metadata */
+  { key:'flushed', label:'Flushed instr',    color: COL.flushed,
+    desc:'A wrong path instruction that was fetched and partially advanced, then killed before it could commit.' },
+];
+function buildLegend(){
+  const present = new Set();
+  for (const r of ROWS){
+    if (r.if1_lo != null) present.add('if1');
+    if (r.if2_lo != null) present.add('if2');
+    if (r.ic_miss){ present.add('icmiss'); if (r.if2_lo - r.if1_lo > 1) present.add('icstall'); }
+    if (r.wraps_line){
+      if (r.if1_hi != null) present.add('if1_hi');
+      if (r.if2_hi != null) present.add('if2_hi');
+      if (r.if1_hi != null && r.if2_hi != null && r.if2_hi - r.if1_hi > 1) present.add('icstall');
+      /* fe stall. only when the lo→hi handoff isn't back-to-back or
+       * shared in the same cycle. Mirrors the renderIF12 condition. */
+      if (r.if1_hi != null && r.if2_lo != null && r.if1_hi > r.if2_lo + 1) present.add('festall');
+    }
+    const lastIf2 = r.wraps_line && r.if2_hi != null ? r.if2_hi : r.if2_lo;
+    if (lastIf2 != null && r.fe_cycle != null && r.fe_cycle > lastIf2 + 1) present.add('febuf');
+    if (r.fe_cycle != null) present.add('fe');
+    if (r.fe_cycle != null && r.id_cycle != null && r.id_cycle > r.fe_cycle + 1) present.add('idbuf');
+    /* ID/IS detection. Three cases for the legend entries.
+     * merged: id_cycle == is_cycle (single cell labeled ID/IS).
+     * split: id_cycle < is_cycle (two cells with is buf between).
+     * If is_cycle is missing entirely (older trace) fall back to id. */
+    if (r.id_cycle != null && r.is_cycle != null && r.is_cycle === r.id_cycle){
+      present.add('id_is_merged');
+    } else if (r.id_cycle != null && r.is_cycle != null && r.is_cycle > r.id_cycle){
+      present.add('id'); present.add('is');
+      if (r.is_cycle > r.id_cycle + 1) present.add('isbuf');
+    } else if (r.id_cycle != null){
+      present.add('id');
+      if (r.ex_cycle != null && r.ex_cycle > r.id_cycle + 1) present.add('isbuf');
+    }
+    if (r.ex_cycle != null){
+      if (r.fu === 'LOAD' || r.fu === 'STORE') present.add('mem');
+      else if (r.fu === 'FPU' || r.fu_category === 'FP') present.add('fp');
+      else if (r.fu === 'CTRL_FLOW') present.add('branch');
+      else present.add('int');
+    }
+    if ((r.fu === 'LOAD' || r.fu === 'STORE') && r.ex_cycle != null && r.wb_cycle != null
+        && r.wb_cycle > r.ex_cycle) present.add('memreq');
+    if (r.dc_primary_miss) present.add('dcmiss');
+    if (r.wb_cycle != null && r.co_cycle != null && r.co_cycle > r.wb_cycle) present.add('cowait');
+    if (r.co_cycle != null) present.add('co');
+    if (r.bp_mispredict) present.add('misp');
+    else if (r.fu === 'CTRL_FLOW' && r.bp_predicted_cf && r.bp_predicted_cf !== 'NoCF') present.add('pred');
+    for (const rs of ['rs1','rs2','rs3']){
+      if (r[`fwd_${rs}_used`]){
+        if (r[`fwd_${rs}_via`] === 'wb') present.add('fwd_wb');
+        else if (r[`fwd_${rs}_via`] === 'sb') present.add('fwd_sb');
+      }
+    }
+    if (r.bubble_cycles != null && r.bubble_cycles >= 1){
+      const causer = ROW_BY_ID.get(r.bubble_from_branch_id);
+      const kind = causer && causer.bubble_kind;
+      if (kind === 'mispred') present.add('bub_mispred');
+      else if (kind === 'unpred') present.add('bub_unpred');
+      else if (kind === 'pred_taken') present.add('bub_predtaken');
+      else if (kind === 'flush_other') present.add('bub_flushother');
+    }
+    if (r.flushed) present.add('flushed');
+  }
+  document.getElementById('leg').innerHTML = LEGEND_ENTRIES
+    .filter(s => present.has(s.key))
+    .map(s => `<div class="li" title="${escapeHtml(s.desc)}"><div class="ld" style="background:${s.color}"></div>${s.label}</div>`)
+    .join('');
+}
+
+/* Convert a cycle count to a human-readable real-time string.
+ * Clock is assumed to be 50 MHz (20 ns period) regardless of what
+ * the VCD reports, since the deliverable target for this viewer
+ * is the 50 MHz CVA6 instantiation. */
+const CLOCK_PERIOD_NS = 20;
+function formatTime(cycles){
+  const totalNs = cycles * CLOCK_PERIOD_NS;
+  const us = totalNs / 1000;
+  if (us >= 1000) return `${(us/1000).toFixed(3)} ms`;
+  if (us >= 1)    return `${us.toFixed(3)} us`;
+  return `${totalNs.toFixed(0)} ns`;
+}
+
+/* Bottom status bar */
+function fillStatus(){
+  if (!DATA) return;
+  const total   = ROWS.length;
+  const cmt     = ROWS.filter(r => !r.flushed).length;
+  const flush   = total - cmt;
+  const cycles  = cMax - cMin + 1;
+  const ipc     = cycles > 0 ? (cmt / cycles).toFixed(2) : '-';
+  const br      = ROWS.filter(r => r.fu === 'CTRL_FLOW').length;
+  const misp    = ROWS.filter(r => r.bp_mispredict).length;
+  /* I-cache miss EVENTS in the visible window. When the JSON has the
+   * top-level icache_events array (modern tracers), filter it by cycle
+   * to get the exact event count the cache FSM saw — same signal the
+   * hardware perf counter (l1_icache_miss) increments on. This
+   * sidesteps any record-derived dedup ambiguity and matches CSR
+   * directly. Older JSONs fall back to record dedup. */
+  let ic;
+  let icEventsInRange = 0;   // total accesses, derived from cache FSM when available
+  if (IC_EVENTS.length){
+    let m = 0;
+    for (const ev of IC_EVENTS){
+      if (ev.fe2 == null || ev.fe2 < cMin || ev.fe2 > cMax) continue;
+      icEventsInRange++;
+      if (ev.miss) m++;
+    }
+    ic = m;
+  } else {
+    const icSet = new Set();
+    for (const r of ROWS){
+      if (r.ic_miss && r.if1_lo != null) icSet.add('lo:' + r.if1_lo);
+      if (r.wraps_line && r.if1_hi != null){
+        const hiMiss = (r.ic_miss_hi !== undefined && r.ic_miss_hi !== null)
+          ? r.ic_miss_hi
+          : (r.if2_hi != null && r.if2_hi - r.if1_hi > 1);
+        if (hiMiss) icSet.add('hi:' + r.if1_hi);
+      }
+    }
+    ic = icSet.size;
+  }
+  /* D-cache miss EVENTS in the visible window. When the JSON has the
+   * top-level dcache_alloc_events array, count non-prefetch allocs
+   * with cycle in [cMin, cMax] — same signal as evt_cache_read_miss_o
+   * (hpdcache_ctrl_pe.sv:368), which is what the hardware perf
+   * counter reports. This is record-INdependent so it includes PTW
+   * (sid=0), accel (sid=2), and CMO misses that have no record.
+   * The per-adapter split is exposed in the tooltip and config panel.
+   * Older JSONs fall back to the per-record dc_primary_miss count. */
+  let dcLd = 0, dcSt = 0, dcOther = 0;
+  if (DC_ALLOCS.length){
+    for (const ev of DC_ALLOCS){
+      if (ev.pf === 1) continue;
+      if (ev.cycle == null || ev.cycle < cMin || ev.cycle > cMax) continue;
+      if      (ev.sid === 1) dcLd++;     // LOAD adapter
+      else if (ev.sid === 3) dcSt++;     // STORE adapter
+      else                   dcOther++;  // PTW (0), accel (2), CMO, HWPF-non-pf, unknown
+    }
+  } else {
+    dcLd = ROWS.filter(r => r.fu === 'LOAD'  && r.dc_primary_miss).length;
+    dcSt = ROWS.filter(r => r.fu === 'STORE' && r.dc_primary_miss).length;
+  }
+  const dcAllMisses = dcLd + dcSt + dcOther;
+  /* Idle cycle derivation. A cycle is "active" if any record had a
+   * fetch request in it (if1_lo for any record, or if1_hi for a
+   * wraps_line record). Idle cycles are the complement within the
+   * trace range. This captures icache miss stalls, FE FIFO
+   * backpressure, mispredict refill bubbles, branch bubbles, and
+   * any other stall that prevented the front end from issuing a
+   * new fetch. */
+  const active = new Set();
+  for (const r of ROWS){
+    if (r.if1_lo != null) active.add(r.if1_lo);
+    if (r.wraps_line && r.if1_hi != null) active.add(r.if1_hi);
+  }
+  let activeInRange = 0;
+  for (const c of active){
+    if (c >= cMin && c <= cMax) activeInRange++;
+  }
+  const idle = Math.max(0, cycles - activeInRange);
+  /* I-cache and D-cache access counts. I-cache: when the events array
+   * is available, count cache events in the window (every fetch
+   * request = one event); otherwise fall back to distinct fetch
+   * cycles from records. D-cache accesses are still record-derived
+   * (= count of load/store records) — adding hardware-level access
+   * counts would need a separate signal track in the tracer. */
+  const icAcc   = IC_EVENTS.length ? icEventsInRange : activeInRange;
+  const nLoads  = ROWS.filter(r => r.fu === 'LOAD').length;
+  const nStores = ROWS.filter(r => r.fu === 'STORE').length;
+  const dcAcc   = nLoads + nStores;
+
+  document.getElementById('s-fet').textContent = total.toLocaleString();
+  document.getElementById('s-cmt').textContent = cmt.toLocaleString();
+  document.getElementById('s-cyc').textContent = cycles.toLocaleString();
+  document.getElementById('s-br').textContent  = br.toLocaleString();
+  document.getElementById('s-misp').textContent = misp.toLocaleString();
+  document.getElementById('s-ipc').textContent = ipc;
+  document.getElementById('s-time').textContent = formatTime(cycles);
+  document.getElementById('s-ica').textContent = icAcc.toLocaleString();
+  document.getElementById('s-dca').textContent = `${dcAcc.toLocaleString()} (${nLoads} ld, ${nStores} st)`;
+  document.getElementById('s-idle').textContent = `${idle.toLocaleString()} (${cycles > 0 ? Math.round(100*idle/cycles) : 0}%)`;
+  document.getElementById('s-icm').textContent = ic.toLocaleString();
+  /* DC miss display: show total across all sources, with per-adapter
+   * breakdown. The "other" bucket is non-zero when PTW (sid=0),
+   * accel (sid=2), or CMO misses fell in the window. */
+  if (DC_ALLOCS.length){
+    document.getElementById('s-dcm').textContent =
+      `${dcAllMisses.toLocaleString()} (${dcLd} ld, ${dcSt} st${dcOther ? `, ${dcOther} other` : ''})`;
+  } else {
+    document.getElementById('s-dcm').textContent =
+      `${(dcLd + dcSt).toLocaleString()} (${dcLd} ld, ${dcSt} st)`;
+  }
+  document.getElementById('s-flsh').textContent = flush.toLocaleString();
+  document.getElementById('s-vis').textContent = total.toLocaleString();
+  document.getElementById('s-tot').textContent = DATA.instructions.length.toLocaleString();
+  const wbStat = DATA.metadata && DATA.metadata.stats && DATA.metadata.stats.phase7b;
+  const awl = wbStat && wbStat.axi_write_latency;
+  const head = document.getElementById('wbstat');
+  if (!WBS.length){ head.textContent = 'none'; return; }
+  /* Report visible writebacks against the total so the user can see
+   * the fetch range filter narrowing the writeback view. */
+  let evtCount = VISIBLE_WBS.length === WBS.length
+    ? `<span class="num">${WBS.length}</span> events`
+    : `<span class="num">${VISIBLE_WBS.length}</span> / ${WBS.length} events`;
+  let parts = [evtCount];
+  if (awl && awl.median != null) parts.push(`AXI <span class="num">${awl.median}</span> cyc median`);
+  if (wbStat && wbStat.n_linked != null) parts.push(`<span class="num">${wbStat.n_linked}</span> linked to evictions`);
+  head.innerHTML = parts.join(' · ');
+}
+
+/* Config panel. Sections grouped logically. No version or phase mentions. */
+function renderConfigPanel(){
+  const body = document.getElementById('cfg-body');
+  if (!DATA){
+    body.innerHTML = '<p style="color:var(--text3);font-size:11px">Load a trace to populate this panel.</p>';
+    return;
+  }
+  const m  = DATA.metadata || {};
+  const cp = DATA.config_params || {};
+  const st = m.stats || {};
+  const sections = [];
+
+  /* Derive the same headline metrics shown in the status bar so the
+   * panel is a one-stop summary. Idle cycles is the count in
+   * [cMin, cMax] without any new fetch request. */
+  const cyclesSpan = (cMax != null && cMin != null) ? (cMax - cMin + 1) : 0;
+  const activeSet = new Set();
+  for (const r of ROWS){
+    if (r.if1_lo != null) activeSet.add(r.if1_lo);
+    if (r.wraps_line && r.if1_hi != null) activeSet.add(r.if1_hi);
+  }
+  let activeInRange = 0;
+  for (const c of activeSet) if (c >= cMin && c <= cMax) activeInRange++;
+  const idleCyc = Math.max(0, cyclesSpan - activeInRange);
+  const idlePct = cyclesSpan > 0 ? Math.round(100 * idleCyc / cyclesSpan) : 0;
+  const nLoadsRec  = ROWS.filter(r => r.fu === 'LOAD').length;
+  const nStoresRec = ROWS.filter(r => r.fu === 'STORE').length;
+  /* Clock period assumption. The viewer always converts cycles to
+   * real time at 50 MHz (20 ns / cycle) regardless of the VCD's
+   * own clock, so traces from different simulation environments
+   * report time in the same units. */
+  const clockPeriodDisp = '20 ns (50 MHz, assumed)';
+
+  sections.push({ title:'Trace', rows:[
+    ['CVA6 build',                  m.config_name || '-',
+      'The core configuration the trace was captured on.'],
+    ['clock period',                clockPeriodDisp,
+      'Assumed clock period for the time conversion. The viewer always reports time at 50 MHz regardless of the VCD\'s own simulated clock so traces from different test environments report in matching units.'],
+    ['committed instructions',      (st.n_committed != null ? st.n_committed : ROWS.length).toLocaleString(),
+      'Instructions that retired.'],
+    ['time (elapsed)',              formatTime(cyclesSpan) + ` (${cyclesSpan.toLocaleString()} cyc)`,
+      'Total elapsed time across the trace. Converted from cycle count using the clock period above.'],
+    ['I-cache accesses',            activeInRange.toLocaleString(),
+      'Distinct cycles where the front end issued a fetch request (lo or hi half) across the trace, derived from records. The hardware perf counter for icache accesses can be slightly larger because it sees every fetch request the front end sent, including wrong-path speculative fetches that never produced a committed record.'],
+    ['D-cache accesses',            `${(nLoadsRec + nStoresRec).toLocaleString()} (${nLoadsRec} ld, ${nStoresRec} st)`,
+      'Loads + stores from records. Each load/store instruction is one access. The hardware perf counter for dcache accesses can be substantially larger because it sees every cache lookup including PTW page-table-walk reads, load retries after a miss, AMO sub-accesses, and hardware prefetcher reads.'],
+    ['idle cycles',                 `${idleCyc.toLocaleString()} (${idlePct}%)`,
+      'Cycles where no new fetch request fired. Includes I-cache miss waits, FE FIFO backpressure, mispredict refill bubbles, branch bubbles, and any other reason the front end could not advance.'],
+    ['flushed at IF / ID-IS / EX',  `${st.n_flushed_if||0} / ${st.n_flushed_id||0} / ${st.n_flushed_ex||0}`,
+      'Instructions killed before commit, grouped by the stage they were in. IS is part of the ID/IS combined cell, so its flushes are counted with ID.'],
+    ['unmatched writeback / commit', `${st.n_unmatched_writebacks||0} / ${st.n_unmatched_commits||0}`,
+      'Sanity counters that should be near zero.'],
+  ]});
+
+  sections.push({ title:'Pipeline structure', rows:[
+    ['pipeline stages',  'FE, ID, IS, EX, WB, CO',
+      'Stages in program order. FE is the front end (instruction cache request and response). ID is decode. IS is issue. EX is execute. WB is writeback. CO is commit.'],
+    ['front end depth',  'IF1 + IF2',
+      'One cycle to request the cache line (IF1), one to consume the response on a hit (IF2).'],
+    ['decode + issue coupling', 'same cycle by default',
+      'CVA6 inserts into and issues from the scoreboard in one cycle when operands are ready. id_cycle equals is_cycle is the common case. Only RAW hazards or a full scoreboard force them apart, which shows up as a positive issue buffer wait.'],
+    ['execute model',    'out of order',
+      'Multiple functional units run in parallel. Different latencies mean instructions finish out of program order. The scoreboard tracks which ones are still in flight.'],
+    ['commit model',     'in order',
+      'Commit drains the scoreboard in program order.'],
+  ]});
+
+  /* Buffer / queue sizes. Pull from cp (config_pkg constants) when
+   * available. Listed in pipeline stage order: FE FIFO at the front,
+   * decoder register, ID/IS register, scoreboard at the back. */
+  const sbDepth = cp.NrScoreboardEntries || cp.NR_SB_ENTRIES;
+  const sbDepthDisp = sbDepth != null ? `${sbDepth} instructions` : '-';
+  const feFifoDepth = cp.FETCH_FIFO_DEPTH;
+  const feFifoDisp = feFifoDepth != null ? `${feFifoDepth} instructions per FIFO` : '-';
+  sections.push({ title:'Buffer / queue sizes', rows:[
+    ['frontend instruction queue', feFifoDisp,
+      'instr_queue.sv backed by per-fetch-port cva6_fifo_v3 instances. Sits between IF2 and the ID register. The fe buf segments in the viewer are these FIFOs filling up while ID is busy.'],
+    ['decoder register',           '1 instruction',
+      'Pipeline register inside the decoder. The viewer never shows this directly. It is part of what makes the front end to decode handoff one cycle wide.'],
+    ['ID/IS pipeline register',    '1 instruction',
+      'A single entry register between the decoder output and the operand read stage. When iss_ack is low this register stalls the FIFO behind it. When iss_ack is high the instruction issues the same cycle.'],
+    ['scoreboard',                 sbDepthDisp,
+      'The scoreboard is both the issue buffer and the in flight tracker. Once iss_ack fires the instruction occupies one of these slots until commit. The is buf segments in the viewer are operand wait time inside this same scoreboard.'],
+  ]});
+
+  /* Peak occupancy sanity check. The buffer SIZES above are the
+   * hardware capacities. The viewer's per-instruction wait segments
+   * can each span many cycles, but the NUMBER of instructions
+   * simultaneously sitting in a buffer is bounded by the hardware.
+   * Walk every committed row, build an enter/leave event list per
+   * buffer region, and report the peak simultaneous count. If the
+   * trace is consistent with the hardware, peaks should match the
+   * capacities. */
+  const peaks = computeBufferPeaks();
+  if (peaks){
+    sections.push({ title:'Buffer peak occupancy (observed)', rows:[
+      ['fe buf peak',  `${peaks.fe} instructions`,
+        'Maximum simultaneous instructions sitting in the front end FIFO across the trace. Bounded by the FIFO depth from the config panel. Every instruction in the FIFO counts as one entry. Compressed (RVC) instructions and uncompressed (RVI) instructions are treated identically by the FIFO logic. A single fetch can therefore push more than one entry when multiple instructions are extracted from the same cache line.'],
+      ['id buf peak',  `${peaks.id} instructions`,
+        'Maximum simultaneous instructions waiting between Front end out and Decode.'],
+      ['is buf peak',  `${peaks.is} instructions`,
+        'Maximum simultaneous instructions waiting between Decode and Issue.'],
+      ['scoreboard peak', `${peaks.sb} instructions`,
+        'Maximum simultaneous instructions in flight in the scoreboard (Issue through Commit). Bounded by the scoreboard depth from the config panel.'],
+    ]});
+  }
+
+  if (Object.keys(cp).length){
+    const notes = {
+      NrScoreboardEntries: 'how many in flight instructions the scoreboard can hold at once',
+      NR_SB_ENTRIES:       'how many in flight instructions the scoreboard can hold at once',
+      NrIssuePorts:        'instructions issued per cycle',
+      NrCommitPorts:       'instructions that can retire per cycle',
+      NrWbPorts:           'writeback ports into the scoreboard, one per functional unit class',
+      FETCH_WIDTH:         'bits read from the icache per fetch request',
+      INSTR_PER_FETCH:     'how many instructions one fetch line can yield (2 when RVC is on)',
+      TRANS_ID_BITS:       'width of the scoreboard slot id, derives from the scoreboard depth',
+      RVC:                 'compressed instruction extension enabled',
+      SuperscalarEn:       'multi issue is enabled in this configuration',
+      CvxifEn:             'CV X interface for external accelerators is wired',
+      DCACHE_SET_ASSOC:    'data cache associativity (ways per set)',
+      DCACHE_NUM_SETS:     'data cache number of sets',
+      DCACHE_LINE_WIDTH:   'data cache line width in bits',
+      ICACHE_SET_ASSOC:    'instruction cache associativity',
+      ICACHE_NUM_SETS:     'instruction cache number of sets',
+      ICACHE_LINE_WIDTH:   'instruction cache line width in bits',
+    };
+    const rows = [];
+    const preferred = ['NrScoreboardEntries','NR_SB_ENTRIES','NrIssuePorts','NrWbPorts',
+                       'NrCommitPorts','TRANS_ID_BITS','FETCH_WIDTH','INSTR_PER_FETCH',
+                       'RVC','SuperscalarEn','CvxifEn',
+                       'ICACHE_LINE_WIDTH','ICACHE_NUM_SETS','ICACHE_SET_ASSOC',
+                       'DCACHE_LINE_WIDTH','DCACHE_NUM_SETS','DCACHE_SET_ASSOC'];
+    const seen = new Set();
+    for (const k of preferred) if (k in cp){ rows.push([k, fmtCfg(cp[k]), notes[k] || '']); seen.add(k); }
+    for (const k of Object.keys(cp).sort()) if (!seen.has(k)) rows.push([k, fmtCfg(cp[k]), notes[k] || '']);
+    const dcLw = cp.DCACHE_LINE_WIDTH, dcSets = cp.DCACHE_NUM_SETS, dcWays = cp.DCACHE_SET_ASSOC;
+    if (dcLw && dcSets && dcWays){
+      const kb = (dcLw / 8) * dcSets * dcWays / 1024;
+      rows.push(['data cache size (derived)', kb + ' KB',
+        'line width times sets times ways, divided by 8 for bytes']);
+    }
+    sections.push({ title:'Configuration parameters', rows });
+  }
+
+  const fuRows = perFuRows();
+  if (fuRows.length){
+    sections.push({ title:'Functional units (observed in trace)', rows:fuRows });
+  }
+
+  if (st.icache_event_count != null){
+    /* IC miss events. Use the tracer's authoritative event count for
+     * the whole trace (icache_event_misses). For the visible-window
+     * derived counts (records suffering vs unique events) see the
+     * status bar. wlMiss uses ic_miss_hi when the tracer provides
+     * it, falling back to the if2_hi-if1_hi>1 heuristic. */
+    const wl = ROWS.filter(r => r.wraps_line).length;
+    const wlMiss = ROWS.filter(r => {
+      if (!r.wraps_line) return false;
+      if (r.ic_miss_hi !== undefined && r.ic_miss_hi !== null) return r.ic_miss_hi === true;
+      return r.if1_hi != null && r.if2_hi != null && r.if2_hi - r.if1_hi > 1;
+    }).length;
+    const minHit = minHitLatency('if');
+    sections.push({ title:'Instruction cache', rows:[
+      ['accesses (hits + misses)',
+        `${st.icache_event_count||0} (${st.icache_event_hits||0} hit, ${st.icache_event_misses||0} miss)`,
+        'Each fetch request produces one access. For I-cache, total accesses equals total events.'],
+      ['records matched / unmatched',
+        `${st.icache_records_matched||0} / ${st.icache_records_unmatched||0}`,
+        'Instructions linked back to a cache access by the tracer.'],
+      ['observed hit latency',
+        minHit != null ? `${minHit} cycle${minHit===1?'':'s'}` : '-',
+        'Minimum (if2 minus if1) across hits in this trace.'],
+      ['miss events in trace',
+        (st.icache_event_misses||0).toLocaleString(),
+        'Unique missing fetch events across the entire trace. Counted once per cache access regardless of how many instructions were fetched from the same line.'],
+      ['wraps_line records',
+        `${wl.toLocaleString()} (${wlMiss.toLocaleString()} with hi miss)`,
+        'Instructions whose bytes wrap a cache delivery boundary and trigger a second fetch (the hi line).'],
+    ]});
+  }
+
+  const p6b = st.phase6b || {};
+  if (Object.keys(p6b).length){
+    const minHit = minHitLatency('dc');
+    const totalMissEvts   = p6b.n_dcache_miss_events_total;
+    const storeMissAllocs = p6b.n_dcache_miss_events_stores;
+    const totalMissDisp = totalMissEvts != null ? totalMissEvts.toLocaleString() : '- (rerun tracer)';
+    const storeMissDisp = storeMissAllocs != null ? storeMissAllocs.toLocaleString() : '- (rerun tracer)';
+    sections.push({ title:'Data cache', rows:[
+      ['accesses (loads + stores)',   `${(p6b.n_loads||0) + (p6b.n_stores||0)} (${p6b.n_loads||0} ld, ${p6b.n_stores||0} st)`,
+        'Every load and store generates one cache access. This is the total number of D-cache accesses across the trace.'],
+      ['event pulses',                p6b.total_dc_events || 0,
+        'Pulses from the miss handler. Includes MSHR allocations, MSHR check pulses, and refill responses. Cache hits do not appear here. A single miss can generate multiple pulses.'],
+      ['refill active cycles',        p6b.rfsm_active_cycles || 0,
+        'Cycles the cache refill machine was busy.'],
+      ['total miss events (perf counter equivalent)', totalMissDisp,
+        'All non-prefetch MSHR allocations across the trace. This is exactly what a hardware perf counter sampling evt_cache_read_miss_o would see (hpdcache_ctrl_pe.sv line 368: evt_cache_read_miss_o equals NOT st2_mshr_alloc_is_prefetch_i). Includes load misses, store misses, and CMO allocs. Should be very close to primary miss loads + store-attributed miss allocs + other adapter allocs.'],
+      ['primary miss loads',          p6b.n_primary_miss_loads || 0,
+        'Loads tagged with dc_primary_miss. An sid=1 MSHR allocation fired during the LOAD record\'s LSU window. Matched by sid + time window (the load_unit FSM is serial, so this is unambiguous).'],
+      ['store-attributed miss allocs',  storeMissDisp,
+        'MSHR allocations attributed to the store adapter (sid equals 3). Store records get dc_primary_miss tagged on the same basis as loads, using their sid=3 alloc and the serial store_unit FSM\'s time window.'],
+      ['coalesced loads',             p6b.n_coalesced_loads || 0,
+        'Loads that joined an in flight miss for the same line.'],
+      ['refill overlap loads',        p6b.n_refill_overlap_loads || 0,
+        'Loads served while a refill for the same line was already in progress.'],
+      ['observed load hit latency',
+        minHit != null ? `${minHit} cycle${minHit===1?'':'s'}` : '-',
+        'Minimum (wb minus ex) across loads that did not miss.'],
+    ]});
+  }
+
+  const p7a = st.phase7a || {};
+  if (Object.keys(p7a).length){
+    /* Predictor capacity. Pull from cp when the trace exposes the
+     * config constants. Show '-' if unavailable. */
+    const bhtEntries = cp.BHTEntries;
+    const btbEntries = cp.BTBEntries;
+    const rasDepth   = cp.RASDepth;
+    const capParts = [];
+    if (bhtEntries != null) capParts.push(`BHT ${bhtEntries}`);
+    if (btbEntries != null) capParts.push(`BTB ${btbEntries}`);
+    if (rasDepth != null)   capParts.push(`RAS ${rasDepth}`);
+    const capDisp = capParts.length ? capParts.join(', ') : '-';
+    sections.push({ title:'Branch prediction', rows:[
+      ['control flow instructions',  p7a.n_ctrl_flow_records,
+        'jal, jalr, branches and their compressed variants.'],
+      ['predictions fired',          p7a.n_predictions,
+        'Instructions that got a non NoCF prediction.'],
+      ['resolutions observed',       p7a.n_resolutions,
+        'Branches that reached resolution at execute.'],
+      ['mispredicts',                p7a.n_mispredicts,
+        'Wrong direction or target. Execute had to correct.'],
+      ['prediction accuracy',        (p7a.hit_rate_pct != null ? p7a.hit_rate_pct + ' %' : '-'),
+        'Correctly predicted divided by total resolutions.'],
+      ['predictor capacity',         capDisp,
+        'BHT for conditional branch direction. BTB for indirect targets. RAS for return targets. Static fallback predicts taken when the BHT misses on a backward branch (negative immediate).'],
+      ['predicted_cf derivation',    'algebraic from resolution signals',
+        'predicted_cf is reconstructed from (resolved_cf, taken, mispredict) using the relation in branch_unit.sv:99 (is_mispredict equals taken XOR (predict.cf equals Branch)). For conditional branches this means predict.cf was Branch iff taken XOR mispredict. For JALs the front end unconditionally sets cf to Jump. For JALRs the BTB miss path implies NoCF and the BTB hit path implies JumpR. Returns always go through RAS so predict.cf is Return. Direct capture from decoded_instr_i.bp.cf at the iss_ack pre-edge is unreliable for back to back issues because the pre-edge holds the previous instruction\'s bp.cf, not the issuing one\'s.'],
+    ]});
+  }
+
+  const p7b = st.phase7b || {};
+  if (Object.keys(p7b).length){
+    sections.push({ title:'Memory writebacks', rows:[
+      ['allocations / sends / acks',
+        `${p7b.n_allocs} / ${p7b.n_sends} / ${p7b.n_acks}`,
+        'three phase counts for dirty cache lines on their way to memory'],
+      ['matched send to ack pairs',
+        `${p7b.matched_pairs} (${p7b.acks_no_prior_send} acks without a send, ${p7b.sends_never_acked} unacked)`,
+        'should be near 100 percent matched'],
+      ['eviction samples',           p7b.n_evictions,
+        'raw eviction events seen, before joining to writebacks'],
+      ['writebacks linked to evictions', `${p7b.n_linked} of ${p7b.n_linked + p7b.n_unlinked}`,
+        'each writeback joined to the eviction that caused it by cache set and way'],
+    ]});
+  }
+
+  let html = '';
+  for (const sec of sections){
+    html += `<h3>${escapeHtml(sec.title)}</h3><table>`;
+    for (const [n,v,note] of sec.rows){
+      html += `<tr><td>${escapeHtml(n)}</td><td>${escapeHtml(String(v))}</td>` +
+              `<td>${escapeHtml(note || '')}</td></tr>`;
+    }
+    html += '</table>';
+  }
+  const awl = p7b.axi_write_latency || {};
+  if (awl.histogram){
+    const total = Object.values(awl.histogram).reduce((a,b)=>a+b,0);
+    html += `<h3>AXI write latency</h3>`;
+    html += `<table style="margin-bottom:6px">`;
+    html += `<tr><td>min / median / max</td><td>${awl.min} / ${awl.median} / ${awl.max} cyc</td><td>send to ack round trip across the memory side AXI</td></tr>`;
+    html += `<tr><td>samples</td><td>${total}</td><td>writebacks that completed an ack</td></tr>`;
+    html += `</table>`;
+    html += `<div class="hist-card"><div class="hist">`;
+    const max = Math.max(...Object.values(awl.histogram));
+    for (const k of Object.keys(awl.histogram).sort((a,b)=>+a-+b)){
+      const v = awl.histogram[k];
+      const ph = Math.round(56 * v / max) + 2;
+      html += `<div class="b" style="height:${ph}px"><span>${v}</span><em>${k}c</em></div>`;
+    }
+    html += `</div></div>`;
+  }
+  body.innerHTML = html;
+}
+function fmtCfg(v){
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  return String(v);
+}
+
+/* Peak buffer occupancy sweep. For each named buffer region, build a
+ * list of (enter_cycle, leave_cycle) intervals from committed records,
+ * then compute the maximum count of overlapping intervals via a
+ * sweep-line. The intervals are HALF-OPEN [enter, leave) so an
+ * instruction that enters and leaves the same cycle counts as 0
+ * (it transited the buffer without occupying it).
+ *
+ *   fe buf : [lastIf2 + 1, fe_cycle)        . the FIFO
+ *   id buf : [fe_cycle + 1, id_cycle)       . wait in front of decode
+ *   is buf : [id_cycle + 1, ex_cycle)       . wait in scoreboard for ops
+ *   sb     : [is_cycle, co_cycle + 1)       . in flight in the scoreboard
+ *
+ * Returns {fe, id, is, sb} or null if ROWS is empty. */
+function computeBufferPeaks(){
+  if (!ROWS || !ROWS.length) return null;
+  function peak(intervals){
+    const ev = [];
+    for (const [a, b] of intervals){
+      if (a == null || b == null || b <= a) continue;
+      ev.push([a, +1]);
+      ev.push([b, -1]);
+    }
+    ev.sort((u, v) => u[0] - v[0] || u[1] - v[1]);
+    let cur = 0, max = 0;
+    for (const [, d] of ev){ cur += d; if (cur > max) max = cur; }
+    return max;
+  }
+  const fe = [], id = [], is = [], sb = [];
+  for (const r of ROWS){
+    if (r.flushed) continue;
+    const lastIf2 = r.wraps_line && r.if2_hi != null ? r.if2_hi : r.if2_lo;
+    if (lastIf2 != null && r.fe_cycle != null && r.fe_cycle > lastIf2 + 1)
+      fe.push([lastIf2 + 1, r.fe_cycle]);
+    if (r.fe_cycle != null && r.id_cycle != null && r.id_cycle > r.fe_cycle + 1)
+      id.push([r.fe_cycle + 1, r.id_cycle]);
+    if (r.id_cycle != null && r.ex_cycle != null && r.ex_cycle > r.id_cycle + 1)
+      is.push([r.id_cycle + 1, r.ex_cycle]);
+    /* Scoreboard: occupied from issue (is_cycle) through commit
+     * inclusive. Use co_cycle + 1 as the open end. Fall back to
+     * wb_cycle + 1 if co_cycle is missing. */
+    const sbEnter = r.is_cycle != null ? r.is_cycle : r.id_cycle;
+    const sbLeaveBase = r.co_cycle != null ? r.co_cycle
+                       : r.wb_cycle != null ? r.wb_cycle
+                       : r.ex_cycle;
+    if (sbEnter != null && sbLeaveBase != null && sbLeaveBase + 1 > sbEnter)
+      sb.push([sbEnter, sbLeaveBase + 1]);
+  }
+  return { fe: peak(fe), id: peak(id), is: peak(is), sb: peak(sb) };
+}
+/* Phase 8a forwarding: for each consumer record that has fwd_rs{1,2,3}_used,
+ * resolve the producer instruction by trans_id timeline. The scoreboard
+ * reuses 8 slots, so the relevant producer is the most-recent record with
+ * matching trans_id whose wb_cycle is ≤ consumer.is_cycle. We build a
+ * per-tid sorted timeline once, then binary-search each consumer's used
+ * forwards. Result is stamped as fwd_rs{1,2,3}_producer_id (record id, or
+ * null if unresolved). Producer resolution lets the popup show the
+ * producer's PC/disasm and lets future hover-based arrow rendering jump
+ * directly to the producer row without re-scanning ROWS. */
+function precomputeForwardingProducers(){
+  /* Build trans_id -> sorted-by-wb_cycle array */
+  const tidMap = new Map();
+  for (const r of ROWS){
+    if (r.trans_id == null || r.wb_cycle == null) continue;
+    let arr = tidMap.get(r.trans_id);
+    if (!arr){ arr = []; tidMap.set(r.trans_id, arr); }
+    arr.push(r);
+  }
+  for (const arr of tidMap.values()){
+    arr.sort((a, b) => a.wb_cycle - b.wb_cycle);
+  }
+  /* For each consumer's used forwards, binary-search for the latest
+   * producer with wb_cycle ≤ is_cycle. */
+  for (const r of ROWS){
+    if (r.is_cycle == null) continue;
+    for (const rs of ['rs1','rs2','rs3']){
+      if (!r[`fwd_${rs}_used`]) continue;
+      const srcTid = r[`fwd_${rs}_from_tid`];
+      if (srcTid == null){ r[`fwd_${rs}_producer_id`] = null; continue; }
+      const arr = tidMap.get(srcTid);
+      if (!arr){ r[`fwd_${rs}_producer_id`] = null; continue; }
+      const isC = r.is_cycle;
+      let lo = 0, hi = arr.length - 1, ans = -1;
+      while (lo <= hi){
+        const mid = (lo + hi) >> 1;
+        if (arr[mid].wb_cycle <= isC){ ans = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+      }
+      r[`fwd_${rs}_producer_id`] = ans >= 0 ? arr[ans].id : null;
+    }
+  }
+}
+function minHitLatency(which){
+  let m = Infinity;
+  for (const r of ROWS){
+    if (which === 'if'){
+      if (!r.ic_miss && r.if1_lo != null && r.if2_lo != null){
+        const g = r.if2_lo - r.if1_lo;
+        if (g >= 0 && g < m) m = g;
+      }
+    } else if (which === 'dc'){
+      if (r.fu === 'LOAD' && !r.dc_primary_miss && r.ex_cycle != null && r.wb_cycle != null){
+        const g = r.wb_cycle - r.ex_cycle;
+        if (g >= 0 && g < m) m = g;
+      }
+    }
+  }
+  return m === Infinity ? null : m;
+}
+function perFuRows(){
+  const m = {};
+  for (const r of ROWS){
+    if (r.flushed || !r.fu) continue;
+    if (!m[r.fu]) m[r.fu] = { count:0, lats:[] };
+    m[r.fu].count++;
+    if (r.ex_cycle != null && r.wb_cycle != null) m[r.fu].lats.push(r.wb_cycle - r.ex_cycle + 1);
+  }
+  const order = Object.keys(m).sort((a,b) => m[b].count - m[a].count);
+  const fuNotes = {
+    ALU:        'integer arithmetic, logic, shifts, immediates',
+    MULT:       'multiplier and divider',
+    LOAD:       'load unit, drives the data cache read path',
+    STORE:      'store unit, writes through the LSU to the data cache',
+    FPU:        'floating point unit',
+    CTRL_FLOW:  'branches and jumps, resolution lives here',
+    CSR:        'CSR reads and writes',
+  };
+  return order.map(fu => {
+    const d = m[fu];
+    let lat = '-';
+    if (d.lats.length){
+      d.lats.sort((a,b)=>a-b);
+      const med = d.lats[Math.floor(d.lats.length/2)];
+      lat = `${d.lats[0]} / ${med} / ${d.lats[d.lats.length-1]} cyc`;
+    }
+    return [fu, `${d.count.toLocaleString()} ops, exec latency min/med/max = ${lat}`,
+            fuNotes[fu] || 'observed in trace'];
+  });
+}
+function toggleConfigPanel(){
+  document.getElementById('cfg-backdrop').classList.toggle('show');
+}
+/* Toggle the left label panel. When hidden the main timeline gets
+ * the full width. The button label flips arrow direction so it is
+ * obvious which way collapsed/expanded points. */
+let LBL_PANEL_HIDDEN = false;
+function toggleLabelPanel(){
+  LBL_PANEL_HIDDEN = !LBL_PANEL_HIDDEN;
+  const panel = document.getElementById('lblpanel');
+  const btn   = document.getElementById('lblToggleBtn');
+  if (LBL_PANEL_HIDDEN){
+    panel.style.display = 'none';
+    btn.textContent = '▶ Show labels';
+  } else {
+    panel.style.display = '';
+    btn.textContent = '◀ Hide labels';
+  }
+  /* Resize canvases for the new layout and repaint. */
+  if (typeof setupGeometry === 'function' && DATA){ setupGeometry(); redraw(); }
+}
+
+/* Mouse handling. The timeline emits an instruction tooltip. The writeback
+ * panel emits a writeback tooltip with its own field set. */
+tlscroll.addEventListener('mousemove', onHover);
+tlscroll.addEventListener('mouseleave', () => {
+  tt.style.display='none'; crosshair.style.display='none';
+  document.getElementById('s-c').textContent = '-';
+  document.getElementById('s-i').textContent = '-';
+  document.getElementById('s-f').textContent = '-';
+  document.getElementById('s-p').textContent = '-';
+});
+/* Click on a mnemonic in the left label panel: jump the main viewer
+ * to the first cycle of that instruction's pipeline. The row's
+ * starting cycle is its if1_lo (the request cycle for the lo fetch).
+ * For instructions that lack if1_lo (rare partial records), fall
+ * back to the earliest defined cycle field. */
+lblcanvas.addEventListener('click', (e) => {
+  if (!DATA) return;
+  const rect = lblcanvas.getBoundingClientRect();
+  const my = e.clientY - rect.top;
+  const row = Math.floor((my + scrollY) / getRowH());
+  if (row < 0 || row >= ROWS.length) return;
+  const r = ROWS[row];
+  const startCyc = (r.if1_lo != null) ? r.if1_lo
+                 : (r.if2_lo != null) ? r.if2_lo
+                 : (r.fe_cycle != null) ? r.fe_cycle
+                 : (r.id_cycle != null) ? r.id_cycle
+                 : (r.ex_cycle != null) ? r.ex_cycle : null;
+  if (startCyc == null) return;
+  /* Center the start cycle at about 1/3 of the visible width so the
+   * user can see context on both sides of the instruction start. */
+  const targetX = (startCyc - cMin) * cellW - Math.floor(tlscroll.clientWidth / 3);
+  tlscroll.scrollLeft = Math.max(0, targetX);
+  /* Also bring the row into view vertically if it would be cut off. */
+  const rh = getRowH();
+  const rowTop = row * rh;
+  const rowBot = rowTop + rh;
+  if (rowTop < tlscroll.scrollTop){
+    tlscroll.scrollTop = rowTop;
+  } else if (rowBot > tlscroll.scrollTop + tlscroll.clientHeight){
+    tlscroll.scrollTop = rowBot - tlscroll.clientHeight;
+  }
+});
+/* Cursor hint on the label panel so users see it is clickable. */
+lblcanvas.style.cursor = 'pointer';
+
+function onHover(e){
+  if (!DATA) return;
+  const rect = tlscroll.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const cyc = cMin + Math.floor((mx + scrollX) / cellW);
+  const row = Math.floor((my + scrollY) / getRowH());
+  crosshair.style.display = 'block';
+  crosshair.style.left =
+    (rect.left - document.getElementById('tlwrap').getBoundingClientRect().left + mx) + 'px';
+  crosshair.style.height = tlscroll.clientHeight + 'px';
+  document.getElementById('s-c').textContent = cycDisp(cyc);
+  if (row >= 0 && row < ROWS.length){
+    const r = ROWS[row];
+    document.getElementById('s-i').textContent = dispMnem(r) || '-';
+    document.getElementById('s-f').textContent = r.fu || '-';
+    document.getElementById('s-p').textContent = r.pc || '-';
+  }
+  if (!document.getElementById('tt-on').checked){ tt.style.display='none'; return; }
+  if (row < 0 || row >= ROWS.length){ tt.style.display='none'; return; }
+  showInsTip(ROWS[row], e.clientX, e.clientY);
+}
+
+const wbwrap = document.getElementById('wbwrap');
+wbwrap.addEventListener('mousemove', e => {
+  if (!DATA || !WBS.length) return;
+  if (!document.getElementById('tt-on').checked) return;
+  const rect = wbwrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const w = wbHitTest(mx, my);
+  if (w) showWbTip(w, e.clientX, e.clientY);
+  else tt.style.display = 'none';
+});
+wbwrap.addEventListener('mouseleave', () => { tt.style.display='none'; });
+function wbHitTest(mx, my){
+  for (const e of wbRender){
+    if (mx >= e.x0 && mx <= e.x1 && my >= e.y && my <= e.y + e.h) return e.w;
+  }
+  return null;
+}
+
+function colorizeWait(v, max){
+  if (v == null || v <= 0) return '#a0a09a';
+  const redThr = Math.max(2, Math.ceil(max / 2));
+  return v >= redThr ? '#e05050' : '#f0a030';
+}
+function fmtWait(v, max){
+  if (v == null) return '<td>-</td>';
+  const ctx = max > 0 ? ` <span style="color:#505050">(max ${max})</span>` : '';
+  return `<td style="color:${colorizeWait(v, max)}">${v}c${ctx}</td>`;
+}
+function showInsTip(r, px, py){
+  const w = waitsOf(r);
+  const cyc = c => c == null ? '?' : 'C' + cycDisp(c);
+  const reg = i => i == null ? '-' : ('x' + i);
+  const icHit = r.if2_lo != null ? (r.ic_miss
+    ? ' <span style="color:#e05050">MISS</span>'
+    : ' <span style="color:#3ecf9a">hit</span>') : '';
+  const dcLine = (r.fu === 'LOAD' || r.fu === 'STORE') ? (
+    r.dc_primary_miss   ? `<span style="color:#e05050">MISS</span>` :
+    r.dc_coalesced      ? `<span style="color:#f0a030">coalesced</span>` :
+    r.dc_refill_overlap ? `<span style="color:#e6b45a">refill overlap</span>` :
+                          `<span style="color:#3ecf9a">hit</span>`) : null;
+  const branchLine = (r.fu === 'CTRL_FLOW') ? (
+    r.bp_mispredict ?
+      `<span style="color:#ff4040">✗ Mispredicted</span>` :
+    (r.bp_predicted_cf && r.bp_predicted_cf !== 'NoCF') ?
+      `<span style="color:#40c0ff">✓ Predicted correctly</span>` :
+      `<span style="color:#f0a030">! Unpredicted (default not taken)</span>`
+  ) : null;
+
+  let html = '';
+  html += `<div style="font-weight:500;color:#e4e2dc">${escapeHtml(dispMnem(r) || (r.fu||''))}${r.is_compressed ? ' <span style="color:#3ec0b0;font-size:10px">▪ compressed</span>' : ''}${r.wraps_line ? ' <span style="color:#f0a030;font-size:10px">↪ wraps fetch line</span>' : ''}</div>`;
+  html += `<div style="color:#505050;font-size:10px;margin-bottom:6px">${escapeHtml(r.pc||'')} · #${dispId(r.id)}${r.trans_id!=null?` · tid ${r.trans_id}`:''}</div>`;
+  /* Phase 8c bubble banners. Same two-banner convention as MinorFlow.
+   * The "before this fetch" banner sits at the TOP (above the table),
+   * the "this caused" banner sits at the BOTTOM (after the table).
+   * This makes the visual flow read top-down: what happened BEFORE I
+   * fetched, then my metadata, then what I CAUSED downstream. */
+  let bubbleBottom = '';
+  if (r.bubble_from_branch_id != null && r.bubble_cycles != null && r.bubble_cycles >= 1){
+    const causer = ROW_BY_ID.get(r.bubble_from_branch_id);
+    const meta = (causer && BUBBLE_KIND_META[causer.bubble_kind])
+                  || BUBBLE_KIND_META.flush_other;
+    const causerDisp = causer ? `#${dispId(causer.id)} ${escapeHtml(causer.pc||'')}` : `#${dispId(r.bubble_from_branch_id)}`;
+    html += `<div style="margin:2px 0 6px;padding:5px 7px;border-radius:4px;background:rgba(255,255,255,0.04);font-size:11px">
+      <span style="color:#909090">Bubble before this fetch</span><br>
+      <b>${r.bubble_cycles}c</b> · ${meta.txt}
+      <span style="color:#505050">· caused by ${causerDisp}</span></div>`;
+  }
+  if (r.bubble_kind != null && r.bubble_caused_cycles != null && r.bubble_caused_cycles >= 1){
+    const meta = BUBBLE_KIND_META[r.bubble_kind] || BUBBLE_KIND_META.flush_other;
+    const recovery = ROW_BY_ID.get(r.bubble_recovery_id);
+    const recDisp = recovery ? `#${dispId(recovery.id)} ${escapeHtml(recovery.pc||'')}` : `#${dispId(r.bubble_recovery_id)}`;
+    bubbleBottom = `<div style="margin:6px 0 2px;padding:5px 7px;border-radius:4px;background:rgba(255,255,255,0.04);font-size:11px">
+      <span style="color:#909090">Bubble this caused</span><br>
+      <b>${r.bubble_caused_cycles}c</b> · ${meta.txt}
+      <span style="color:#505050">· recovered at ${recDisp}</span></div>`;
+  }
+  html += `<table>`;
+  html += `<tr><td>Class</td><td>${escapeHtml(r.fu||'-')}${r.fu_category?' · '+escapeHtml(r.fu_category):''}</td></tr>`;
+  html += `<tr><td>rd</td><td style="color:#3ecf9a">${reg(r.rd)}</td></tr>`;
+  html += `<tr><td>rs1 / rs2</td><td style="color:#f0a030">${reg(r.rs1)} / ${reg(r.rs2)}</td></tr>`;
+  html += `<tr><td colspan=2 style="padding-top:4px"></td></tr>`;
+  html += `<tr><td>IF1 req</td><td>${cyc(r.if1_lo)}</td></tr>`;
+  html += `<tr><td>IF2 resp</td><td>${cyc(r.if2_lo)}${icHit}</td></tr>`;
+  if (r.wraps_line){
+    /* Hi-line miss inference. The tracer's ic_miss field is for the lo
+     * line only. For wraps_line records the hi line's miss status is
+     * not directly stored, but a stall of 4+ cycles between if1_hi
+     * and if2_hi is almost always a miss (cache hits are 1-cycle).
+     * Surface it the same way as the lo line. */
+    const hiStallCyc = (r.if1_hi != null && r.if2_hi != null) ? (r.if2_hi - r.if1_hi - 1) : null;
+    const hiLikelyMiss = hiStallCyc != null && hiStallCyc >= 4;
+    const icHitHi = r.if2_hi != null ? (hiLikelyMiss
+      ? ' <span style="color:#e05050">MISS</span>'
+      : ' <span style="color:#3ecf9a">hit</span>') : '';
+    html += `<tr><td>IF1 hi req</td><td style="color:#7aa0c0">${cyc(r.if1_hi)}</td></tr>`;
+    html += `<tr><td>IF2 hi resp</td><td style="color:#7aa0c0">${cyc(r.if2_hi)}${icHitHi}</td></tr>`;
+  }
+  html += `<tr><td>FE OUT</td><td>${cyc(r.fe_cycle)}</td></tr>`;
+  /* ID/IS: in CVA6 the scoreboard accepts and issues in the same cycle
+   * whenever operands are ready, so id_cycle == is_cycle is the COMMON
+   * case (not a bug). When they differ, the gap is the operand-wait
+   * time (RAW hazard, full scoreboard, etc) and is_buf shows it as a
+   * positive count below. */
+  if (r.id_cycle != null && r.is_cycle != null && r.id_cycle === r.is_cycle){
+    html += `<tr><td>ID&nbsp;/&nbsp;IS</td><td>${cyc(r.id_cycle)} <span style="color:#606060;font-size:10px">(same cycle)</span></td></tr>`;
+  } else {
+    html += `<tr><td>ID</td><td>${cyc(r.id_cycle)}</td></tr>`;
+    html += `<tr><td>IS</td><td>${cyc(r.is_cycle)}</td></tr>`;
+  }
+  html += `<tr><td>EX</td><td>${cyc(r.ex_cycle)}</td></tr>`;
+  /* Result row. only when wb_cycle differs from ex_cycle (multi-cycle
+   * FU: FPU, integer mul/div, LSU on cache miss, etc). For single-
+   * cycle FUs wb_cycle == ex_cycle, which is already conveyed by EX. */
+  if (r.ex_cycle != null && r.wb_cycle != null && r.wb_cycle > r.ex_cycle){
+    html += `<tr><td>Result</td><td>${cyc(r.wb_cycle)} <span style="color:#606060;font-size:10px">(FU output ready)</span></td></tr>`;
+  }
+  html += `<tr><td>CO</td><td>${cyc(r.co_cycle)}</td></tr>`;
+  html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+  html += `<tr><td>IC stall</td>${fmtWait(w.icStall, waitMax.icStall)}</tr>`;
+  if (r.wraps_line){
+    html += `<tr><td>IC stall hi</td>${fmtWait(w.icStallHi, waitMax.icStallHi)}</tr>`;
+  }
+  html += `<tr><td>FE buf</td>${fmtWait(w.feBuf, waitMax.feBuf)}</tr>`;
+  html += `<tr><td>ID buf</td>${fmtWait(w.idBuf, waitMax.idBuf)}</tr>`;
+  html += `<tr><td>IS buf</td>${fmtWait(w.isBuf, waitMax.isBuf)}</tr>`;
+  html += `<tr><td>Exec lat</td>${fmtWait(w.exLat, waitMax.exLat)}</tr>`;
+  html += `<tr><td>Commit wait</td>${fmtWait(w.coWait, waitMax.coWait)}</tr>`;
+  if (dcLine != null){
+    html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+    if (r.ex_cycle != null && r.wb_cycle != null && r.wb_cycle > r.ex_cycle){
+      const dur = r.wb_cycle - r.ex_cycle;
+      html += `<tr><td>LSU req</td><td>${cyc(r.ex_cycle)} to ${cyc(r.wb_cycle)} (${dur}c)</td></tr>`;
+    }
+    html += `<tr><td>D-cache</td><td>${dcLine}</td></tr>`;
+  }
+  if (branchLine != null){
+    html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+    html += `<tr><td>Branch</td><td>${branchLine}</td></tr>`;
+    if (r.bp_predicted_cf) html += `<tr><td>Predicted</td><td>${escapeHtml(r.bp_predicted_cf)}</td></tr>`;
+    if (r.bp_resolved_taken != null) html += `<tr><td>Actual</td><td>${r.bp_resolved_taken ? 'taken' : 'not taken'}</td></tr>`;
+    if (r.bp_resolution_cycle != null) html += `<tr><td>Resolved at</td><td>${cyc(r.bp_resolution_cycle)}</td></tr>`;
+  }
+  /* Phase 8a forwarding rows. For each source operand that was
+   * forwarded, show: (1) the consumer's rs position, (2) the producer's
+   * destination register (extracted from the producer's disasm), (3)
+   * the producer's full record reference for traceability, (4) the
+   * via path (wb / sb). The producer's rd extraction relies on the
+   * convention that for everything that can BE a forwarding producer
+   * (writes a GPR or FPR. ALU, FPU, LOAD, mul/div), the first
+   * operand after the mnemonic is rd. */
+  const extractRd = (rec) => {
+    const d = rec.disasm || '';
+    // Strip mnemonic, take the first comma-separated token, trim spaces.
+    const after = d.replace(/^\s*\S+\s*/, '');
+    const first = after.split(',')[0];
+    const tok = (first || '').trim();
+    // Reject empty / address-immediate-looking tokens. A real register
+    // is one of zero, ra, sp, gp, tp, t[0-6], s[0-11], a[0-7], or x/f
+    // followed by a number.
+    if (/^(zero|ra|sp|gp|tp|t[0-6]|s[0-9]+|a[0-7]|fp|[xf][0-9]+|ft[0-9]+|fs[0-9]+|fa[0-7])$/.test(tok)) {
+      return tok;
+    }
+    return null;
+  };
+  const fwdLines = [];
+  for (const rs of ['rs1','rs2','rs3']){
+    if (!r[`fwd_${rs}_used`]) continue;
+    const via = r[`fwd_${rs}_via`];
+    const srcTid = r[`fwd_${rs}_from_tid`];
+    const prodId = r[`fwd_${rs}_producer_id`];
+    const viaColor = via === 'wb' ? '#20a8a0' : '#a050a0';
+    const prod = prodId != null ? ROW_BY_ID.get(prodId) : null;
+    const rd = prod ? extractRd(prod) : null;
+    let cell;
+    if (prod){
+      const disp = (dispMnem(prod) || (prod.fu || '')).slice(0, 26);
+      const rdSpan = rd
+        ? `<b style="color:#e0d8a0">${escapeHtml(rd)}</b>`
+        : `<span style="color:#808080">(reg)</span>`;
+      cell = `← ${rdSpan} `
+           + `<span style="color:#606060">from</span> #${dispId(prod.id)} `
+           + `<span style="color:#808080">${escapeHtml(disp)}</span> `
+           + `<span style="color:${viaColor}">via ${escapeHtml(String(via))}</span>`;
+    } else {
+      cell = `<span style="color:${viaColor}">via ${escapeHtml(String(via))}</span> `
+           + `<span style="color:#808080">from tid ${srcTid}</span>`;
+    }
+    fwdLines.push(`<tr><td>fwd ${rs}</td><td>${cell}</td></tr>`);
+  }
+  if (fwdLines.length){
+    html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+    for (const line of fwdLines) html += line;
+  }
+  html += `</table>`;
+  html += bubbleBottom;
+  if (r.flushed){
+    html += `<div style="margin-top:6px;font-size:10px;color:#ff4040">✗ Flushed${r.flush_reason?' ('+escapeHtml(r.flush_reason)+')':''}, never committed</div>`;
+  }
+  showTipAt(html, px, py);
+}
+function showWbTip(w, px, py){
+  const cyc = c => c == null ? '?' : 'C' + cycDisp(c);
+  let html = '';
+  html += `<div style="font-weight:500;color:#e4e2dc">Memory writeback</div>`;
+  html += `<div style="color:#505050;font-size:10px;margin-bottom:6px">scoreboard slot ${w.flush_slot != null ? w.flush_slot : '?'}${w.way != null ? ' · way '+w.way : ''}</div>`;
+  html += `<table>`;
+  html += `<tr><td>victim line</td><td style="font-family:'SF Mono',Menlo,Consolas,monospace">${escapeHtml(String(w.nline || '?'))}</td></tr>`;
+  if (w.addr) html += `<tr><td>address</td><td style="font-family:'SF Mono',Menlo,Consolas,monospace">${escapeHtml(String(w.addr))}</td></tr>`;
+  html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+  html += `<tr><td>allocated</td><td>${cyc(w.alloc_cycle)}</td></tr>`;
+  html += `<tr><td>send to memory</td><td>${cyc(w.send_cycle)}</td></tr>`;
+  html += `<tr><td>ack received</td><td>${cyc(w.ack_cycle)}</td></tr>`;
+  if (w.axi_write_latency != null)
+    html += `<tr><td>AXI round trip</td><td>${w.axi_write_latency} cyc</td></tr>`;
+  if (w.residency != null)
+    html += `<tr><td>total residency</td><td>${w.residency} cyc</td></tr>`;
+  if (w.linked){
+    html += `<tr><td colspan=2 style="padding-top:3px"></td></tr>`;
+    html += `<tr><td>caused by refill of</td><td style="font-family:'SF Mono',Menlo,Consolas,monospace;color:#40c0ff">${escapeHtml(String(w.evict_incoming_nline || '?'))}</td></tr>`;
+    if (w.evict_cycle != null)
+      html += `<tr><td>eviction at</td><td>${cyc(w.evict_cycle)}</td></tr>`;
+  }
+  html += `</table>`;
+  showTipAt(html, px, py);
+}
+function showTipAt(html, px, py){
+  tt.innerHTML = html;
+  tt.style.display = 'block';
+  const margin = 12;
+  const tr = tt.getBoundingClientRect();
+  let x = px + 14, y = py - 10;
+  if (x + tr.width + margin > innerWidth)  x = px - 14 - tr.width;
+  if (y + tr.height + margin > innerHeight) y = innerHeight - tr.height - margin;
+  if (x < margin) x = margin;
+  if (y < margin) y = margin;
+  tt.style.left = x + 'px'; tt.style.top = y + 'px';
+}
+
+window.addEventListener('keydown', e => {
+  if (!DATA) return;
+  const k = e.key;
+  if (k==='ArrowRight'){
+    const step = Math.min(cellW * 12, tlscroll.clientWidth * 0.4);
+    tlscroll.scrollLeft += step; e.preventDefault();
+  }
+  else if (k==='ArrowLeft'){
+    const step = Math.min(cellW * 12, tlscroll.clientWidth * 0.4);
+    tlscroll.scrollLeft -= step; e.preventDefault();
+  }
+  else if (k==='ArrowDown'){ tlscroll.scrollTop += getRowH()*4; e.preventDefault(); }
+  else if (k==='ArrowUp'){ tlscroll.scrollTop -= getRowH()*4; e.preventDefault(); }
+  else if (k==='Escape'){
+    document.getElementById('cfg-backdrop').classList.remove('show');
+    closeModalMessage();
+  }
+});
+
+</script>
+</body>
+</html>
