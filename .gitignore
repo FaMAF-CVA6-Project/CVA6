@@ -51,4 +51,7 @@ Bender.lock
 # Both following lines are needed to list contents of ISA manual build dir.
 !/vendor/riscv/riscv-isa-manual/build/
 !/vendor/riscv/riscv-isa-manual/build/*
+# Our CVA6-specific files
 cva6_files
+*.list
+*.vcd
