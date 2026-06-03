@@ -23,10 +23,11 @@ Verificar que se haya instalado correctamente:
 sudo docker version
 ```
 
-Permitir a Docker acceso al servidor X (GUI). Este comando debe ser ejecutado cada vez que se inicie la PC. Se recomienda agregarlo al archivo `.bashrc`:
+Para poder ejecutar aplicaciones de interfaz gráfica desde el contenedor, se deben correr los siguientes comandos:
 
 ```bash
-xhost +local:docker
+xhost +
+socat TCP-LISTEN:6000,reuseaddr,fork UNIX-CLIENT:/tmp/.X11-unix/X0
 ```
 
 ### Configuración opcional
@@ -311,10 +312,6 @@ Elegir una carpeta para la instalación:
 Y por último presionar instalar:
 
 ![final step vivado](image-6.png)
-
-### Activar Licencia
-
-(TODO)
 
 ### Crear proyecto
 
