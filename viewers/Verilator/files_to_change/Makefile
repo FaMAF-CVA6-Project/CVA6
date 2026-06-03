@@ -19,8 +19,8 @@ max_cycles     ?= 10000000
 # Test case to run
 test_case      ?= core_test
 # New variables to make vcd shorter
-trace_start    ?= 3200
-trace_end	   ?= 5000
+trace_start    ?= 0
+trace_end	   ?= 5000000000000000000000000000000000000
 # QuestaSim Version
 questa_version ?= ${QUESTASIM_VERSION}
 VLOG ?= vlog$(questa_version)
