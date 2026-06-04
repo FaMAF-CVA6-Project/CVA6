@@ -75,7 +75,7 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
 .ld { width:10px; height:10px; border-radius:2px; flex-shrink:0; }
 #main { flex:1; display:flex; min-height:0; }
 #lblpanel { width:340px; flex-shrink:0; background:var(--bg2);
-  border-right:1px solid var(--border2); position:relative; }
+  border-right:1px solid var(--border2); position:relative; overflow:hidden; }
 #lblhead { height:18px; flex-shrink:0; border-bottom:0.5px solid var(--border);
   padding:0 8px; font-size:10px; color:var(--text3);
   display:flex; align-items:center; gap:10px; }
@@ -89,13 +89,16 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
 #tlscroll { flex:1; overflow:auto; position:relative; background:#1a1a1c; }
 #tlspacer { position:absolute; top:0; left:0; }
 #tlcanvas { position:absolute; top:0; left:0; pointer-events:none; }
-#crosshair { position:absolute; top:0; width:1px; background:var(--warn); opacity:.5;
-  pointer-events:none; display:none; }
+#crosshair { position:absolute; top:18px; bottom:0; width:1px;
+  background:rgba(255,255,255,0.18);
+  pointer-events:none; display:none; z-index:60; }
 /* writeback track */
 #wbpanel { flex-shrink:0; height:140px; background:var(--bg2);
-  border-top:0.5px solid var(--border2); display:flex; }
-#wbhead { width:340px; flex-shrink:0; border-right:0.5px solid var(--border2);
-  padding:8px 12px; font-size:10px; color:var(--text3); }
+  border-top:0.5px solid var(--border2); display:flex; overflow:hidden; }
+#wbhead { width:340px; min-width:340px; flex-shrink:0;
+  border-right:0.5px solid var(--border2);
+  padding:8px 12px; font-size:10px; color:var(--text3);
+  overflow:hidden; }
 #wbhead .t { color:#e6b45a; font-size:11px; font-weight:500; letter-spacing:0.02em; }
 #wbhead .s { margin-top:4px; line-height:1.5; }
 #wbhead .num { font-family:'SF Mono',Menlo,Consolas,monospace; color:var(--text2); }
@@ -109,7 +112,6 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
 }
 #status span { font-size:12px; color:var(--text3); white-space:nowrap; }
 #status .hi  { color:var(--text2); }
-#status .sep { color:var(--border2); }
 /* tooltip */
 #tt {
   position:fixed; z-index:200; display:none;
@@ -238,17 +240,17 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
          onkeydown="onRangeKeyDown(event)" onpaste="onRangePaste(event)"
          oninput="onRangeInput(event)" onchange="onRangeChange()"
          title="First fetched instruction to show">
-  <span style="color:var(--text3);font-size:11px">-</span>
+  <span style="color:var(--text3);font-size:11px">–</span>
   <input type="number" id="rto" class="rng" placeholder="to" min="1"
          onkeydown="onRangeKeyDown(event)" onpaste="onRangePaste(event)"
          oninput="onRangeInput(event)" onchange="onRangeChange()"
          title="Last fetched instruction to show">
   <button class="tbtn" onclick="resetRange()" title="Show every instruction in the trace">Reset</button>
-  <button class="tbtn" onclick="showMainCode()" title="Filter to instructions starting at the program entry PC, hiding boot ROM and CSR setup">Main code</button>
+  <button class="tbtn" onclick="showMainCode()" title="Filter to the measurement region. For C programs uses the first two `csrr X, mcycle` reads. For assembly falls back to entry_pc and the first jump to exit.">Main code</button>
 
   <span class="vsep">│</span>
   <label class="chk" title="Show a detailed information panel as the mouse hovers over an instruction">
-    <input type="checkbox" id="tt-on" checked>
+    <input type="checkbox" id="tt-on" checked onchange="onTooltipToggle()">
     Tooltip
   </label>
   <label class="chk" title="Draw an arrow from each producer to its consumer. The arrow ends at the consumer's IS cycle (where the muxing happens in issue_read_operands). Teal-green is the wb-path (back-to-back forwarding). Purple-magenta is the sb-path (value sat in the scoreboard before issue).">
@@ -299,7 +301,7 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
      onclick="document.getElementById('fi').click()">
   <h2>Drag a CVA6 trace here, or click to browse</h2>
   <p style="font-size:11px">JSON produced by <code>cva6_pipeline_tracer.py</code> from a Verilator generated VCD.</p>
-  <p style="font-size:10px;margin-top:4px">Keys: arrows to navigate, Esc to close panels</p>
+  <p style="font-size:10px;margin-top:4px">Keys: + / − to zoom · arrows to navigate · Home/End to jump · Esc to close panels</p>
 </div>
 
 <div id="view">
@@ -330,12 +332,13 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
     <span title="Instruction at the row under the cursor">Instr: <span class="hi" id="s-i">-</span></span>
     <span title="Functional unit class that handled the instruction">FU: <span class="hi" id="s-f">-</span></span>
     <span title="Program counter">PC: <span class="hi" id="s-p">-</span></span>
-    <span class="sep">│</span>
+    <span class="vsep">│</span>
     <span title="Instructions that reached the front end (committed + flushed)">Fetched: <span class="hi" id="s-fet">-</span></span>
     <span title="Committed (retired) instructions">Committed: <span class="hi" id="s-cmt">-</span></span>
     <span title="Cycles in the visible window">Cycles: <span class="hi" id="s-cyc">-</span></span>
     <span title="Control flow instructions resolved in the visible window">Branches: <span class="hi" id="s-br">-</span></span>
-    <span title="Branches the predictor got wrong">Mispred: <span class="hi" id="s-misp">-</span></span>
+    <span title="Branches the predictor got wrong (had a specific guess at IF2 and Execute resolved differently). Excludes the unpredicted case below.">Mispred: <span class="hi" id="s-misp">-</span></span>
+    <span title="Branches the predictor stayed silent on (predicted_cf == NoCF, default not-taken) but Execute resolved as taken. The front end fell through and needed a redirect. Common on the first encounter of a control instruction.">Unpred: <span class="hi" id="s-unpred">-</span></span>
     <span title="Instructions per cycle (committed / cycles)">IPC: <span class="hi" id="s-ipc">-</span></span>
     <span title="Elapsed time in the visible window (cycles / 50 MHz)">Time: <span class="hi" id="s-time">-</span></span>
     <span title="I-cache accesses (cycles where icache_dreq_o.req was high). Matches perf counter mhpmevent 16.">I$ acc: <span class="hi" id="s-ica">-</span></span>
@@ -363,6 +366,7 @@ const COL = {
   f2_hi:'#306a99',             /* if2 cell. hi fetch on wraps_line records */
   fe:'#1a5060',                /* fe cell, teal blue, distinct from if2 */
   f1miss:'#c03030', f1stall:'#8a2020',
+  feStall:'#2c3a55',           /* front-end stall between the lo and hi fetches of a wraps_line instruction. Matches MinorFlow's feStall. */
   f2buf:'#0e2a50',             /* fe buf */
   dec:'#4a2a80', decbuf:'#352060',
   dec_is_merged:'#5a3590',     /* ID and IS share a cycle (the common case). brighter purple to make the merge obvious. */
@@ -560,7 +564,8 @@ function ingest(json, name){
   const rtoEl   = document.getElementById('rto');
   rfromEl.min = String(minId); rfromEl.max = String(maxId);
   rtoEl.min   = String(minId); rtoEl.max   = String(maxId);
-  rfromEl.value = String(minId); rtoEl.value = String(maxId);
+  rfromEl.placeholder = String(minId); rtoEl.placeholder = String(maxId);
+  rfromEl.value = ''; rtoEl.value = '';
   computeBoundsAndStats();
   buildLegend();
   renderConfigPanel();
@@ -686,15 +691,138 @@ function applyFilter(){
   computeBoundsAndStats(); fillStatus();
 }
 function resetRange(){
-  document.getElementById('rfrom').value = String(minId);
-  document.getElementById('rto').value   = String(maxId);
+  document.getElementById('rfrom').value = '';
+  document.getElementById('rto').value   = '';
   applyFilter(); setupGeometry(); redraw();
 }
 function showMainCode(){
   if (!DATA) return;
+
+  /* Helper used by all three detection paths below. Finds the LAST
+   * non-flushed instruction whose disasm references the <exit> symbol
+   * (the conventional symbol-based end-of-program marker for RISC-V
+   * assembly programs, e.g. `jal ra, 8000366e <exit>`). Returns the
+   * trace index, or -1 if no such instruction exists. We scan backward
+   * from the end so that error-path exits earlier in the trace don't
+   * shadow the real program-end exit.
+   *
+   * Note that this matches `<exit>` and `<exit+...>` but NOT
+   * `<_exit>` — CVA6 baremetal C runtimes use the underscore variant,
+   * so this helper is silent on those programs and the CSR / m5op
+   * detectors keep their precise-measurement endpoints. */
+  const exitRe = /<exit(?:[+>])/;
+  const findLastExitIdx = (minIdx) => {
+    for (let i = DATA.instructions.length - 1; i > minIdx; i--){
+      const ins = DATA.instructions[i];
+      if (!ins.flushed && exitRe.test(ins.disasm || '')) return i;
+    }
+    return -1;
+  };
+
+  /* CSR-based detection first. Most C programs bracket the workload
+   * with `read_csr(mcycle)` at the start and end:
+   *     uint64_t start_cyc = read_csr(mcycle);   // FIRST csrr mcycle
+   *     ... workload ...
+   *     uint64_t end_cyc = read_csr(mcycle);     // SECOND csrr mcycle
+   *     ... end-CSR reads, computation ...
+   *     asm volatile ( ... ld a5; ld a4; ld a3; ... );  // print block
+   * The first instance marks the start. The end is the instruction
+   * immediately before the long run of consecutive loads that
+   * starts the print block (3+ consecutive ld/lw/etc.). Falls back
+   * to "instruction before second csrr mcycle" if no such load run
+   * is found. */
+  const csrrMCycleRe = /\bcsrr\s+\w+\s*,\s*mcycle\b/;
+  const loadRe = /^(?:ld|lw|lh|lb|lbu|lhu|lwu|fld|flw|c\.l[dw])\b/;
+  const csrIdx = [];
+  for (let i = 0; i < DATA.instructions.length; i++){
+    const ins = DATA.instructions[i];
+    if (ins.flushed) continue;             // wrong-path speculation, ignore
+    if (csrrMCycleRe.test(ins.disasm || '')){
+      csrIdx.push(i);
+      if (csrIdx.length >= 2) break;
+    }
+  }
+  if (csrIdx.length >= 2){
+    /* Find the first run of 3+ consecutive loads AFTER the second
+     * csrr mcycle. Loads inside the workload are tolerated because
+     * we start scanning past the workload boundary. Flushed loads
+     * are skipped too (wrong-path speculation must not be allowed
+     * to terminate the ROI early). */
+    let endIdx = -1;
+    let runStart = -1, runLen = 0;
+    for (let i = csrIdx[1] + 1; i < DATA.instructions.length; i++){
+      const ins = DATA.instructions[i];
+      if (ins.flushed) continue;
+      if (loadRe.test(ins.disasm || '')){
+        if (runLen === 0) runStart = i;
+        runLen++;
+        if (runLen >= 3){
+          endIdx = runStart - 1;
+          break;
+        }
+      } else {
+        runLen = 0;
+      }
+    }
+    /* No print block found. If the trace has a jal to <exit>, use it
+     * as the end — this is the common ASM-with-csrr case (mcycle
+     * brackets the workload but the program also has an explicit
+     * exit). Falls back to "instruction before second csrr mcycle"
+     * if neither a load-run nor an exit jal is present. */
+    if (endIdx < 0){
+      const eIdx = findLastExitIdx(csrIdx[1]);
+      if (eIdx >= 0) endIdx = eIdx;
+      else endIdx = csrIdx[1] - 1;
+    }
+    document.getElementById('rfrom').value = String(dispId(DATA.instructions[csrIdx[0]].id));
+    document.getElementById('rto').value   = String(dispId(DATA.instructions[endIdx].id));
+    onRangeChange();
+    return;
+  }
+
+  /* m5op-based detection: assembly programs (and C programs without the
+   * CSR harness) typically bracket the workload with calls to gem5's
+   * m5_reset_stats / m5_dump_stats helpers. objdump renders the jal
+   * target with the helper's symbol name as a comment:
+   *
+   *     jal ra, 102c8 <m5_reset_stats>    ← ROI starts on the NEXT instruction
+   *     ... workload ...
+   *     jal ra, 102ce <m5_dump_stats>     ← ROI ends on the PREVIOUS instruction
+   *
+   * Match by symbol name with a permissive substring test (the disasm
+   * format can vary across tracer versions). Accepts common variants:
+   * workbegin/workend, dump_reset_stats. */
+  const resetCallRe = /\b(?:m5_reset_stats|m5_resetstats|m5_workbegin)\b/;
+  const dumpCallRe  = /\b(?:m5_dump_stats|m5_dumpstats|m5_dump_reset_stats|m5_workend)\b/;
+  let resetIdx = -1, dumpIdx = -1;
+  for (let i = 0; i < DATA.instructions.length; i++){
+    const ins = DATA.instructions[i];
+    if (ins.flushed) continue;             // wrong-path speculation, ignore
+    const dis = ins.disasm || '';
+    if (resetIdx < 0 && resetCallRe.test(dis)){ resetIdx = i; continue; }
+    if (resetIdx >= 0 && dumpCallRe.test(dis)){ dumpIdx = i; break; }
+  }
+  if (resetIdx >= 0 && dumpIdx > resetIdx + 1){
+    /* End priority: jal <exit> if the trace has one (full ASM program
+     * including any post-dump cleanup), otherwise dumpIdx - 1 (precise
+     * m5op-bracketed measurement, the original behavior). */
+    let endIdx = findLastExitIdx(dumpIdx);
+    if (endIdx < 0) endIdx = dumpIdx - 1;
+    document.getElementById('rfrom').value = String(dispId(DATA.instructions[resetIdx + 1].id));
+    document.getElementById('rto').value   = String(dispId(DATA.instructions[endIdx].id));
+    onRangeChange();
+    return;
+  }
+  /* Sentinel: only the reset call was found and no dump call follows,
+   * or vice versa. Likely a partial m5op harness. Fall through to PC
+   * detection without warning — the user might still get a useful
+   * result. */
+
+
+  /* Fallback: PC-based detection for ASM programs without the CSR
+   * harness. Uses metadata.user_entry_pc / user_end_pc and the
+   * exit-jump pattern. */
   const m = DATA.metadata || {};
-  /* Prefer the values the tracer recorded. Fall back to the per-program
-   * defaults at the top of this script. */
   const entryPc = m.user_entry_pc || DEFAULT_USER_ENTRY_PC;
 
   /* Hex PCs in the trace can be written with or without leading zeros, so
@@ -708,14 +836,31 @@ function showMainCode(){
   };
   const tEntry = norm(entryPc);
 
-  const startIdx = DATA.instructions.findIndex(r => norm(r.pc) === tEntry);
+  /* Entry detection cascade:
+   *   (1) metadata.user_entry_pc if it matches a record in the trace
+   *   (2) DEFAULT_USER_ENTRY_PC if different from (1) and matches
+   *   (3) first non-flushed instruction in the trace
+   * Step 3 is the right answer for ASM programs whose entry PC varies
+   * by linker layout: the entry isn't a hardcoded address, it's just
+   * "wherever the program started executing". The end-of-ROI is still
+   * detected by symbol (<exit> in the disasm), which is invariant
+   * across programs even when the PC and opcode of the exit jal move. */
+  let startIdx = DATA.instructions.findIndex(r => norm(r.pc) === tEntry);
   if (startIdx < 0){
-    showModalMessage('Entry PC not in trace',
-      `<p>Neither the trace's <code>user_entry_pc</code> nor the fallback ` +
-      `<code>${escapeHtml(DEFAULT_USER_ENTRY_PC)}</code> matches any instruction in this trace.</p>` +
-      `<p>The fallbacks can be edited near the top of the viewer script ` +
-      `(<code>DEFAULT_USER_ENTRY_PC</code>, <code>DEFAULT_USER_END_PC</code>).</p>` +
-      `<p>For now you can still narrow the view manually.</p>`);
+    const tDefault = norm(DEFAULT_USER_ENTRY_PC);
+    if (tDefault !== tEntry){
+      startIdx = DATA.instructions.findIndex(r => norm(r.pc) === tDefault);
+    }
+  }
+  if (startIdx < 0){
+    startIdx = DATA.instructions.findIndex(r => !r.flushed);
+  }
+  if (startIdx < 0){
+    /* Reaching here means the trace has zero non-flushed instructions
+     * (or zero instructions). Extremely unlikely but covered. */
+    showModalMessage('Main code: empty trace',
+      `<p>This trace has no non-flushed instructions to use as an entry point.</p>` +
+      `<p>Total records: ${DATA.instructions.length}. Try a different trace.</p>`);
     return;
   }
 
@@ -734,15 +879,11 @@ function showMainCode(){
     }
   }
   if (endIdx < 0){
-    /* Disasm-based detection. Look for the FIRST jal/j/jr to <exit>
-     * after entry. that's where user code finishes. */
-    const exitRe = /<exit(?:[+>])/;
-    for (let i = startIdx; i < DATA.instructions.length; i++){
-      if (exitRe.test(DATA.instructions[i].disasm || '')){
-        endIdx = i;
-        break;
-      }
-    }
+    /* Disasm-based detection. Find the LAST non-flushed jal/j/jr to
+     * <exit> in the trace — that's where user code finishes. We use
+     * the last occurrence (not the first) so error-path exits earlier
+     * in the trace don't preempt the real program-end exit. */
+    endIdx = findLastExitIdx(startIdx - 1);
   }
   if (endIdx < 0 && DEFAULT_USER_END_PC){
     const tFallback = norm(DEFAULT_USER_END_PC);
@@ -802,7 +943,20 @@ function fitAll(){
 function onWbToggle(){
   const show = document.getElementById('wb-on').checked;
   document.getElementById('wbpanel').style.display = show ? 'flex' : 'none';
-  setupGeometry(); redraw();
+  /* RAF defers the geometry update until AFTER the browser has
+   * reflowed the layout from the display change. Without this,
+   * clientHeight reads return the OLD lblpanel/tlscroll heights and
+   * the canvases get sized to the wrong values, which can let
+   * absolutely-positioned canvas content visually escape its
+   * container. */
+  requestAnimationFrame(() => { setupGeometry(); redraw(); });
+}
+function onTooltipToggle(){
+  /* When unchecked, hide the tooltip immediately so it doesn't linger
+   * until the next mouse move. */
+  if (!document.getElementById('tt-on').checked){
+    document.getElementById('tt').style.display = 'none';
+  }
 }
 function setupGeometry(){
   const totalW = (cMax - cMin + 4) * cellW;
@@ -946,6 +1100,21 @@ function drawTimeline(){
    * busy cells. See drawForwardingArrows for the geometry. */
   if (document.getElementById('fwd-on')?.checked){
     drawForwardingArrows(ctx, firstRow, lastRow, firstCyc, W, H);
+  }
+  /* Fill the area BELOW the last row with the page background so
+   * empty space (after filtering to few rows, or short traces)
+   * doesn't visually resemble an additional row. Both canvases
+   * need this — the row striping (#1c1c1e / #1e1e21) is so close
+   * in tone to the panel backgrounds that the boundary between
+   * "last row" and "empty space" is otherwise invisible. */
+  const contentEndY = ROWS.length * rh - scrollY;
+  if (contentEndY < H){
+    ctx.fillStyle = '#18181a';
+    ctx.fillRect(0, contentEndY, W, H - contentEndY);
+  }
+  if (contentEndY < LH){
+    lctx.fillStyle = '#18181a';
+    lctx.fillRect(0, contentEndY, LW, LH - contentEndY);
   }
   for (let r = firstRow; r <= lastRow; r++){
     const ins = ROWS[r];
@@ -1259,7 +1428,7 @@ function renderIF12(if1c, if2c, missed, sc, seg, strip, segSplit, h,
      * pipeline drain after the predictor steered the request). Same
      * convention as MinorFlow's feStall fill. */
     if (!sharesCycle && if1hc > if2c + 1){
-      seg(if2c + 1, if1hc, sc(COL.decbuf), 0.55, 'fe stall');
+      seg(if2c + 1, if1hc, sc(COL.feStall), 0.55, 'fe stall');
     }
     if (!sharesCycle){
       seg(if1hc, if1hc + 1, sc(COL.f1_hi), 0.55, 'if1 hi');
@@ -1434,7 +1603,7 @@ const LEGEND_ENTRIES = [
     desc:'On cache line wrap, the front end issues a second fetch for the next block. Typically shares its cycle with if2 lo and appears as the right half of a split cell.' },
   { key:'if2_hi',  label:'Fetch2 Hi (resp) (wraps line)', color: COL.f2_hi,
     desc:'Response cycle for the second (hi) fetch of a wrapping unaligned instruction. A red IC strip on the if1 hi cycle plus a long stall to if2 hi means the hi line missed.' },
-  { key:'festall', label:'Front end stall (wraps)', color: COL.decbuf,
+  { key:'festall', label:'Front end stall (wraps)', color: COL.feStall,
     desc:'Gap between the lo and hi fetches of a wraps_line instruction. The hi half could not go out yet (cache busy, FIFO backpressure, or predictor steered elsewhere).' },
   /* FE FIFO + Front end out */
   { key:'febuf',   label:'Front end buffer', color: COL.f2buf,
@@ -1568,9 +1737,13 @@ function fillStatus(){
   const cmt     = ROWS.filter(r => !r.flushed).length;
   const flush   = total - cmt;
   const cycles  = cMax - cMin + 1;
-  const ipc     = cycles > 0 ? (cmt / cycles).toFixed(2) : '-';
+  const ipc     = cycles > 0 ? (cmt / cycles).toFixed(3) : '-';
   const br      = ROWS.filter(r => r.fu === 'CTRL_FLOW').length;
-  const misp    = ROWS.filter(r => r.bp_mispredict).length;
+  /* Split branch wrongs into Mispred (predictor had a specific guess and
+   * was wrong) vs Unpred (predictor stayed silent: bp_predicted_cf=NoCF,
+   * Execute had to redirect). Same convention as MinorFlow. */
+  const misp    = ROWS.filter(r => r.bp_mispredict && r.bp_predicted_cf !== 'NoCF').length;
+  const unpred  = ROWS.filter(r => r.bp_mispredict && r.bp_predicted_cf === 'NoCF').length;
   /* I-cache miss EVENTS in the visible window. When the JSON has the
    * top-level icache_events array (modern tracers), filter it by cycle
    * to get the exact event count the cache FSM saw — same signal the
@@ -1673,6 +1846,7 @@ function fillStatus(){
   document.getElementById('s-cyc').textContent = cycles.toLocaleString();
   document.getElementById('s-br').textContent  = br.toLocaleString();
   document.getElementById('s-misp').textContent = misp.toLocaleString();
+  document.getElementById('s-unpred').textContent = unpred.toLocaleString();
   document.getElementById('s-ipc').textContent = ipc;
   document.getElementById('s-time').textContent = formatTime(cycles);
   document.getElementById('s-ica').textContent = icAcc.toLocaleString();
@@ -1791,6 +1965,8 @@ function renderConfigPanel(){
       'One cycle to request the cache line (IF1), one to consume the response on a hit (IF2).'],
     ['decode + issue coupling', 'same cycle by default',
       'CVA6 inserts into and issues from the scoreboard in one cycle when operands are ready. id_cycle equals is_cycle is the common case. Only RAW hazards or a full scoreboard force them apart, which shows up as a positive issue buffer wait.'],
+    ['issue model',     'in order',
+      'Instructions enter the scoreboard in program order, one per cycle from decode. A stall on one instruction (RAW hazard, full scoreboard) blocks issue of all younger instructions.'],
     ['execute model',    'out of order',
       'Multiple functional units run in parallel. Different latencies mean instructions finish out of program order. The scoreboard tracks which ones are still in flight.'],
     ['commit model',     'in order',
@@ -2235,7 +2411,6 @@ function onHover(e){
   crosshair.style.display = 'block';
   crosshair.style.left =
     (rect.left - document.getElementById('tlwrap').getBoundingClientRect().left + mx) + 'px';
-  crosshair.style.height = tlscroll.clientHeight + 'px';
   document.getElementById('s-c').textContent = cycDisp(cyc);
   if (row >= 0 && row < ROWS.length){
     const r = ROWS[row];
@@ -2489,7 +2664,19 @@ function showTipAt(html, px, py){
 window.addEventListener('keydown', e => {
   if (!DATA) return;
   const k = e.key;
-  if (k==='ArrowRight'){
+  const zoomBy = delta => {
+    const slider = document.getElementById('zx');
+    const min = +slider.min, max = +slider.max;
+    slider.value = String(Math.max(min, Math.min(max, +slider.value + delta)));
+    setZoom();
+  };
+  if (k==='+' || k==='='){
+    zoomBy(e.ctrlKey ? +1 : +4); e.preventDefault();
+  }
+  else if (k==='-'){
+    zoomBy(e.ctrlKey ? -1 : -4); e.preventDefault();
+  }
+  else if (k==='ArrowRight'){
     const step = Math.min(cellW * 12, tlscroll.clientWidth * 0.4);
     tlscroll.scrollLeft += step; e.preventDefault();
   }
@@ -2499,6 +2686,8 @@ window.addEventListener('keydown', e => {
   }
   else if (k==='ArrowDown'){ tlscroll.scrollTop += getRowH()*4; e.preventDefault(); }
   else if (k==='ArrowUp'){ tlscroll.scrollTop -= getRowH()*4; e.preventDefault(); }
+  else if (k==='Home'){ tlscroll.scrollLeft = 0; e.preventDefault(); }
+  else if (k==='End'){ tlscroll.scrollLeft = tlscroll.scrollWidth; e.preventDefault(); }
   else if (k==='Escape'){
     document.getElementById('cfg-backdrop').classList.remove('show');
     closeModalMessage();

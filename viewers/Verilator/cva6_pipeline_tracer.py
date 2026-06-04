@@ -992,9 +992,26 @@ def match_records_to_events(records, events):
             n_unmatched += 1
         # Second fetch: only for wraps_line=True records. The word
         # containing the UPPER half of the instr lives at pc+2.
+        # Add an extra constraint: fe1_cycle >= rec.if1_lo. Without
+        # this, find_best can pick a STALE event from a previous
+        # iteration's prefetch — the hi-side word is sometimes
+        # delivered into the front-end's instruction queue ahead of
+        # the lo-side word for the next iteration (CVA6's frontend
+        # is non-blocking on the hi side). The result is an if1_hi
+        # that's physically impossible: earlier than this record's
+        # own if1_lo. The constraint forces selection of the hi
+        # event that actually belongs to this fetch.
         if rec.wraps_line:
             hi_word = (pc_int + 2) & ~0x3
-            best_hi = find_best(hi_word, rec.fe_cycle)
+            hi_candidates = by_word.get(hi_word, [])
+            best_hi = None
+            lo_floor = rec.if1_lo if rec.if1_lo is not None else 0
+            for ev in hi_candidates:
+                if ev.fe2_cycle > rec.fe_cycle:
+                    break
+                if ev.fe1_cycle < lo_floor:
+                    continue
+                best_hi = ev
             if best_hi is not None:
                 rec.if1_hi = best_hi.fe1_cycle
                 rec.if2_hi = best_hi.fe2_cycle
@@ -1007,7 +1024,94 @@ def match_records_to_events(records, events):
                 rec.ic_miss_hi = best_hi.ic_miss
                 n_wraps_with_hi += 1
 
-    return n_matched, n_unmatched, n_wraps_with_hi
+    # Post-process: enforce fetch monotonicity across records in
+    # commit order. find_best above picks the latest event whose
+    # fe2_cycle <= rec.fe_cycle, but in a loop the icache can have
+    # delivered the same word in iteration N-1 and the iteration-N
+    # record can end up bound to that earlier delivery. This is
+    # particularly common when the line stays cached across
+    # iterations (no fresh icache miss → no new event → find_best
+    # picks the most recent older event).
+    #
+    # Two strategies, in order:
+    #   1. Try to find a LATER icache event for the same word with
+    #      fe1 >= prev_if1. If found, rebind to it.
+    #   2. If no later event exists, SYNTHESIZE fetch cycles right
+    #      before id_stage entry — assume the data was cached
+    #      (instant hit) and the FE consumed it from IQ shortly
+    #      before fe_cycle. This loses the "real" icache event
+    #      cycles for this record but produces a visually correct
+    #      rendering that respects program-order fetch.
+    prev_if1 = -1
+    n_rebound = 0
+    n_synth = 0
+    for rec in records:
+        if rec.if1_lo is None:
+            continue
+        if rec.if1_lo >= prev_if1:
+            prev_if1 = rec.if1_lo
+            continue
+        # Violation. First try rebind.
+        if rec.pc is None or rec.fe_cycle is None:
+            prev_if1 = max(prev_if1, rec.if1_lo)
+            continue
+        try:
+            pc_int = int(rec.pc, 16)
+        except (TypeError, ValueError):
+            prev_if1 = max(prev_if1, rec.if1_lo)
+            continue
+        lo_word = pc_int & ~0x3
+        candidates = by_word.get(lo_word, [])
+        new_ev = None
+        for ev in candidates:
+            if ev.fe2_cycle > rec.fe_cycle:
+                break
+            if ev.fe1_cycle >= prev_if1:
+                new_ev = ev
+                break
+        if new_ev is not None:
+            rec.if1_lo = new_ev.fe1_cycle
+            rec.if2_lo = new_ev.fe2_cycle
+            rec.ic_miss = new_ev.ic_miss
+            n_rebound += 1
+            # Re-evaluate hi side too if this is a wraps_line record.
+            if rec.wraps_line:
+                hi_word = (pc_int + 2) & ~0x3
+                hi_candidates = by_word.get(hi_word, [])
+                new_hi = None
+                for ev in hi_candidates:
+                    if ev.fe2_cycle > rec.fe_cycle:
+                        break
+                    if ev.fe1_cycle >= new_ev.fe1_cycle:
+                        new_hi = ev
+                        break
+                if new_hi is not None:
+                    rec.if1_hi = new_hi.fe1_cycle
+                    rec.if2_hi = new_hi.fe2_cycle
+                    rec.ic_miss_hi = new_hi.ic_miss
+        else:
+            # No later event. Synthesize cached-hit cycles right
+            # before id_stage entry. fe_cycle - 2 puts if1 two
+            # cycles before id_stage (standard FE depth), and
+            # if2 one cycle before id_stage. The whole fetch
+            # window for this record is squeezed into the 2
+            # cycles right before id_stage entry — visually
+            # this matches a 1-cycle hit with no stall.
+            target = max(prev_if1, rec.fe_cycle - 2)
+            rec.if1_lo = target
+            rec.if2_lo = max(rec.if1_lo + 1, rec.fe_cycle - 1)
+            rec.ic_miss = False
+            if rec.wraps_line:
+                # Hi side shares the if2_lo cycle (8-byte
+                # delivery has both words in one transfer when
+                # cached).
+                rec.if1_hi = rec.if2_lo
+                rec.if2_hi = rec.if2_lo
+                rec.ic_miss_hi = False
+            n_synth += 1
+        prev_if1 = rec.if1_lo
+
+    return n_matched, n_unmatched, n_wraps_with_hi, n_rebound, n_synth
 
 
 def tag_branch_bubbles(records):
@@ -2090,6 +2194,16 @@ class PipelineTracker:
         evlog = self._dc_events
         n_events = len(evlog)
 
+        # Track which sid=3 alloc events have been attributed to a
+        # store. Stores complete (FSM → IDLE) several cycles BEFORE
+        # the cache fires their alloc (st0 → st1 → st2 pipeline),
+        # so we extend the window with HPDCACHE_STORE_LOOKAHEAD. But
+        # without this dedup, two stores dispatched close together
+        # (within the lookahead) would both see the SAME alloc in
+        # their windows, double-counting it. The set holds positions
+        # in evlog of allocs already claimed by an earlier store.
+        consumed_store_alloc_idx = set()
+
         n_loads = n_stores = 0
         n_prim = n_coal = n_overlap = 0
 
@@ -2126,7 +2240,8 @@ class PipelineTracker:
             else:
                 window_end = complete
 
-            for ev in evlog:
+            for ev_idx in range(n_events):
+                ev = evlog[ev_idx]
                 c = ev["cycle"]
                 if c < admit:
                     continue
@@ -2150,6 +2265,12 @@ class PipelineTracker:
                     if rec.fu == "LOAD" and sid == LOAD_UNIT_SID:
                         primary_miss = True
                     elif rec.fu == "STORE" and sid == STORE_ADAPTER_SID:
+                        # Skip if a previous store already claimed
+                        # this alloc. Prevents double-counting when
+                        # store windows overlap due to the lookahead.
+                        if ev_idx in consumed_store_alloc_idx:
+                            continue
+                        consumed_store_alloc_idx.add(ev_idx)
                         primary_miss = True
                 elif etype == "check_hit":
                     coalesced = True
@@ -3567,11 +3688,16 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     n_ic_hits = sum(1 for ev in tracker.icache_timeline.events
                     if not ev.ic_miss)
     n_ic_misses = n_ic_events - n_ic_hits
-    n_matched, n_unmatched, n_wraps_with_hi = match_records_to_events(
+    n_matched, n_unmatched, n_wraps_with_hi, n_rebound, n_synth = match_records_to_events(
         tracker.completed, tracker.icache_timeline.events)
+    extra = []
+    if n_rebound: extra.append(f"{n_rebound} rebound")
+    if n_synth:   extra.append(f"{n_synth} synthesized (cached, no fresh event)")
+    extra_str = (", " + ", ".join(extra)) if extra else ""
     print(f"Phase 4b: {n_ic_events} I$ events "
           f"({n_ic_hits} hits, {n_ic_misses} misses); "
-          f"{n_matched} records matched, {n_unmatched} unmatched",
+          f"{n_matched} records matched, {n_unmatched} unmatched"
+          + extra_str,
           file=sys.stderr)
     # Phase 8b: wraps_line summary. Compare PC-determinative count to
     # the realigner-signal pulse counter for cross-validation. The two
