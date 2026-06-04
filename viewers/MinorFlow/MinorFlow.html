@@ -1519,6 +1519,40 @@ function parse(text) {
       ins.recoveryHadMiss = hadMiss;
       ins.bubbleKind      = kind;
     }
+
+    /* Bubble propagation across instructions sharing the same fetched
+     * cache line. When Minor returns a line that decodes into multiple
+     * RISC-V instructions (compressed pairs or multiple uncompressed
+     * insts per line), they all share the same lineSeq and the same
+     * f1req cycle. Only the FIRST of them is the "next" in commit
+     * order from the causing redirect, so only that one received
+     * _bubble in the loop above. The trailing instructions in the
+     * same line were stalled by the same redirect though, so copy
+     * the bubble onto them for the visualization and the tooltip.
+     *
+     * Mirrors CVA6Flow's if1_lo sharing fix. */
+    if (haveCommitOrder) {
+      for (let idx = 1; idx < commitList.length; idx++) {
+        const cur  = seqMap.get(commitList[idx].fetchSeq);
+        const prev = seqMap.get(commitList[idx - 1].fetchSeq);
+        if (!cur || !prev) continue;
+        if (cur._bubble) continue;                        // already has its own
+        if (cur.lineSeq == null || prev.lineSeq == null) continue;
+        if (cur.lineSeq !== prev.lineSeq) continue;       // different fetch line
+        if (!prev._bubble || prev._bubble.gap < 1) continue;
+        cur._bubble = { ...prev._bubble, sharedWith: prev.seq };
+      }
+    } else {
+      for (let k = 1; k < cmOrder.length; k++) {
+        const cur  = cmOrder[k];
+        const prev = cmOrder[k - 1];
+        if (cur._bubble) continue;
+        if (cur.lineSeq == null || prev.lineSeq == null) continue;
+        if (cur.lineSeq !== prev.lineSeq) continue;
+        if (!prev._bubble || prev._bubble.gap < 1) continue;
+        cur._bubble = { ...prev._bubble, sharedWith: prev.seq };
+      }
+    }
   }
 
   /* Snapshot the icache event cycles for the status bar. icHitCycles
@@ -2062,6 +2096,15 @@ function applyFilter() {
         const v = ins[k];
         if (v !== null && v !== undefined && v < minC) minC = v;
       }
+      /* Bubble extents. A bubble extends bubble.gap cycles BEFORE f1req
+       * on the resuming instruction's row. If the user filters to a
+       * window whose earliest instruction is a resuming one, the
+       * bubble's left edge sits before f1req and would be clipped off
+       * the canvas. Anchor minC to it. */
+      if (ins._bubble && ins._bubble.gap >= 1 && ins.f1req !== null) {
+        const bubLo = ins.f1req - ins._bubble.gap;
+        if (bubLo < minC) minC = bubLo;
+      }
     }
     if (minC !== Infinity) offset = minC - 1;
   }
@@ -2089,6 +2132,13 @@ function applyFilter() {
         if (v < lo) lo = v;
         if (v > hi) hi = v;
       }
+    }
+    /* Bubble extents. A bubble extends bubble.gap cycles before f1req
+     * on the resuming row, so the canvas/scroller needs to reach far
+     * enough left to draw it. */
+    if (i._bubble && i._bubble.gap >= 1 && i.f1req !== null) {
+      const bubLo = i.f1req - i._bubble.gap;
+      if (bubLo < lo) lo = bubLo;
     }
   }
   cMin = lo === Infinity ? 0 : lo;
@@ -2235,7 +2285,7 @@ function updateStats() {
   }
   const nFetch = vis.length;
   const span = (cMax > cMin) ? (cMax - cMin + 1) : 0;
-  const ipc  = (span > 0) ? (nCommit / span).toFixed(2) : '-';
+  const ipc  = (span > 0) ? (nCommit / span).toFixed(3) : '-';
   /* Active fetch cycles inside [cMin, cMax]. */
   let activeFetchInRange = 0;
   for (const c of fetchReqSet) if (c >= cMin && c <= cMax) activeFetchInRange++;
