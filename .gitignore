@@ -55,6 +55,5 @@ Bender.lock
 cva6_files
 *.list
 *.vcd
-*.json
 # To big to be tracked
 daxpy_trace.txt
