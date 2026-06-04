@@ -331,20 +331,20 @@ label.chk input { accent-color:var(--accent); cursor:pointer; }
     <span title="Functional unit class that handled the instruction">FU: <span class="hi" id="s-f">-</span></span>
     <span title="Program counter">PC: <span class="hi" id="s-p">-</span></span>
     <span class="sep">│</span>
-    <span title="Instructions that reached the front end in the visible window. Includes both committed and flushed.">Fetched: <span class="hi" id="s-fet">-</span></span>
-    <span title="Committed (retired) instructions in the visible window">Committed: <span class="hi" id="s-cmt">-</span></span>
-    <span title="Cycles spanned by the visible window (last cycle minus first cycle plus one)">Cycles: <span class="hi" id="s-cyc">-</span></span>
-    <span title="Control flow instructions that resolved (jal, jalr, branches and compressed variants) in the visible window">Branches: <span class="hi" id="s-br">-</span></span>
-    <span title="Branches the predictor got wrong (direction or target) and Execute had to correct">Mispred: <span class="hi" id="s-misp">-</span></span>
-    <span title="Instructions per cycle (committed divided by cycles)">IPC: <span class="hi" id="s-ipc">-</span></span>
-    <span title="Total elapsed cycles in the visible window (last cycle minus first cycle plus one). Same metric the perf counter for elapsed time would report.">Time: <span class="hi" id="s-time">-</span></span>
-    <span title="I-cache accesses in the visible window. When the JSON has the icache_events array (modern tracer), counts every event in [cMin, cMax] from the icache FSM — matches the hardware perf counter for icache accesses. Older JSONs fall back to distinct fetch cycles from records.">I$ acc: <span class="hi" id="s-ica">-</span></span>
-    <span title="Data cache accesses in the visible window, derived from records (one access per load or store instruction). The hardware perf counter for dcache accesses can be substantially larger because it sees every cache lookup including PTW page-table-walk reads, load retries after a miss, AMO sub-accesses, and hardware prefetcher reads.">D$ acc: <span class="hi" id="s-dca">-</span></span>
-    <span title="Cycles where the front end did not issue a new fetch request. Includes icache miss waits, FE FIFO backpressure, mispredict refill bubbles, and any other stall that prevented a new IF1 from firing.">Idle: <span class="hi" id="s-idle">-</span></span>
-    <span title="I-cache miss EVENTS in the visible window. When the JSON has the icache_events array (modern tracer), sampled directly from the icache FSM (state_q==MISS at the fe2 latching cycle) — matches the hardware perf counter for icache misses (l1_icache_miss). Older JSONs fall back to a record-dedup count.">IC✗: <span class="hi" id="s-icm">-</span></span>
-    <span title="D-cache miss EVENTS in the visible window. When the JSON has the dcache_alloc_events array (modern tracer), sampled directly from mshr_alloc_o filtered by ~is_prefetch_i — same signal as evt_cache_read_miss_o that drives the hardware perf counter (l1_dcache_miss). Split by adapter: ld (LSU loads, sid=1), st (LSU stores, sid=3), other (PTW sid=0, accel sid=2, CMO, etc.). Older JSONs fall back to per-record dc_primary_miss counts which miss PTW etc.">DC✗: <span class="hi" id="s-dcm">-</span></span>
-    <span title="Speculative instructions discarded before they could commit">Flush: <span class="hi" id="s-flsh">-</span></span>
-    <span style="margin-left:auto" title="Rows rendered, then total fetched in the visible window">Visible: <span class="hi" id="s-vis">-</span> / <span class="hi" id="s-tot">-</span></span>
+    <span title="Instructions that reached the front end (committed + flushed)">Fetched: <span class="hi" id="s-fet">-</span></span>
+    <span title="Committed (retired) instructions">Committed: <span class="hi" id="s-cmt">-</span></span>
+    <span title="Cycles in the visible window">Cycles: <span class="hi" id="s-cyc">-</span></span>
+    <span title="Control flow instructions resolved in the visible window">Branches: <span class="hi" id="s-br">-</span></span>
+    <span title="Branches the predictor got wrong">Mispred: <span class="hi" id="s-misp">-</span></span>
+    <span title="Instructions per cycle (committed / cycles)">IPC: <span class="hi" id="s-ipc">-</span></span>
+    <span title="Elapsed time in the visible window (cycles / 50 MHz)">Time: <span class="hi" id="s-time">-</span></span>
+    <span title="I-cache accesses (cycles where icache_dreq_o.req was high). Matches perf counter mhpmevent 16.">I$ acc: <span class="hi" id="s-ica">-</span></span>
+    <span title="D-cache accesses (cycles where any of Load/MMU/Store ports raised data_req). Matches perf counter mhpmevent 17.">D$ acc: <span class="hi" id="s-dca">-</span></span>
+    <span title="Cycles where the front end did not issue a new fetch (cache miss waits, backpressure, refill bubbles)">Idle: <span class="hi" id="s-idle">-</span></span>
+    <span title="I-cache miss events from the icache FSM. Matches perf counter l1_icache_miss.">IC✗: <span class="hi" id="s-icm">-</span></span>
+    <span title="D-cache miss events from mshr_alloc_o (non-prefetch). Matches perf counter l1_dcache_miss. Split: ld (loads), st (stores), other (PTW, accel, CMO).">DC✗: <span class="hi" id="s-dcm">-</span></span>
+    <span title="Speculative instructions discarded before commit">Flush: <span class="hi" id="s-flsh">-</span></span>
+    <span style="margin-left:auto" title="Rows rendered / total fetched">Visible: <span class="hi" id="s-vis">-</span> / <span class="hi" id="s-tot">-</span></span>
   </div>
 </div>
 
@@ -425,7 +425,7 @@ let cellW = 6;
 function getRowH(){ return cellW >= 40 ? 26 : cellW >= 20 ? 20 : 15; }
 
 let DATA = null, ROWS = [], WBS = [], VISIBLE_WBS = [];
-let DC_ALLOCS = [], IC_EVENTS = [];
+let DC_ALLOCS = [], IC_EVENTS = [], IC_ACC_CYCLES = [], DC_ACC_CYCLES = [];
 let ROW_BY_ID = new Map();
 let ROW_INDEX_BY_ID = new Map();
 let cMin = 0, cMax = 0;
@@ -441,7 +441,7 @@ const wbcanvas = document.getElementById('wbcanvas');
 const crosshair = document.getElementById('crosshair');
 const tt = document.getElementById('tt');
 
-function cycDisp(c){ return c - cMin; }
+function cycDisp(c){ return c - cMin + 1; }
 function dispId(id){ return id + 1; }
 
 /* ============================================================================
@@ -518,6 +518,12 @@ function ingest(json, name){
   /* Phase 4b extra: per-cycle icache events with miss flag. Used for
    * window-filtered icache miss count straight from the cache FSM. */
   IC_EVENTS = Array.isArray(json.icache_events) ? json.icache_events : [];
+  /* CSR-equivalent access cycle lists. Each entry is a cycle number
+   * where the corresponding request signal was high. Filtered to
+   * [cMin, cMax] in fillStatus to match the hardware perf counters
+   * mhpmevent 16 (l1_icache_access) and 17 (l1_dcache_access). */
+  IC_ACC_CYCLES = Array.isArray(json.ic_access_cycles) ? json.ic_access_cycles : [];
+  DC_ACC_CYCLES = Array.isArray(json.dc_access_cycles) ? json.dc_access_cycles : [];
   const base = name.replace(/\.json$/i, '');
   const shown = base.length > 30 ? base.slice(0,14) + '…' + base.slice(-14) : base;
   const tn = document.getElementById('tracename');
@@ -922,7 +928,7 @@ function drawTimeline(){
     if (cellW >= 8){
       for (let c = firstCyc; c <= lastCyc; c++){
         const x = (c - firstCyc) * cellW;
-        ctx.fillStyle = c % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
+        ctx.fillStyle = (c - cMin) % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
         ctx.fillRect(x, ry, 1, rh);
       }
     } else {
@@ -1292,15 +1298,20 @@ function drawRuler(){
   if (cellW >= 8){
     for (let c = firstCyc; c <= lastCyc; c++){
       const x = (c - firstCyc) * cellW;
-      ctx.fillStyle = c % 5 === 0 ? '#383838' : '#252525';
+      ctx.fillStyle = (c - cMin) % 5 === 0 ? '#383838' : '#252525';
       ctx.fillRect(x, 0, 1, H);
     }
   }
   const cycStep = cellW >= 20 ? 1 : cellW >= 8 ? 5 : cellW < 3 ? 50 : cellW < 6 ? 20 : 10;
   const dispMinV = cycDisp(firstCyc), dispMaxV = cycDisp(lastCyc);
-  const dStart = Math.max(0, Math.ceil(dispMinV / cycStep) * cycStep);
+  /* Labels are anchored to display=1 (the first cycle of the trace
+   * or rebased window) so the visible pattern is "1, 6, 11, 16..."
+   * for cycStep=5 — matching the body grid's cMin-anchored
+   * separator lines exactly. dStart is the smallest d >= dispMinV
+   * such that (d - 1) % cycStep === 0. */
+  const dStart = Math.max(1, Math.ceil((dispMinV - 1) / cycStep) * cycStep + 1);
   for (let d = dStart; d <= dispMaxV; d += cycStep){
-    const c = d + cMin;
+    const c = d + cMin - 1;
     const x = (c - firstCyc) * cellW;
     ctx.fillStyle = '#383838'; ctx.fillRect(x, 0, 1, H);
     ctx.fillStyle = '#909090'; ctx.fillText(String(d), x + 2, H - 3);
@@ -1337,7 +1348,7 @@ function drawWritebacks(){
   if (cellW >= 8){
     for (let c = firstCyc; c <= lastCyc; c++){
       const x = (c - firstCyc) * cellW;
-      ctx.fillStyle = c % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
+      ctx.fillStyle = (c - cMin) % 5 === 0 ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.03)';
       ctx.fillRect(x, 0, 1, H);
     }
   } else {
@@ -1628,16 +1639,34 @@ function fillStatus(){
     if (c >= cMin && c <= cMax) activeInRange++;
   }
   const idle = Math.max(0, cycles - activeInRange);
-  /* I-cache and D-cache access counts. I-cache: when the events array
-   * is available, count cache events in the window (every fetch
-   * request = one event); otherwise fall back to distinct fetch
-   * cycles from records. D-cache accesses are still record-derived
-   * (= count of load/store records) — adding hardware-level access
-   * counts would need a separate signal track in the tracer. */
-  const icAcc   = IC_EVENTS.length ? icEventsInRange : activeInRange;
+  /* I-cache and D-cache access counts. Three tiers of accuracy:
+   *   1. ic_access_cycles / dc_access_cycles (CSR-equivalent, exact)
+   *      — entries in [cMin, cMax] match the hardware perf counter.
+   *   2. icache_events from the FSM (close but counts responses not
+   *      requests; misses are still exact).
+   *   3. distinct fetch cycles from records (older JSON fallback).
+   * D-cache always uses CSR cycles if available, else record-derived
+   * load+store count. */
+  let icAcc;
+  if (IC_ACC_CYCLES.length) {
+    let count = 0;
+    for (const c of IC_ACC_CYCLES) if (c >= cMin && c <= cMax) count++;
+    icAcc = count;
+  } else if (IC_EVENTS.length) {
+    icAcc = icEventsInRange;
+  } else {
+    icAcc = activeInRange;
+  }
   const nLoads  = ROWS.filter(r => r.fu === 'LOAD').length;
   const nStores = ROWS.filter(r => r.fu === 'STORE').length;
-  const dcAcc   = nLoads + nStores;
+  let dcAcc;
+  if (DC_ACC_CYCLES.length) {
+    let count = 0;
+    for (const c of DC_ACC_CYCLES) if (c >= cMin && c <= cMax) count++;
+    dcAcc = count;
+  } else {
+    dcAcc = nLoads + nStores;
+  }
 
   document.getElementById('s-fet').textContent = total.toLocaleString();
   document.getElementById('s-cmt').textContent = cmt.toLocaleString();
@@ -1647,7 +1676,13 @@ function fillStatus(){
   document.getElementById('s-ipc').textContent = ipc;
   document.getElementById('s-time').textContent = formatTime(cycles);
   document.getElementById('s-ica').textContent = icAcc.toLocaleString();
-  document.getElementById('s-dca').textContent = `${dcAcc.toLocaleString()} (${nLoads} ld, ${nStores} st)`;
+  if (DC_ACC_CYCLES.length){
+    document.getElementById('s-dca').textContent =
+      `${dcAcc.toLocaleString()} (${nLoads} ld, ${nStores} st records)`;
+  } else {
+    document.getElementById('s-dca').textContent =
+      `${dcAcc.toLocaleString()} (${nLoads} ld, ${nStores} st)`;
+  }
   document.getElementById('s-idle').textContent = `${idle.toLocaleString()} (${cycles > 0 ? Math.round(100*idle/cycles) : 0}%)`;
   document.getElementById('s-icm').textContent = ic.toLocaleString();
   /* DC miss display: show total across all sources, with per-adapter
@@ -1711,6 +1746,17 @@ function renderConfigPanel(){
    * report time in the same units. */
   const clockPeriodDisp = '20 ns (50 MHz, assumed)';
 
+  /* CSR-equivalent access counts when the modern tracer arrays are
+   * available, otherwise fall back to record-derived figures. */
+  const icAccCfg = (window.IC_ACC_CYCLES && IC_ACC_CYCLES.length)
+    ? IC_ACC_CYCLES.filter(c => c >= cMin && c <= cMax).length
+    : activeInRange;
+  const dcAccCfg = (window.DC_ACC_CYCLES && DC_ACC_CYCLES.length)
+    ? DC_ACC_CYCLES.filter(c => c >= cMin && c <= cMax).length
+    : (nLoadsRec + nStoresRec);
+  const accNote = (IC_ACC_CYCLES.length || DC_ACC_CYCLES.length)
+    ? ' (CSR-equivalent)' : ' (record-derived)';
+
   sections.push({ title:'Trace', rows:[
     ['CVA6 build',                  m.config_name || '-',
       'The core configuration the trace was captured on.'],
@@ -1720,10 +1766,16 @@ function renderConfigPanel(){
       'Instructions that retired.'],
     ['time (elapsed)',              formatTime(cyclesSpan) + ` (${cyclesSpan.toLocaleString()} cyc)`,
       'Total elapsed time across the trace. Converted from cycle count using the clock period above.'],
-    ['I-cache accesses',            activeInRange.toLocaleString(),
-      'Distinct cycles where the front end issued a fetch request (lo or hi half) across the trace, derived from records. The hardware perf counter for icache accesses can be slightly larger because it sees every fetch request the front end sent, including wrong-path speculative fetches that never produced a committed record.'],
-    ['D-cache accesses',            `${(nLoadsRec + nStoresRec).toLocaleString()} (${nLoadsRec} ld, ${nStoresRec} st)`,
-      'Loads + stores from records. Each load/store instruction is one access. The hardware perf counter for dcache accesses can be substantially larger because it sees every cache lookup including PTW page-table-walk reads, load retries after a miss, AMO sub-accesses, and hardware prefetcher reads.'],
+    ['I-cache accesses' + accNote,  icAccCfg.toLocaleString(),
+      IC_ACC_CYCLES.length
+        ? 'Cycles in the visible window where icache_dreq_o.req was high. Same signal as the hardware perf counter mhpmevent 16 (l1_icache_access).'
+        : 'Distinct cycles where the front end issued a fetch request (lo or hi half) across the trace, derived from records. The hardware perf counter for icache accesses can be slightly larger because it sees every fetch request the front end sent, including wrong-path speculative fetches that never produced a committed record.'],
+    ['D-cache accesses' + accNote,  DC_ACC_CYCLES.length
+        ? dcAccCfg.toLocaleString()
+        : `${dcAccCfg.toLocaleString()} (${nLoadsRec} ld, ${nStoresRec} st)`,
+      DC_ACC_CYCLES.length
+        ? 'Cycles in the visible window where any of the three core ports raised data_req (load adapter, MMU/PTW, store adapter). Same signal as the hardware perf counter mhpmevent 17 (l1_dcache_access).'
+        : 'Loads + stores from records. Each load/store instruction is one access. The hardware perf counter for dcache accesses can be substantially larger because it sees every cache lookup including PTW page-table-walk reads, load retries after a miss, AMO sub-accesses, and hardware prefetcher reads.'],
     ['idle cycles',                 `${idleCyc.toLocaleString()} (${idlePct}%)`,
       'Cycles where no new fetch request fired. Includes I-cache miss waits, FE FIFO backpressure, mispredict refill bubbles, branch bubbles, and any other reason the front end could not advance.'],
     ['flushed at IF / ID-IS / EX',  `${st.n_flushed_if||0} / ${st.n_flushed_id||0} / ${st.n_flushed_ex||0}`,

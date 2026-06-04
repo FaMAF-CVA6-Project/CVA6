@@ -207,6 +207,22 @@ WHITELIST = [
     # Clock
     "clk_i",
 
+    # CSR-equivalent D-cache access counter source. The CSR perf
+    # counter `l1_dcache_access` is asserted every cycle ANY of the
+    # three ex_stage core ports raises data_req:
+    #   port 0 = load adapter
+    #   port 1 = MMU / PTW
+    #   port 2 = store adapter
+    # We sample these at ex_stage's output (= dcache_req_ports_ex_cache
+    # in cva6.sv, which is what perf_counters.sv:128 actually reads).
+    # NOTE the cache-side `i_dcache.dcache_req_ports_i[0..2]` looks
+    # similar but has a different mapping (port 2 is the accelerator,
+    # not the store; see cva6.sv:1326). Using the cache-side ports
+    # silently dropped store traffic.
+    "ex_stage_i.dcache_req_ports_o[0].data_req",
+    "ex_stage_i.dcache_req_ports_o[1].data_req",
+    "ex_stage_i.dcache_req_ports_o[2].data_req",
+
     # I$ request / response
     "i_frontend.icache_dreq_o.req",
     "i_frontend.icache_dreq_o.vaddr",
@@ -2097,33 +2113,40 @@ class PipelineTracker:
             primary_miss = False
             coalesced    = False
 
+            # Stores complete (FSM → IDLE) as soon as the cache acks
+            # the request, but the MSHR alloc fires several cycles
+            # later in the cache's pipeline (st0 → st1 → st2 alloc).
+            # Extend the store window to look ahead by that pipeline
+            # depth so the alloc falls inside the search range.
+            # Loads keep their original window (load_unit waits for
+            # the data, so complete is already past the alloc).
+            HPDCACHE_STORE_LOOKAHEAD = 5
+            if rec.fu == "STORE":
+                window_end = complete + HPDCACHE_STORE_LOOKAHEAD
+            else:
+                window_end = complete
+
             for ev in evlog:
                 c = ev["cycle"]
                 if c < admit:
                     continue
-                if c > complete:
+                if c > window_end:
                     break
                 events_in_window.append(ev)
                 etype = ev["type"]
                 if etype == "alloc":
                     sid = ev.get("sid")
-                    # The cache's `tid` field is NOT the scoreboard's
-                    # trans_id. It's `cva6_req_i.data_id`, which for
-                    # loads is `ldbuf_windex` (load buffer index) and
-                    # for stores is hard-wired to '0
-                    # (store_buffer.sv:141). So matching by tid is
-                    # broken — it gives a coincidental ~1/N hit rate
-                    # where N is the load buffer depth.
-                    #
-                    # Both FSMs are serial: the load_unit holds at
-                    # most one load in WAIT_GNT at a time, and the
-                    # store_unit similarly serializes its dispatch.
-                    # So any sid=1 alloc inside a LOAD record's
-                    # [admit, complete] window belongs to that load,
-                    # and any sid=3 alloc inside a STORE record's
-                    # window belongs to that store. The time window
-                    # is the authoritative match — no ID compare
-                    # needed.
+                    # Both LSU FSMs are serial: load_unit holds at
+                    # most one load in WAIT_GNT at a time, store_unit
+                    # similarly serializes. So any sid=1 alloc inside
+                    # a LOAD record's [admit, complete] window
+                    # belongs to that load, and any sid=3 alloc
+                    # inside a STORE record's [admit, complete +
+                    # HPDCACHE_STORE_LOOKAHEAD] window belongs to
+                    # that store. The cache's `tid` field can't help
+                    # disambiguate: it's `cva6_req_i.data_id`, which
+                    # for loads is ldbuf_windex (not scoreboard
+                    # trans_id) and for stores is hard-wired to '0.
                     if rec.fu == "LOAD" and sid == LOAD_UNIT_SID:
                         primary_miss = True
                     elif rec.fu == "STORE" and sid == STORE_ADAPTER_SID:
@@ -2808,6 +2831,42 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # (i_frontend.icache_dreq_i, already in the whitelist), which is
     # electrically the same as the I$'s dreq_o output but reachable
     # without adding a separate I$-scoped lookup.
+    # CSR-equivalent access counter sources. Per cycle, the perf
+    # counters increment if `icache_dreq_o.req` is high (I$) or any
+    # of the three ex_stage core ports raises `data_req` (D$). We
+    # resolve the handles once here and sample inside at_rising_edge.
+    IC_REQ = single_id.get("i_frontend.icache_dreq_o.req")
+    DC_REQ0 = single_id.get("ex_stage_i.dcache_req_ports_o[0].data_req")
+    DC_REQ1 = single_id.get("ex_stage_i.dcache_req_ports_o[1].data_req")
+    DC_REQ2 = single_id.get("ex_stage_i.dcache_req_ports_o[2].data_req")
+    csr_access_resolved = (IC_REQ is not None
+                           and DC_REQ0 is not None
+                           and DC_REQ1 is not None
+                           and DC_REQ2 is not None)
+    if csr_access_resolved:
+        print("CSR-equivalent access counters enabled "
+              "(icache_dreq_o.req + ex_stage_i.dcache_req_ports_o[0..2].data_req)",
+              file=sys.stderr)
+    else:
+        missing = [name for name, s in [
+            ("icache_dreq_o.req", IC_REQ),
+            ("ex_stage_i.dcache_req_ports_o[0].data_req", DC_REQ0),
+            ("ex_stage_i.dcache_req_ports_o[1].data_req", DC_REQ1),
+            ("ex_stage_i.dcache_req_ports_o[2].data_req", DC_REQ2),
+        ] if s is None]
+        print(f"WARNING: CSR-equivalent access counters not all resolved — "
+              f"viewer will fall back to record-derived access counts. "
+              f"Missing: {', '.join(missing)}",
+              file=sys.stderr)
+
+    # Per-cycle access-event cycle lists. Filled by at_rising_edge
+    # below when the signal is high at the rising edge (i.e. the
+    # cycle just elapsed had the request asserted). The viewer
+    # filters these by visible window to compute the CSR-equivalent
+    # access count.
+    ic_access_cycles = []
+    dc_access_cycles = []
+
     STATE_Q = single_id.get(
         "gen_cache_hpd.i_cache_subsystem.i_cva6_icache.state_q")
     IC_VLD   = single_id.get("i_frontend.icache_dreq_i.valid")
@@ -3082,6 +3141,22 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     def at_rising_edge():
         nonlocal cycle, prev_flush_if, prev_flush_id, prev_flush_ex, last_svu
         cycle += 1
+
+        # CSR-equivalent access sampling. perf_counters.sv increments
+        # the access counters every cycle the request signal is HIGH:
+        #   I$: icache_dreq_o.req
+        #   D$: any of dcache_req_ports_i[0..2].data_req
+        # Sample the PRE-EDGE value of each signal — that's the value
+        # during the cycle that just elapsed, which is what the
+        # synchronous counter would see. Record the cycle in the
+        # respective list so the viewer can filter by visible window.
+        if csr_access_resolved:
+            if state.get(IC_REQ, "0") == "1":
+                ic_access_cycles.append(cycle)
+            if (state.get(DC_REQ0, "0") == "1"
+                    or state.get(DC_REQ1, "0") == "1"
+                    or state.get(DC_REQ2, "0") == "1"):
+                dc_access_cycles.append(cycle)
 
         # Phase 6a v0.4: no drain step. Correlation is via
         # lsu_ctrl.trans_id at FSM-transition time (see
@@ -3774,6 +3849,13 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         # edges. None if fewer than two rising edges were seen.
         "clock_period_ts": clock_period_ts,
         "first_rising_edge_ts": first_re_ts,
+        # CSR-equivalent access cycle lists. Each entry is a cycle
+        # number where the corresponding request signal was high.
+        # The viewer counts entries in [cMin, cMax] to match the
+        # hardware perf counters exactly. Empty lists when the
+        # underlying signals weren't resolved.
+        "ic_access_cycles": ic_access_cycles,
+        "dc_access_cycles": dc_access_cycles,
     }
     return tracker, stats
 
@@ -3981,7 +4063,18 @@ def write_output_json(output_path, args, stats, tracker):
             comma = "," if i < len(ic_events) - 1 else ""
             row = {"fe1": ev.fe1_cycle, "fe2": ev.fe2_cycle, "miss": ev.ic_miss}
             f.write(f"    {json.dumps(row)}{comma}\n")
-        f.write("  ]\n")
+        f.write("  ],\n")
+        # CSR-equivalent access cycle lists. Each is a list of cycle
+        # numbers where the corresponding request signal was high.
+        # I-cache: icache_dreq_o.req. D-cache: any of the three
+        # core ports' data_req (load adapter, MMU/PTW, store adapter).
+        # Filter by [cMin, cMax] in the viewer for window-matched
+        # access counts that line up exactly with mhpmevent 16/17
+        # (perf_counters.sv:126-128).
+        ic_acc = stats.get("ic_access_cycles") or []
+        dc_acc = stats.get("dc_access_cycles") or []
+        f.write('  "ic_access_cycles": ' + json.dumps(ic_acc) + ',\n')
+        f.write('  "dc_access_cycles": ' + json.dumps(dc_acc) + '\n')
         f.write("}\n")
 
 
@@ -4115,6 +4208,17 @@ def main():
     else:
         print("Clock period: could not determine "
               "(need at least 2 rising edges)", file=sys.stderr)
+
+    # CSR-equivalent access counter summary. These totals are over the
+    # whole trace and should match the hardware perf counters
+    # mhpmevent 16 (l1_icache_access) and mhpmevent 17 (l1_dcache_access)
+    # exactly. Empty when the underlying VCD signals weren't dumped.
+    ic_acc_total = len(stats.get("ic_access_cycles") or [])
+    dc_acc_total = len(stats.get("dc_access_cycles") or [])
+    if ic_acc_total or dc_acc_total:
+        print(f"CSR-equivalent accesses (whole trace): "
+              f"I-cache={ic_acc_total:,}  D-cache={dc_acc_total:,}",
+              file=sys.stderr)
 
     # Phase 5: annotate records with disassembly text, if a listing was
     # provided. Done after the walk completes so we annotate exactly the
