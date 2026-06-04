@@ -1,0 +1,68 @@
+
+programs/small_loop:     file format elf64-littleriscv
+
+
+Disassembly of section .text:
+
+00000000000100b0 <main>:
+main():
+   100b0:	1101                	addi	sp,sp,-32
+   100b2:	ec06                	sd	ra,24(sp)
+   100b4:	e822                	sd	s0,16(sp)
+   100b6:	1000                	addi	s0,sp,32
+   100b8:	4581                	li	a1,0
+   100ba:	4501                	li	a0,0
+   100bc:	0b8000ef          	jal	10174 <m5_reset_stats>
+   100c0:	fe042423          	sw	zero,-24(s0)
+   100c4:	fe042623          	sw	zero,-20(s0)
+   100c8:	a82d                	j	10102 <main+0x52>
+   100ca:	fec42783          	lw	a5,-20(s0)
+   100ce:	873e                	mv	a4,a5
+   100d0:	478d                	li	a5,3
+   100d2:	02f767bb          	remw	a5,a4,a5
+   100d6:	2781                	sext.w	a5,a5
+   100d8:	eb89                	bnez	a5,100ea <main+0x3a>
+   100da:	fe842783          	lw	a5,-24(s0)
+   100de:	2781                	sext.w	a5,a5
+   100e0:	2795                	addiw	a5,a5,5
+   100e2:	2781                	sext.w	a5,a5
+   100e4:	fef42423          	sw	a5,-24(s0)
+   100e8:	a801                	j	100f8 <main+0x48>
+   100ea:	fe842783          	lw	a5,-24(s0)
+   100ee:	2781                	sext.w	a5,a5
+   100f0:	37fd                	addiw	a5,a5,-1
+   100f2:	2781                	sext.w	a5,a5
+   100f4:	fef42423          	sw	a5,-24(s0)
+   100f8:	fec42783          	lw	a5,-20(s0)
+   100fc:	2785                	addiw	a5,a5,1
+   100fe:	fef42623          	sw	a5,-20(s0)
+   10102:	fec42783          	lw	a5,-20(s0)
+   10106:	0007871b          	sext.w	a4,a5
+   1010a:	0c700793          	li	a5,199
+   1010e:	fae7dee3          	bge	a5,a4,100ca <main+0x1a>
+   10112:	4581                	li	a1,0
+   10114:	4501                	li	a0,0
+   10116:	064000ef          	jal	1017a <m5_dump_stats>
+
+
+
+======================================================================
+TABLA DE RESULTADOS
+======================================================================
+METRICA                   |         OFICIAL |            NETO
+======================================================================
+Ciclos                    |           10332 |           10332
+Instrucciones             |            3679 |            3679
+Misses I-Cache            |               2 |               2
+Misses D-Cache            |               0 |               0
+Accesos I-Cache           |            4728 |            4728
+Accesos D-Cache           |            1003 |            1003
+Branches                  |             473 |             473
+Branch Miss + Unpred      |              78 |              76
+Tiempo (us)               |             103 |             103
+IPC                       |          0.3561 |          0.3561
+======================================================================
+
+Clean result (OFICIAL):  [10332, 3679, 2, 0, 4728, 1003, 473, 78, 103, 0.3561]
+Clean result (NETO):     [10332, 3679, 2, 0, 4728, 1003, 473, 76, 103, 0.3561]
+
