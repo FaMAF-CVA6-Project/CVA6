@@ -55,5 +55,4 @@ Bender.lock
 cva6_files
 *.list
 *.vcd
-*_clean.txt
 *.json
