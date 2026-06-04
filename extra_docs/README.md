@@ -119,7 +119,7 @@ docker start <container_name>
 Para ingresar al contenedor correr:
 
 ```bash
-docker exec -e DISPLAY=$DISPLAY -it <container_name> bash
+docker exec -e DISPLAY=host.docker.internal:0 -it <container_name> bash
 ```
 
 Para salir del contenedor correr desde la terminal del mismo:
