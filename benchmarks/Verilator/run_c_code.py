@@ -19,7 +19,7 @@ OVERHEAD_CONSTANTS = {
     'x22': 56,   # Accesos I-Cache
     'x23': 32,   # Accesos D-Cache
     'x24': 0,    # Branches
-    'x25': 0,    # Branch Mispredicts
+    'x25': 0,    # Branch Mispredicts + Unpredicted
     'x26': 3     # Tiempo (us)
 }
 
@@ -34,7 +34,7 @@ METRICS_MAP = {
     'x22': 'Accesos I-Cache',      # s6
     'x23': 'Accesos D-Cache',      # s7
     'x24': 'Branches',             # s8
-    'x25': 'Branch Mispredicts',   # s9
+    'x25': 'Branch Miss + Unpred', # s9
     'x26': 'Tiempo (us)'           # s10
 }
 

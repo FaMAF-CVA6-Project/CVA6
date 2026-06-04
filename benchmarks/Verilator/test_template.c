@@ -15,7 +15,7 @@ void configure_pmu() {
     write_csr(mhpmevent5, 16); // ID 16: L1 I-Cache Access
     write_csr(mhpmevent6, 17); // ID 17: L1 D-Cache Access
     write_csr(mhpmevent7, 9);  // ID 9:  Branch Instr
-    write_csr(mhpmevent8, 10); // ID 10: Branch Mispredicts
+    write_csr(mhpmevent8, 10); // ID 10: Branch Mispredict + Unpredicted
 
     asm volatile("li t0, -1");
     asm volatile("csrw mcounteren, t0");
@@ -55,7 +55,7 @@ int main() {
     uint64_t d_ic_acc  = end_hpm5 - start_hpm5;
     uint64_t d_dc_acc  = end_hpm6 - start_hpm6;
     uint64_t d_br_inst = end_hpm7 - start_hpm7;
-    uint64_t d_br_miss = end_hpm8 - start_hpm8;
+    uint64_t d_br_miss_unp = end_hpm8 - start_hpm8;
 	uint64_t time_us = (d_cyc * 1000000) / CPU_FREQ_HZ;
 
     // Mostrar Resultados
@@ -74,7 +74,7 @@ int main() {
         "jal    exit\n\t"
         : 
         : "r"(d_cyc), "r"(d_ins), "r"(d_ic_miss), "r"(d_dc_miss), 
-          "r"(d_ic_acc), "r"(d_dc_acc), "r"(d_br_inst), "r"(d_br_miss),
+          "r"(d_ic_acc), "r"(d_dc_acc), "r"(d_br_inst), "r"(d_br_miss_unp),
           "r"(time_us)
         : "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "t0"
     );

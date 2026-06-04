@@ -107,7 +107,7 @@ void s_mode_payload() {
     uint64_t d_ic_acc  = end_hpm5 - start_hpm5;
     uint64_t d_dc_acc  = end_hpm6 - start_hpm6;
     uint64_t d_br_inst = end_hpm7 - start_hpm7;
-    uint64_t d_br_miss = end_hpm8 - start_hpm8;
+    uint64_t d_br_miss_unp = end_hpm8 - start_hpm8;
     uint64_t time_us = (d_cyc * 1000000) / CPU_FREQ_HZ;
 
     asm volatile (
@@ -127,7 +127,7 @@ void s_mode_payload() {
         "jal exit \n\t"
         : 
         : "r"(d_cyc), "r"(d_ins), "r"(itlb_miss), "r"(dtlb_miss), 
-          "r"(d_ic_acc), "r"(d_dc_acc), "r"(d_br_inst), "r"(d_br_miss),
+          "r"(d_ic_acc), "r"(d_dc_acc), "r"(d_br_inst), "r"(d_br_miss_unp),
           "r"(time_us), "r"(sum)
         : "s2", "s3", "s4", "s5", "s6", "s7", "s8", "s9", "s10", "a0"
     );

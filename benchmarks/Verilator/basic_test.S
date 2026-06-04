@@ -43,7 +43,7 @@ main:
   li      t0, 9
   csrw    CSR_MHPMEVENT7, t0    # Branch Instr
   li      t0, 10
-  csrw    CSR_MHPMEVENT8, t0    # Branch Mispredict
+  csrw    CSR_MHPMEVENT8, t0    # Branch Mispredict + Unpredicted
 
   # Resetear contadores a 0
   csrw    CSR_MHPMCOUNTER3, zero
@@ -220,7 +220,7 @@ main:
   ld      t0, 48(sp)
   sub     s8, s8, t0
 
-  # x25 (s9) = Branch Miss
+  # x25 (s9) = Branch Miss + Unpred
   csrr    s9, CSR_MHPMCOUNTER8
   ld      t0, 56(sp)
   sub     s9, s9, t0
