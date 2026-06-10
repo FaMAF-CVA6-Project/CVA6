@@ -1,0 +1,56 @@
+    for (int i = 0; i < NSEARCH; i++) {
+    80003210:	f8042a23          	sw	zero,-108(s0)
+    80003214:	a83d                	j	80003252 <main+0x166>
+        results[i] = binary_search(sorted_arr, N, search_keys[i]);
+    80003216:	a0018713          	addi	a4,gp,-1536 # 80006200 <search_keys>
+    8000321a:	f9442783          	lw	a5,-108(s0)
+    8000321e:	078a                	slli	a5,a5,0x2
+    80003220:	97ba                	add	a5,a5,a4
+    80003222:	439c                	lw	a5,0(a5)
+    80003224:	863e                	mv	a2,a5
+    80003226:	08000593          	li	a1,128
+    8000322a:	00003517          	auipc	a0,0x3
+    8000322e:	dd650513          	addi	a0,a0,-554 # 80006000 <sorted_arr>
+    80003232:	e05ff0ef          	jal	ra,80003036 <binary_search>
+    80003236:	87aa                	mv	a5,a0
+    80003238:	86be                	mv	a3,a5
+/cva6/verif/sim/../tests/custom/FaMAF/binary_search.c:75 (discriminator 1)
+    8000323a:	b0018713          	addi	a4,gp,-1280 # 80006300 <results>
+    8000323e:	f9442783          	lw	a5,-108(s0)
+    80003242:	078a                	slli	a5,a5,0x2
+    80003244:	97ba                	add	a5,a5,a4
+    80003246:	c394                	sw	a3,0(a5)
+/cva6/verif/sim/../tests/custom/FaMAF/binary_search.c:74 (discriminator 3)
+    for (int i = 0; i < NSEARCH; i++) {
+    80003248:	f9442783          	lw	a5,-108(s0)
+    8000324c:	2785                	addiw	a5,a5,1
+    8000324e:	f8f42a23          	sw	a5,-108(s0)
+/cva6/verif/sim/../tests/custom/FaMAF/binary_search.c:74 (discriminator 1)
+    80003252:	f9442783          	lw	a5,-108(s0)
+    80003256:	0007871b          	sext.w	a4,a5
+    8000325a:	03f00793          	li	a5,63
+    8000325e:	fae7dce3          	bge	a5,a4,80003216 <main+0x12a>
+    }
+
+
+
+======================================================================
+TABLA DE RESULTADOS
+======================================================================
+METRICA                   |         OFICIAL |            NETO
+======================================================================
+Ciclos                    |           35824 |           35641
+Instrucciones             |           19745 |           19713
+Misses I-Cache            |              23 |              15
+Misses D-Cache            |              26 |              18
+Accesos I-Cache           |           21652 |           21596
+Accesos D-Cache           |            8300 |            8268
+Branches                  |            1990 |            1990
+Branch Miss + Unpred      |             162 |             162
+Tiempo (us)               |             716 |             713
+IPC                       |          0.5512 |          0.5531
+======================================================================
+
+Clean result (OFICIAL):  [35824, 19745, 23, 26, 21652, 8300, 1990, 162, 716, 0.5512]
+Clean result (NETO):     [35641, 19713, 15, 18, 21596, 8268, 1990, 162, 713, 0.5531]
+

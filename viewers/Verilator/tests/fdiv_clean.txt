@@ -1,0 +1,52 @@
+  li t0, 5
+    8000307e:	4295                	li	t0,5
+
+0000000080003080 <measure>:
+measure():
+
+  .align 4
+  measure:
+
+  fdiv.d f1, f3, f5
+    80003080:	1a51f0d3          	fdiv.d	ft1,ft3,ft5
+  fdiv.d f2, f4, f6
+    80003084:	1a627153          	fdiv.d	ft2,ft4,ft6
+  fdiv.d f7, f9, f11
+    80003088:	1ab4f3d3          	fdiv.d	ft7,fs1,fa1
+  fdiv.d f8, f10, f12
+    8000308c:	1ac57453          	fdiv.d	fs0,fa0,fa2
+  fdiv.d f13, f15, f1
+    80003090:	1a17f6d3          	fdiv.d	fa3,fa5,ft1
+  fdiv.d f14, f16, f2
+    80003094:	1a287753          	fdiv.d	fa4,fa6,ft2
+  fdiv.d f3, f5, f7
+    80003098:	1a72f1d3          	fdiv.d	ft3,ft5,ft7
+  fdiv.d f4, f6, f8
+    8000309c:	1a837253          	fdiv.d	ft4,ft6,fs0
+  addi t0, t0, -1
+    800030a0:	12fd                	addi	t0,t0,-1
+  bnez t0, measure
+    800030a2:	fc029fe3          	bnez	t0,80003080 <measure>
+
+
+
+======================================================================
+TABLA DE RESULTADOS
+======================================================================
+METRICA                   |         OFICIAL |            NETO
+======================================================================
+Ciclos                    |             284 |             244
+Instrucciones             |              68 |              51
+Misses I-Cache            |               6 |               3
+Misses D-Cache            |               0 |               0
+Accesos I-Cache           |             124 |              90
+Accesos D-Cache           |               9 |               0
+Branches                  |               5 |               5
+Branch Miss + Unpred      |               2 |               2
+Tiempo (us)               |               5 |               5
+IPC                       |          0.2394 |          0.2090
+======================================================================
+
+Clean result (OFICIAL):  [284, 68, 6, 0, 124, 9, 5, 2, 5, 0.2394]
+Clean result (NETO):     [244, 51, 3, 0, 90, 0, 5, 2, 5, 0.209]
+
