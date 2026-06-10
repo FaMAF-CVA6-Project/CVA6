@@ -57,3 +57,6 @@ cva6_files
 *.vcd
 # To big to be tracked
 daxpy_trace.txt
+dgemm.json
+dgemm.list
+dgemm_clean.txt
