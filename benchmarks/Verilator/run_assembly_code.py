@@ -19,7 +19,7 @@ OVERHEAD_CONSTANTS = {
     'x22': 34,   # Accesos I-Cache 
     'x23': 9,    # Accesos D-Cache
     'x24': 0,    # Branches
-    'x25': 2,    # Branch Mispredicts + Unpredicted
+    'x25': 0,    # Branch Mispredicts + Unpredicted
     'x26': 0     # Tiempo (us)
 }
 
@@ -133,6 +133,7 @@ def main():
     parser = argparse.ArgumentParser(description="Ejecutar simulacion CVA6 y extraer metricas")
     parser.add_argument("target", help="Target de la arquitectura (ej: cv64a6_imafdc_sv39_hpdcache)")
     parser.add_argument("asm_file", help="Ruta al archivo .S o .asm (relativa o absoluta)")
+    parser.add_argument("--no-vcd", action="store_true", help="Evita que se genere el archivo de trazas .vcd")
     args = parser.parse_args()
 
     # Validar existencia del archivo ASM
@@ -171,6 +172,16 @@ def main():
             except OSError:
                 pass
 
+    # Gestion de la bandera VCD / TRACE_FAST
+    if args.no_vcd:
+        env["TRACE_FAST"] = ""
+        env["TRACE_COMPACT"] = ""
+        trace_injection = "export TRACE_FAST= && export TRACE_COMPACT= &&"
+        print("[INFO] Generacion de archivo de trazas (.vcd/.fst) deshabilitada.")
+    else:
+        env["TRACE_FAST"] = "1"
+        trace_injection = "export TRACE_FAST=1 &&"
+
     # Construir Comando
     py_cmd_list = [
         "python3", "cva6.py",
@@ -183,7 +194,7 @@ def main():
     ]
 
     py_cmd_str = shlex.join(py_cmd_list)
-    final_shell_cmd = f"source {setup_script} && {py_cmd_str}"
+    final_shell_cmd = f"source {setup_script} && {trace_injection} {py_cmd_str}"
     
     try:
         print(f"[INFO] Corriendo simulacion Verilator con '{test_name}.S'\n")
@@ -197,7 +208,7 @@ def main():
             executable='/bin/bash'
         )
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] {e.returncode}")
+        print(f"[ERROR] Código de salida: {e.returncode}")
         sys.exit(1)
 
     # --------------------------------------------------------------------------
@@ -246,7 +257,7 @@ def main():
     net_cycles = max(1, raw_cycles - ovh_cycles)
 
     ipc_official = raw_inst / raw_cycles if raw_cycles > 0 else 0
-    ipc_corrected = net_inst / net_cycles
+    ipc_corrected = net_inst / net_cycles if net_cycles > 0 else 0
 
     output_buffer = []
     output_buffer.append("=" * 70)

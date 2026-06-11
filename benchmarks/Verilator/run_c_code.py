@@ -134,6 +134,7 @@ def main():
     parser = argparse.ArgumentParser(description="Ejecutar test C en CVA6 y extraer metricas.")
     parser.add_argument("target", help="Target de la arquitectura (ej: cv64a6_imafdc_sv39_hpdcache)")
     parser.add_argument("c_file", help="Ruta al archivo .c (relativa o absoluta)")
+    parser.add_argument("--no-vcd", action="store_true", help="Evita que se genere el archivo de trazas .vcd")
     args = parser.parse_args()
 
     # Validar existencia del archivo C
@@ -170,6 +171,16 @@ def main():
             except OSError:
                 pass
 
+    # Gestion de la bandera VCD / TRACE_FAST
+    if args.no_vcd:
+        env["TRACE_FAST"] = ""
+        env["TRACE_COMPACT"] = ""
+        trace_injection = "export TRACE_FAST= && export TRACE_COMPACT= &&"
+        print("[INFO] Generacion de archivo de trazas (.vcd/.fst) deshabilitada.")
+    else:
+        env["TRACE_FAST"] = "1"
+        trace_injection = "export TRACE_FAST=1 &&"
+
     # Construir Comando
     py_cmd_list = [
         "python3", "cva6.py",
@@ -182,7 +193,7 @@ def main():
     ]
 
     py_cmd_str = shlex.join(py_cmd_list)
-    final_shell_cmd = f"source {setup_script} && {py_cmd_str}"
+    final_shell_cmd = f"source {setup_script} && {trace_injection} {py_cmd_str}"
 
     try:
         print(f"[INFO] Corriendo simulacion Verilator con '{test_name}.c'\n")
