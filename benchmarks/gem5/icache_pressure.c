@@ -14,7 +14,8 @@
 
 #define FUNC10(a, b, c, d, e, f, g, h, i, j) \
     FUNC(a)                                  \
-    FUNC(b) FUNC(c) FUNC(d) FUNC(e)          \
+    FUNC(b)                                  \
+    FUNC(c) FUNC(d) FUNC(e)                  \
         FUNC(f) FUNC(g) FUNC(h) FUNC(i) FUNC(j)
 
 FUNC10(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
@@ -43,7 +44,8 @@ FUNC10(220, 221, 222, 223, 224, 225, 226, 227, 228, 229)
 FUNC10(230, 231, 232, 233, 234, 235, 236, 237, 238, 239)
 FUNC10(240, 241, 242, 243, 244, 245, 246, 247, 248, 249)
 FUNC(250)
-FUNC(251) FUNC(252) FUNC(253) FUNC(254) FUNC(255)
+FUNC(251)
+FUNC(252) FUNC(253) FUNC(254) FUNC(255)
 
 #define CASE(N) \
     case N:     \
@@ -51,7 +53,8 @@ FUNC(251) FUNC(252) FUNC(253) FUNC(254) FUNC(255)
 
 #define CASE10(a, b, c, d, e, f, g, h, i, j) \
     CASE(a)                                  \
-    CASE(b) CASE(c) CASE(d) CASE(e)          \
+    CASE(b)                                  \
+    CASE(c) CASE(d) CASE(e)                  \
         CASE(f) CASE(g) CASE(h) CASE(i) CASE(j)
 
     __attribute__((noinline)) static int dispatch(int sel, int x)
@@ -84,7 +87,8 @@ FUNC(251) FUNC(252) FUNC(253) FUNC(254) FUNC(255)
         CASE10(230, 231, 232, 233, 234, 235, 236, 237, 238, 239)
         CASE10(240, 241, 242, 243, 244, 245, 246, 247, 248, 249)
         CASE(250)
-        CASE(251) CASE(252) CASE(253) CASE(254) CASE(255) default : return x;
+        CASE(251)
+        CASE(252) CASE(253) CASE(254) CASE(255) default : return x;
     }
 }
 

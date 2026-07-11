@@ -33,12 +33,15 @@ from m5.objects import (
 # Parsear Argumentos
 # -------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Simulación CVA6 en gem5")
-parser.add_argument("binary", type=str, help="Ruta al binario compilado (RISC-V ELF)")
+parser.add_argument("binary", type=str,
+                    help="Ruta al binario compilado (RISC-V ELF)")
 args = parser.parse_args()
 
 # -------------------------------------------------------------------------
 # Helper para definir clases de operaciones
 # -------------------------------------------------------------------------
+
+
 def make_op_class_set(op_classes_list):
     return MinorOpClassSet(
         opClasses=[MinorOpClass(opClass=name) for name in op_classes_list]
@@ -47,6 +50,8 @@ def make_op_class_set(op_classes_list):
 # -------------------------------------------------------------------------
 # Definicion de las Unidades Funcionales
 # -------------------------------------------------------------------------
+
+
 class CVA6FUPool(MinorFUPool):
     def __init__(self):
         super().__init__()
@@ -56,21 +61,21 @@ class CVA6FUPool(MinorFUPool):
         int_alu = MinorDefaultIntFU()
         int_alu.opClasses = make_op_class_set(int_alu_ops)
         int_alu.opLat = 3
-        int_alu.issueLat = 1 
+        int_alu.issueLat = 1
 
         # Multiplicación Entera
         int_mul_ops = ['IntMult']
         int_mul = MinorDefaultIntMulFU()
         int_mul.opClasses = make_op_class_set(int_mul_ops)
         int_mul.opLat = 4
-        int_mul.issueLat = 1 
+        int_mul.issueLat = 1
 
         # Division Entera
         int_div_ops = ['IntDiv']
         int_div = MinorDefaultIntDivFU()
         int_div.opClasses = make_op_class_set(int_div_ops)
         int_div.opLat = 35
-        int_div.issueLat = 35 
+        int_div.issueLat = 35
 
         # Floating Point
         fp_fast_ops = ['FloatAdd', 'FloatMult', 'FloatMultAcc', 'FloatMisc']
@@ -82,13 +87,13 @@ class CVA6FUPool(MinorFUPool):
         fp_slow_ops = ['FloatCvt', 'FloatSqrt']
         fp_slow = MinorFU(
             opClasses=make_op_class_set(fp_slow_ops),
-            opLat=4, issueLat=1 
+            opLat=4, issueLat=1
         )
-        
+
         fp_div_ops = ['FloatDiv']
         fp_div = MinorFU(
             opClasses=make_op_class_set(fp_div_ops),
-            opLat=4, issueLat=4 
+            opLat=4, issueLat=4
         )
 
         fp_cmp_ops = ['FloatCmp']
@@ -96,7 +101,7 @@ class CVA6FUPool(MinorFUPool):
             opClasses=make_op_class_set(fp_cmp_ops),
             opLat=5, issueLat=1
         )
-        
+
         # Memoria
         mem_ops = ['MemRead', 'MemWrite', 'FloatMemRead', 'FloatMemWrite']
         mem_fu = MinorDefaultMemFU()
@@ -107,18 +112,19 @@ class CVA6FUPool(MinorFUPool):
         # Resto de Unidades
         # Juntamos todas las que ya definimos
         defined_ops = set(int_alu_ops + int_mul_ops + int_div_ops + fp_fast_ops
-                        + fp_slow_ops + fp_div_ops + fp_cmp_ops + mem_ops)
-        
-        misc_ops_list = ['IprAccess'] 
-        
+                          + fp_slow_ops + fp_div_ops + fp_cmp_ops + mem_ops)
+
+        misc_ops_list = ['IprAccess']
+
         # Buscamos TODAS las clases que existen en Gem5 y restamos las nuestras
         all_ops = [op.opClass for op in MinorOpClassSet().opClasses]
-        undefined_ops = [op for op in all_ops if op not in defined_ops and op not in misc_ops_list]
+        undefined_ops = [
+            op for op in all_ops if op not in defined_ops and op not in misc_ops_list]
 
         # Unidad Misc Real (Saltos)
         misc_fu = MinorDefaultMiscFU()
         misc_fu.opClasses = make_op_class_set(misc_ops_list)
-        
+
         # Unidad para Vectores y cosas que no usaremos
         catch_all_fu = MinorFU(
             opClasses=make_op_class_set(undefined_ops),
@@ -126,7 +132,7 @@ class CVA6FUPool(MinorFUPool):
         )
 
         self.funcUnits = [
-            int_alu, int_mul, int_div, 
+            int_alu, int_mul, int_div,
             fp_fast, fp_slow, fp_div, fp_cmp,
             mem_fu, misc_fu, catch_all_fu
         ]
@@ -134,6 +140,8 @@ class CVA6FUPool(MinorFUPool):
 # -------------------------------------------------------------------------
 # Definicion del CPU CVA6
 # -------------------------------------------------------------------------
+
+
 class CVA6CPU(RiscvMinorCPU):
     def __init__(self):
         super().__init__()
@@ -167,26 +175,28 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeLSQRequestsQueueSize = 2
         self.executeLSQTransfersQueueSize = 2
         self.executeLSQStoreBufferSize = 8
-        
+
         self.branchPred = LocalBP(
-            localPredictorSize = 1024,
-            localCtrBits = 2, # BHT localCtrBits ?
-            instShiftAmt = 2  # BHT Instruction Shift Amount ?
+            localPredictorSize=1024,
+            localCtrBits=2,  # BHT localCtrBits ?
+            instShiftAmt=2  # BHT Instruction Shift Amount ?
         )
 
         self.branchPred.btb = SimpleBTB(
-            numEntries = 64,
-            tagBits = 20,
-            associativity = 16,
-            instShiftAmt = 2,         # BTB Instruction Shift Amount
-            btbReplPolicy = LRURP()   # LRU Replacement Policy
+            numEntries=64,
+            tagBits=20,
+            associativity=16,
+            instShiftAmt=2,         # BTB Instruction Shift Amount
+            btbReplPolicy=LRURP()   # LRU Replacement Policy
         )
 
         self.branchPred.ras = ReturnAddrStack(
-            numEntries = 2
+            numEntries=2
         )
 
 # Wrapper para usarlo con la Standard Library de gem5
+
+
 class CVA6Processor(BaseCPUProcessor):
     def __init__(self):
         core = BaseCPUCore(core=CVA6CPU(), isa=ISA.RISCV)
@@ -195,6 +205,8 @@ class CVA6Processor(BaseCPUProcessor):
 # -------------------------------------------------------------------------
 # Configuracion de Caches
 # -------------------------------------------------------------------------
+
+
 class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
     def __init__(self, l1d_size, l1i_size):
         super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)

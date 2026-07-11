@@ -33,12 +33,15 @@ from m5.objects import (
 # Parsear Argumentos
 # -------------------------------------------------------------------------
 parser = argparse.ArgumentParser(description="Simulación CVA6 en gem5")
-parser.add_argument("binary", type=str, help="Ruta al binario compilado (RISC-V ELF)")
+parser.add_argument("binary", type=str,
+                    help="Ruta al binario compilado (RISC-V ELF)")
 args = parser.parse_args()
 
 # -------------------------------------------------------------------------
 # Helper para definir clases de operaciones
 # -------------------------------------------------------------------------
+
+
 def minorMakeOpClassSet(op_classes):
     def boxOpClass(op_class):
         return MinorOpClass(opClass=op_class)
@@ -48,6 +51,8 @@ def minorMakeOpClassSet(op_classes):
 # -------------------------------------------------------------------------
 # Definicion de las Unidades Funcionales
 # -------------------------------------------------------------------------
+
+
 class CVA6FUPool(MinorFUPool):
     def __init__(self):
         super().__init__()
@@ -58,19 +63,19 @@ class CVA6FUPool(MinorFUPool):
         int_alu = MinorFU()
         int_alu.opClasses = minorMakeOpClassSet(int_alu_ops)
         int_alu.opLat = 3
-        int_alu.issueLat = 1 
+        int_alu.issueLat = 1
 
         int_mul_ops = ['IntMult']
         int_mul = MinorFU()
         int_mul.opClasses = minorMakeOpClassSet(int_mul_ops)
         int_mul.opLat = 4
-        int_mul.issueLat = 1 
+        int_mul.issueLat = 1
 
         int_div_ops = ['IntDiv']
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(int_div_ops)
         int_div.opLat = 35
-        int_div.issueLat = 35 
+        int_div.issueLat = 35
 
         fp_fast_ops = ['FloatAdd', 'FloatMult']
         fp_fast = MinorFU(
@@ -81,13 +86,13 @@ class CVA6FUPool(MinorFUPool):
         fp_slow_ops = ['FloatCvt', 'FloatSqrt']
         fp_slow = MinorFU(
             opClasses=minorMakeOpClassSet(fp_slow_ops),
-            opLat=4, issueLat=1 
+            opLat=4, issueLat=1
         )
-        
+
         fp_div_ops = ['FloatDiv']
         fp_div = MinorFU(
             opClasses=minorMakeOpClassSet(fp_div_ops),
-            opLat=4, issueLat=4 
+            opLat=4, issueLat=4
         )
 
         fp_cmp_ops = ['FloatCmp']
@@ -95,7 +100,7 @@ class CVA6FUPool(MinorFUPool):
             opClasses=minorMakeOpClassSet(fp_cmp_ops),
             opLat=5, issueLat=1
         )
-        
+
         mem_ops = ['MemRead', 'MemWrite']
         mem_fu = MinorFU()
         mem_fu.opClasses = minorMakeOpClassSet(mem_ops)
@@ -151,14 +156,16 @@ class CVA6FUPool(MinorFUPool):
         ]
         float_simd = MinorDefaultFloatSimdFU()
         float_simd.opClasses = minorMakeOpClassSet(float_simd_ops)
-        float_simd.timings = [MinorFUTiming(description="FloatSimd", srcRegsRelativeLats=[2])]
+        float_simd.timings = [MinorFUTiming(
+            description="FloatSimd", srcRegsRelativeLats=[2])]
         float_simd.opLat = 6
         float_simd.issueLat = 1
 
         pred_ops = ["SimdPredAlu"]
         pred = MinorDefaultPredFU()
         pred.opClasses = minorMakeOpClassSet(pred_ops)
-        pred.timings = [MinorFUTiming(description="Pred", srcRegsRelativeLats=[2])]
+        pred.timings = [MinorFUTiming(
+            description="Pred", srcRegsRelativeLats=[2])]
         pred.opLat = 3
         pred.issueLat = 1
 
@@ -179,7 +186,8 @@ class CVA6FUPool(MinorFUPool):
         ]
         mem = MinorFU()
         mem.opClasses = minorMakeOpClassSet(mem_ops)
-        mem.timings = [MinorFUTiming(description="Mem", srcRegsRelativeLats=[1], extraAssumedLat=2)] 
+        mem.timings = [MinorFUTiming(description="Mem", srcRegsRelativeLats=[
+                                     1], extraAssumedLat=2)]
         mem.opLat = 1
         mem.issueLat = 1
 
@@ -189,11 +197,11 @@ class CVA6FUPool(MinorFUPool):
         misc.issueLat = 1
 
         self.funcUnits = [
-            int_alu, int_mul, int_div, 
+            int_alu, int_mul, int_div,
             fp_fast, fp_slow, fp_div, fp_cmp,
             mem_fu, float_simd, pred, mem, misc
         ]
-        
+
         """
         Valores por defectos de MinorCPU
 
@@ -320,6 +328,8 @@ class CVA6FUPool(MinorFUPool):
 # -------------------------------------------------------------------------
 # Definicion del CPU CVA6
 # -------------------------------------------------------------------------
+
+
 class CVA6CPU(RiscvMinorCPU):
     def __init__(self):
         super().__init__()
@@ -331,15 +341,17 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1FetchLimit = 1
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
-        self.fetch1ToFetch2ForwardDelay = 1 
-        self.fetch1ToFetch2BackwardDelay = 1 
+        self.fetch1ToFetch2ForwardDelay = 1
+        self.fetch1ToFetch2BackwardDelay = 1
         self.fetch2InputBufferSize = 1
-        self.fetch2ToDecodeForwardDelay = 1 
-        self.fetch2CycleInput = False 
+        self.fetch2ToDecodeForwardDelay = 1
+        self.fetch2CycleInput = False
         self.decodeInputBufferSize = 4
         self.decodeToExecuteForwardDelay = 1
-        self.decodeInputWidth = 1 # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
-        self.decodeCycleInput = False # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
+        # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
+        self.decodeInputWidth = 1
+        # Revisar. Hacer pruebas con instrucciones comprimidadas. Dejar para mas adelante
+        self.decodeCycleInput = False
         self.executeInputWidth = 1
         self.executeCycleInput = False
         self.executeIssueLimit = 1
@@ -360,24 +372,26 @@ class CVA6CPU(RiscvMinorCPU):
         self.enableIdling = False
 
         self.branchPred = LocalBP(
-            localPredictorSize = 1024, # Revisar
-            localCtrBits = 2, # Revisar
-            instShiftAmt = 2  # Revisar
+            localPredictorSize=1024,  # Revisar
+            localCtrBits=2,  # Revisar
+            instShiftAmt=2  # Revisar
         )
 
         self.branchPred.btb = SimpleBTB(
-            numEntries = 64,          # Revisar
-            tagBits = 20,             # Revisar
-            associativity = 16,       # Revisar
-            instShiftAmt = 2,         # Revisar
-            btbReplPolicy = LRURP()   # Revisar
+            numEntries=64,          # Revisar
+            tagBits=20,             # Revisar
+            associativity=16,       # Revisar
+            instShiftAmt=2,         # Revisar
+            btbReplPolicy=LRURP()   # Revisar
         )
 
         self.branchPred.ras = ReturnAddrStack(
-            numEntries = 2 # Revisar
+            numEntries=2  # Revisar
         )
 
 # Wrapper para usarlo con la Standard Library de gem5
+
+
 class CVA6Processor(BaseCPUProcessor):
     def __init__(self):
         core = BaseCPUCore(core=CVA6CPU(), isa=ISA.RISCV)
@@ -386,6 +400,8 @@ class CVA6Processor(BaseCPUProcessor):
 # -------------------------------------------------------------------------
 # Configuracion de Caches
 # -------------------------------------------------------------------------
+
+
 class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
     def __init__(self, l1d_size, l1i_size):
         super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)
@@ -397,24 +413,26 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].assoc = 4
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
-            self.l1icaches[i].response_latency = 2 # Revisar
-            self.l1icaches[i].mshrs = 4 # Revisar
-            self.l1icaches[i].tgts_per_mshr = 1 # Revisar
-            self.l1icaches[i].write_buffers = 8 # Revisar
+            self.l1icaches[i].response_latency = 2  # Revisar
+            self.l1icaches[i].mshrs = 4  # Revisar
+            self.l1icaches[i].tgts_per_mshr = 1  # Revisar
+            self.l1icaches[i].write_buffers = 8  # Revisar
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False
             self.l1icaches[i].writeback_clean = True
 
             self.l1dcaches[i].assoc = 8
-            self.l1dcaches[i].tag_latency = 1 # Revisar
-            self.l1dcaches[i].data_latency = 2 # Revisar
-            self.l1dcaches[i].response_latency = 2 # Revisar
-            self.l1dcaches[i].mshrs = 2 # Revisar. Buscar definitivamente
-            self.l1dcaches[i].tgts_per_mshr = 1 # Revisar. Buscar definitivamente
-            self.l1dcaches[i].write_buffers = 8 # Revisar
+            self.l1dcaches[i].tag_latency = 1  # Revisar
+            self.l1dcaches[i].data_latency = 2  # Revisar
+            self.l1dcaches[i].response_latency = 2  # Revisar
+            self.l1dcaches[i].mshrs = 2  # Revisar. Buscar definitivamente
+            # Revisar. Buscar definitivamente
+            self.l1dcaches[i].tgts_per_mshr = 1
+            self.l1dcaches[i].write_buffers = 8  # Revisar
             self.l1dcaches[i].is_read_only = False
-            self.l1dcaches[i].sequential_access = False # Revisar
+            self.l1dcaches[i].sequential_access = False  # Revisar
             self.l1dcaches[i].writeback_clean = True
+
 
 # -------------------------------------------------------------------------
 # Script Principal
@@ -431,7 +449,7 @@ cache_hierarchy = CVA6CacheHierarchy(
 memory = SingleChannelSimpleMemory(
     latency="20ns",
     latency_var="0ns",
-    bandwidth= "0.375GiB/s",
+    bandwidth="0.375GiB/s",
     size="1GiB"
 )
 
@@ -442,7 +460,7 @@ board = SimpleBoard(
     cache_hierarchy=cache_hierarchy
 )
 
-board.cache_line_size = 16  # 128 bits    
+board.cache_line_size = 16  # 128 bits
 board.set_se_binary_workload(binary)
 
 simulator = Simulator(board=board)
