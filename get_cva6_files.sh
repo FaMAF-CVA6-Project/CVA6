@@ -1,71 +1,71 @@
 #!/bin/bash
 
-# Nombre de la carpeta de destino
+# Destination directory name
 DEST_DIR="cva6_files"
 
-# Crear la carpeta de destino si no existe
+# Create the destination directory if it doesn't exist
 mkdir -p "$DEST_DIR"
 
-# Definir las rutas base
+# Define base paths
 CVA6_REPO_DIR=$(pwd)
 HPDCACHE_DIR="$CVA6_REPO_DIR/core/cache_subsystem/hpdcache"
 
-echo "Iniciando la copia de archivos a $DEST_DIR..."
+echo "Starting file copy to $DEST_DIR..."
 echo "CVA6_REPO_DIR = $CVA6_REPO_DIR"
 echo "HPDCACHE_DIR = $HPDCACHE_DIR"
 echo "------------------------------------------------"
 
-# Función para procesar y copiar los archivos de una lista
-procesar_lista() {
+# Function to process and copy files from a list
+process_list() {
     local list_file=$1
-    
+
     if [ ! -f "$list_file" ]; then
-        echo "Error: No se encontró el archivo $list_file"
+        echo "Error: File $list_file not found"
         return
     fi
 
-    echo "Procesando $list_file..."
+    echo "Processing $list_file..."
 
     while IFS= read -r line; do
-        # Eliminar espacios en blanco al inicio y al final
+        # Remove leading and trailing whitespaces
         line=$(echo "$line" | xargs)
-        
-        # Ignorar líneas vacías, comentarios (//) y directivas de otros manifiestos (-F)
+
+        # Ignore empty lines, comments (//), and directives from other manifests (-F)
         if [[ -z "$line" || "$line" == //* || "$line" == -F* ]]; then
             continue
         fi
 
-        # Reemplazar las variables por las rutas absolutas
+        # Replace variables with absolute paths
         local path_str="${line//\$\{CVA6_REPO_DIR\}/$CVA6_REPO_DIR}"
         path_str="${path_str//\$\{HPDCACHE_DIR\}/$HPDCACHE_DIR}"
 
-        # Lógica para directorios de inclusión (+incdir+)
+        # Logic for include directories (+incdir+)
         if [[ "$path_str" == +incdir+* ]]; then
-            # Extraer solo la ruta quitando el prefijo '+incdir+'
+            # Extract only the path by removing the '+incdir+' prefix
             local inc_dir="${path_str#+incdir+}"
-            
+
             if [ -d "$inc_dir" ]; then
-                echo "  Copiando cabeceras desde: $inc_dir"
-                # Usar find para buscar y copiar solo archivos relevantes sin recursión
+                echo "  Copying headers from: $inc_dir"
+                # Use find to search for and copy only relevant files without recursion
                 find "$inc_dir" -maxdepth 1 -type f \( -name "*.sv" -o -name "*.v" -o -name "*.svh" -o -name "*.vh" -o -name "*.h" \) -exec cp {} "$DEST_DIR/" \;
             else
-                echo "  [Advertencia] Directorio +incdir+ no encontrado: $inc_dir"
+                echo "  [Warning] +incdir+ directory not found: $inc_dir"
             fi
-            
-        # Lógica para archivos individuales
+
+        # Logic for individual files
         else
             if [ -f "$path_str" ]; then
                 cp "$path_str" "$DEST_DIR/"
             else
-                echo "  [Advertencia] Archivo no encontrado: $path_str"
+                echo "  [Warning] File not found: $path_str"
             fi
         fi
     done < "$list_file"
 }
 
-# Procesar ambas listas
-procesar_lista "Flist.cva6"
-procesar_lista "hpdcache.Flist"
+# Process both lists using their exact paths
+process_list "$CVA6_REPO_DIR/core/Flist.cva6"
+process_list "$HPDCACHE_DIR/rtl/hpdcache.Flist"
 
 echo "------------------------------------------------"
-echo "Proceso completado. Revisa la carpeta '$DEST_DIR'."
+echo "Process completed. Check the '$DEST_DIR' directory."
