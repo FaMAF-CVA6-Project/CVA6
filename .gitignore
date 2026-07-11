@@ -54,8 +54,6 @@ Bender.lock
 # Our CVA6-specific files
 cva6_files
 # To big to be tracked
-*.list
-*.vcd
 bht_alias_test.config1.json
 bht_alias_test_clean.config1.txt
 bht_alias_test.config4.json
