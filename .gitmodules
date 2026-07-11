@@ -1,0 +1,3 @@
+[submodule "viewers/MinorFlow"]
+	path = viewers/MinorFlow
+	url = https://github.com/ManuelN313/MinorFlow.git
