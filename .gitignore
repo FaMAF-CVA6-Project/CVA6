@@ -53,7 +53,6 @@ Bender.lock
 !/vendor/riscv/riscv-isa-manual/build/*
 # Our CVA6-specific files
 cva6_files
-viewers/CVA6Flow/tests
 # To big to be tracked
 *.list
 *.vcd
