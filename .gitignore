@@ -53,7 +53,10 @@ Bender.lock
 !/vendor/riscv/riscv-isa-manual/build/*
 # Our CVA6-specific files
 cva6_files
-# To big to be tracked
+# Files to big to be tracked
+# CVA6Flow
+*.vcd*
+*.list*
 bht_alias_test.config1.json
 bht_alias_test_clean.config1.txt
 bht_alias_test.config4.json
