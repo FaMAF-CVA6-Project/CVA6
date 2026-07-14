@@ -53,35 +53,3 @@ Bender.lock
 !/vendor/riscv/riscv-isa-manual/build/*
 # Our CVA6-specific files
 cva6_files
-# Files to big to be tracked
-# CVA6Flow
-*.vcd*
-*.list*
-bht_alias_test.config1.json
-bht_alias_test_clean.config1.txt
-bht_alias_test.config4.json
-bht_alias_test_clean.config4.txt
-bht_alias_test.config5.json
-bht_alias_test_clean.config5.txt
-bht_alias_test.config6.json
-bht_alias_test_clean.config6.txt
-btb_pressure_test.config1.json
-btb_pressure_test_clean.config1.txt
-commit_ilp_test.config1.json
-commit_ilp_test_clean.config1.txt
-data_cache_stress_test.config1.json
-data_cache_stress_test_clean.config1.txt
-data_cache_stress_test.config3.json
-data_cache_stress_test_clean.config3.txt
-dcache_size_test.config1.json
-dcache_size_test_clean.config1.txt
-dcache_size_test.config2.json
-dcache_size_test_clean.config2.txt
-icache_footprint_test.config1.json
-icache_footprint_test_clean.config1.txt
-icache_footprint_test.config13.json
-icache_footprint_test_clean.config13.txt
-icache_footprint_test.config14.json
-icache_footprint_test_clean.config14.txt
-store_miss_test.config1.json
-store_miss_test_clean.config1.txt
