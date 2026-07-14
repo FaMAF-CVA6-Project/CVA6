@@ -39,7 +39,7 @@ TEST = 1
 # Test table. Each entry is (name, cpu_overrides, l1i_size, l1d_size,
 #                            dcache_overrides, icache_overrides, clk_freq)
 #
-#   1   Baseline                                  workload: daxpy
+#   1   Baseline                                  workload: all
 #   2   fetch2ToDecodeForwardDelay     1 -> 2     workload: daxpy
 #   3   decodeToExecuteForwardDelay    1 -> 2     workload: daxpy
 #   4   fetch1LineWidth + snap         4 -> 16    workload: icache_pressure
