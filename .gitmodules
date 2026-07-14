@@ -1,3 +1,6 @@
 [submodule "viewers/MinorFlow"]
 	path = viewers/MinorFlow
 	url = https://github.com/ManuelN313/MinorFlow.git
+[submodule "viewers/CVA6Flow"]
+	path = viewers/CVA6Flow
+	url = https://github.com/ManuelN313/CVA6Flow
