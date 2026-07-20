@@ -1,0 +1,169 @@
+diff --git a/src/cpu/minor/BaseMinorCPU.py b/src/cpu/minor/BaseMinorCPU.py
+index 545dfeaee5..a66871f8ed 100644
+--- a/src/cpu/minor/BaseMinorCPU.py
++++ b/src/cpu/minor/BaseMinorCPU.py
+@@ -398,6 +398,22 @@ class BaseMinorCPU(BaseCPU):
+         2, "Size of LSQ transfers queue (memory transaction queue)"
+     )
+     executeLSQStoreBufferSize = Param.Unsigned(5, "Size of LSQ store buffer")
++
++    executeLSQNoStoreForwarding = Param.Bool(
++        False,
++        "Disable store-to-load forwarding from the LSQ store buffer.  A load "
++        "which fully overlaps a pending store waits for that store to drain "
++        "and then reads the cache, instead of taking the data from the store "
++        "buffer.  Models cores with no forwarding path, such as CVA6.",
++    )
++
++    executeLSQStoreCollisionReplayDelay = Param.Cycles(
++        0,
++        "Cycles a load waits, after a blocking store collision clears, before "
++        "it may access the cache.  Models the cost of restarting the load in "
++        "the LSU of a core without store-to-load forwarding.  Only meaningful "
++        "when executeLSQNoStoreForwarding is set.",
++    )
+     executeBranchDelay = Param.Cycles(
+         1,
+         "Delay from Execute deciding to branch and Fetch1 reacting"
+diff --git a/src/cpu/minor/execute.cc b/src/cpu/minor/execute.cc
+index ba4032e39c..6f6f39deda 100644
+--- a/src/cpu/minor/execute.cc
++++ b/src/cpu/minor/execute.cc
+@@ -87,7 +87,9 @@ Execute::Execute(const std::string &name_,
+         params.executeLSQRequestsQueueSize,
+         params.executeLSQTransfersQueueSize,
+         params.executeLSQStoreBufferSize,
+-        params.executeLSQMaxStoreBufferStoresPerCycle),
++        params.executeLSQMaxStoreBufferStoresPerCycle,
++        params.executeLSQNoStoreForwarding,
++        params.executeLSQStoreCollisionReplayDelay),
+     executeInfo(params.numThreads,
+             ExecuteThreadInfo(params.executeCommitLimit)),
+     interruptPriority(0),
+diff --git a/src/cpu/minor/lsq.cc b/src/cpu/minor/lsq.cc
+index 4b31b26577..6fa62fac3f 100644
+--- a/src/cpu/minor/lsq.cc
++++ b/src/cpu/minor/lsq.cc
+@@ -69,6 +69,7 @@ LSQ::LSQRequest::LSQRequest(LSQ &port_, MinorDynInstPtr inst_, bool isLoad_,
+     skipped(false),
+     issuedToMemory(false),
+     isTranslationDelayed(false),
++    collisionReplay(0),
+     state(NotIssued)
+ {
+     request = std::make_shared<Request>();
+@@ -796,6 +797,21 @@ LSQ::StoreBuffer::canForwardDataToLoad(LSQRequestPtr request,
+         slot_index--;
+     }
+ 
++    /* CVA6 has no store-to-load forwarding.  Its load unit parks a load in
++     *  WAIT_PAGE_OFFSET until the store buffer drains whenever the address
++     *  collides with a pending store (load_unit.sv, and store_buffer.sv
++     *  page_offset_matches_o).  Downgrading a full hit to a partial one makes
++     *  tryToSendToTransfers take the wait path instead of the forward path, so
++     *  the load retries until the store has drained and then reads it from the
++     *  cache.  This is the same mechanism containsAddrRangeOf already applies
++     *  to masked requests.  The downgrade is here rather than in
++     *  containsAddrRangeOf so that the FullAddrRangeCoverage assertion in
++     *  forwardStoreData keeps its meaning, and so that the non-bufferable
++     *  ordering check, which only tests against NoAddrRangeCoverage, is
++     *  unaffected. */
++    if (lsq.noStoreForwarding && ret == FullAddrRangeCoverage)
++        ret = PartialAddrRangeCoverage;
++
+     return ret;
+ }
+ 
+@@ -1113,9 +1129,29 @@ LSQ::tryToSendToTransfers(LSQRequestPtr request)
+               case PartialAddrRangeCoverage:
+                 DPRINTF(MinorMem, "Load partly satisfied by store buffer"
+                     " data. Must wait for the store to complete\n");
++                /* Re-arm the CVA6 re-request countdown for every cycle this
++                 *  load stays blocked, so that it is fully loaded at the
++                 *  moment the collision clears. */
++                request->collisionReplay = storeCollisionReplayDelay;
+                 return;
+                 break;
+               case NoAddrRangeCoverage:
++                /* CVA6 charges two cycles to restart a load that was blocked
++                 *  by a store collision.  Neither IDLE nor WAIT_PAGE_OFFSET
++                 *  asserts data_req in load_unit.sv: the offset clearing only
++                 *  moves the state to WAIT_GNT, which raises the request the
++                 *  cycle after, whereas an unblocked load raises it directly
++                 *  from IDLE.  So the re-request cannot issue until two cycles
++                 *  after the fast path would have, however briefly the load
++                 *  waited.  Spend that countdown here before touching the
++                 *  cache.  storeCollisionReplayDelay is 0 by default, which
++                 *  leaves this a no-op. */
++                if (request->collisionReplay > 0) {
++                    request->collisionReplay--;
++                    DPRINTF(MinorMem, "Store collision cleared, %d replay"
++                        " cycles left\n", request->collisionReplay);
++                    return;
++                }
+                 DPRINTF(MinorMem, "No forwardable data from store buffer\n");
+                 /* Fall through to try access */
+                 break;
+@@ -1404,7 +1440,8 @@ LSQ::LSQ(std::string name_, std::string dcache_port_name_,
+     unsigned int in_memory_system_limit, unsigned int line_width,
+     unsigned int requests_queue_size, unsigned int transfers_queue_size,
+     unsigned int store_buffer_size,
+-    unsigned int store_buffer_cycle_store_limit) :
++    unsigned int store_buffer_cycle_store_limit,
++    bool no_store_forwarding, Cycles store_collision_replay_delay) :
+     Named(name_),
+     cpu(cpu_),
+     execute(execute_),
+@@ -1413,6 +1450,8 @@ LSQ::LSQ(std::string name_, std::string dcache_port_name_,
+     state(MemoryRunning),
+     inMemorySystemLimit(in_memory_system_limit),
+     lineWidth((line_width == 0 ? cpu.cacheLineSize() : line_width)),
++    noStoreForwarding(no_store_forwarding),
++    storeCollisionReplayDelay(store_collision_replay_delay),
+     requests(name_ + ".requests", "addr", requests_queue_size),
+     transfers(name_ + ".transfers", "addr", transfers_queue_size),
+     storeBuffer(name_ + ".storeBuffer",
+diff --git a/src/cpu/minor/lsq.hh b/src/cpu/minor/lsq.hh
+index e30a615803..af7a60fe40 100644
+--- a/src/cpu/minor/lsq.hh
++++ b/src/cpu/minor/lsq.hh
+@@ -166,6 +166,12 @@ class LSQ : public Named
+         /** Address translation is delayed due to table walk */
+         bool isTranslationDelayed;
+ 
++        /** Countdown of retries still to be skipped after a store collision
++         *  cleared, modelling the LSU re-request of a core without store to
++         *  load forwarding.  Re-armed on every blocked cycle, then counted
++         *  down once the collision clears.  Always 0 when forwarding is on. */
++        unsigned int collisionReplay;
++
+         enum LSQRequestState
+         {
+             NotIssued, /* Newly created */
+@@ -550,6 +556,16 @@ class LSQ : public Named
+     /** Memory system access width (and snap) in bytes */
+     const Addr lineWidth;
+ 
++    /** Disable store-to-load forwarding from the store buffer.  A load which
++     *  fully overlaps a pending store waits for that store to drain and then
++     *  reads the cache, rather than taking the data from the store buffer.
++     *  Models cores with no forwarding path, such as CVA6. */
++    const bool noStoreForwarding;
++
++    /** Retries a load skips after a store collision clears, modelling the
++     *  LSU re-request of a core without store-to-load forwarding */
++    const Cycles storeCollisionReplayDelay;
++
+   public:
+     /** The LSQ consists of three queues: requests, transfers and the
+      *  store buffer storeBuffer. */
+@@ -650,7 +666,8 @@ class LSQ : public Named
+         unsigned int max_accesses_in_memory_system, unsigned int line_width,
+         unsigned int requests_queue_size, unsigned int transfers_queue_size,
+         unsigned int store_buffer_size,
+-        unsigned int store_buffer_cycle_store_limit);
++        unsigned int store_buffer_cycle_store_limit,
++        bool no_store_forwarding, Cycles store_collision_replay_delay);
+ 
+     virtual ~LSQ();
+ 
