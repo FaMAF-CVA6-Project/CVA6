@@ -54,10 +54,10 @@ Bender.lock
 # Our CVA6-specific files
 cva6_files
 # gem5_config_CVA6
-gem5_config_CVA6/Verilator/tests/super.cva6.D0.json
-gem5_config_CVA6/Verilator/tests/super.cva6.D5.json
-gem5_config_CVA6/Verilator/tests/super.cva6.D10.json
-gem5_config_CVA6/Verilator/tests/super.cva6.D20.json
+gem5_config_CVA6/verilator/tests/super.cva6.D0.json
+gem5_config_CVA6/verilator/tests/super.cva6.D5.json
+gem5_config_CVA6/verilator/tests/super.cva6.D10.json
+gem5_config_CVA6/verilator/tests/super.cva6.D20.json
 gem5_config_CVA6/gem5/tests/branch.gem5.test1.json
 gem5_config_CVA6/gem5/tests/branch.gem5.test2.json
 gem5_config_CVA6/gem5/tests/branch.gem5.test3.json
