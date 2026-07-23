@@ -9,6 +9,7 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  nop
 # -----------------------------------------------------------
 # SECTION 1 - Initialize integer registers
 # Hits IntALU (li expands to lui+addiw or just addi).
@@ -30,12 +31,11 @@ main:
 # -----------------------------------------------------------
   fmv.w.x   f0, t4          # f0 = 1.0f
   fmv.w.x   f1, t5          # f1 = 2.0f
-  fcvt.d.s  f2, f0          # f2 = 1.0 (double) <- was missing
-  fcvt.d.s  f3, f1          # f3 = 2.0 (double) <- was missing
+  fcvt.d.s  f2, f0          # f2 = 1.0 (double)
+  fcvt.d.s  f3, f1          # f3 = 2.0 (double)
 
 # -----------------------------------------------------------
 # SECTION 3 - Integer ALU, register-register
-# All hit IntALU
 # -----------------------------------------------------------
   add       s0, a4, a5      # 0x14
   sub       s1, a4, a5      # 0x0C
@@ -50,7 +50,6 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 4 - Integer ALU, immediate form
-# Same FU, different encoding path through Decode.
 # -----------------------------------------------------------
   addi      s0, a4, 100
   slli      s1, a4, 2
@@ -64,7 +63,6 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 5 - RV64 word-form ALU
-# 32-bit ops with sign-extended 64-bit result.
 # -----------------------------------------------------------
   addw      s0, a4, a5
   subw      s1, a4, a5
@@ -74,7 +72,7 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 6 - Multiply
-# 5 mults back-to-back fully utilize the pipelined FU.
+# multiplier.sv has one pipeline register, fully pipelined.
 # -----------------------------------------------------------
   mul       s2, t0, t1
   mulh      s3, t0, t1
@@ -84,7 +82,7 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 7 - Divide
-# Each div fully blocks the FU.
+# Coverage only. int_div is the test that measures the latency.
 # -----------------------------------------------------------
   div       s6, t2, t1
   divu      s7, t2, t1
@@ -94,7 +92,6 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 8 - FP single-precision basic
-# Hits FloatAdd/Mul, FPDiv, FPSqrt, FPCmp
 # -----------------------------------------------------------
   fadd.s    f4, f0, f1
   fsub.s    f5, f1, f0
@@ -107,16 +104,14 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 9 - FP fused multiply-add
-# FloatMultAcc
 # -----------------------------------------------------------
-  fmadd.s   f9, f0, f1, f4  # f9 = f0*f1 + f4
-  fmsub.s   f10, f0, f1, f4 # f10 = f0*f1 - f4
-  fnmadd.s  f11, f0, f1, f4 # f11 = -f0*f1 - f4
-  fnmsub.s  f12, f0, f1, f4 # f12 = -f0*f1 + f4
+  fmadd.s   f9, f0, f1, f4
+  fmsub.s   f10, f0, f1, f4
+  fnmadd.s  f11, f0, f1, f4
+  fnmsub.s  f12, f0, f1, f4
 
 # -----------------------------------------------------------
 # SECTION 10 - FP sign / min / max / class
-# All hit FloatMisc
 # -----------------------------------------------------------
   fsgnj.s   f13, f0, f1
   fsgnjn.s  f14, f0, f1
@@ -127,14 +122,13 @@ main:
 
 # -----------------------------------------------------------
 # SECTION 11 - Int <-> FP conversions
-# All hit FPCvt
 # -----------------------------------------------------------
-  fcvt.w.s  s1, f0          # float -> int32
-  fcvt.wu.s s2, f0          # float -> uint32
-  fcvt.s.w  f18, a4         # int32 -> float
-  fcvt.s.wu f19, a4         # uint32 -> float
-  fcvt.s.d  f20, f2         # double -> single
-  fcvt.d.w  f21, a4         # int32 -> double
+  fcvt.w.s  s1, f0
+  fcvt.wu.s s2, f0
+  fcvt.s.w  f18, a4
+  fcvt.s.wu f19, a4
+  fcvt.s.d  f20, f2
+  fcvt.d.w  f21, a4
 
 # -----------------------------------------------------------
 # SECTION 12 - FP double-precision
