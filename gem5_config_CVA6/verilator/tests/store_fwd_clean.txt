@@ -1,0 +1,1198 @@
+  la       a0, fwd_buf
+    8000307e:	00003517          	auipc	a0,0x3
+    80003082:	f8250513          	addi	a0,a0,-126 # 80006000 <fwd_buf>
+  li       t0, 0x0123456789ABCDEF
+    80003086:	000922b7          	lui	t0,0x92
+    8000308a:	a2b2829b          	addiw	t0,t0,-1493
+    8000308e:	02b2                	slli	t0,t0,0xc
+    80003090:	3c528293          	addi	t0,t0,965 # 923c5 <CSR_MHPMCOUNTER8+0x918bd>
+    80003094:	02b6                	slli	t0,t0,0xd
+    80003096:	abd28293          	addi	t0,t0,-1347
+    8000309a:	02b2                	slli	t0,t0,0xc
+    8000309c:	def28293          	addi	t0,t0,-529
+
+# Loop A: load from the address just stored (collision)
+  .rept    64
+  sd       t0, 0(a0)
+    800030a0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030a4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030a8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030ac:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030b0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030b4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030b8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030bc:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030c0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030c4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030c8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030cc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030d0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030d4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030d8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030dc:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030e0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030e4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030e8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030ec:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030f0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800030f4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800030f8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800030fc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003100:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003104:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003108:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000310c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003110:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003114:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003118:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000311c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003120:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003124:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003128:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000312c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003130:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003134:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003138:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000313c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003140:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003144:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003148:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000314c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003150:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003154:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003158:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000315c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003160:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003164:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003168:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000316c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003170:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003174:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003178:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000317c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003180:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003184:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003188:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000318c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003190:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003194:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003198:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000319c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031a0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031a4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031a8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031ac:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031b0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031b4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031b8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031bc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031c0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031c4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031c8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031cc:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031d0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031d4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031d8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031dc:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031e0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031e4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031e8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031ec:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031f0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800031f4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800031f8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800031fc:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003200:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003204:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003208:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000320c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003210:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003214:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003218:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000321c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003220:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003224:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003228:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000322c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003230:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003234:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003238:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000323c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003240:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003244:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003248:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000324c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003250:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003254:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003258:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000325c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003260:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003264:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003268:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000326c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003270:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003274:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003278:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000327c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003280:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003284:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003288:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000328c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003290:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003294:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003298:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000329c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032a0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032a4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032a8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032ac:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032b0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032b4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032b8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032bc:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032c0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032c4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032c8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032cc:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032d0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032d4:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032d8:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032dc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032e0:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032e4:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032e8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032ec:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032f0:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    800032f4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800032f8:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    800032fc:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003300:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003304:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003308:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000330c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003310:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003314:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003318:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000331c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003320:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003324:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003328:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000332c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003330:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003334:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003338:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000333c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003340:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003344:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003348:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000334c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003350:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003354:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003358:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000335c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003360:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003364:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003368:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000336c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003370:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003374:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003378:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000337c:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003380:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003384:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003388:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    8000338c:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    80003390:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003394:	00553023          	sd	t0,0(a0)
+  ld       t1, 0(a0)                # same address as the store above
+    80003398:	00053303          	ld	t1,0(a0)
+  addi     t0, t1, 1                # dependency, forces full serialisation
+    8000339c:	00130293          	addi	t0,t1,1
+  .endr
+
+# Loop B: control, load from a different line (no collision)
+  .rept    64
+  sd       t0, 0(a0)
+    800033a0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033a4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033a8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033ac:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033b0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033b4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033b8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033bc:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033c0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033c4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033c8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033cc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033d0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033d4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033d8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033dc:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033e0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033e4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033e8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033ec:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033f0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800033f4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800033f8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800033fc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003400:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003404:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003408:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000340c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003410:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003414:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003418:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000341c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003420:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003424:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003428:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000342c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003430:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003434:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003438:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000343c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003440:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003444:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003448:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000344c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003450:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003454:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003458:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000345c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003460:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003464:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003468:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000346c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003470:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003474:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003478:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000347c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003480:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003484:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003488:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000348c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003490:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003494:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003498:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000349c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034a0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034a4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034a8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034ac:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034b0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034b4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034b8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034bc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034c0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034c4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034c8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034cc:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034d0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034d4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034d8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034dc:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034e0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034e4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034e8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034ec:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034f0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800034f4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800034f8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800034fc:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003500:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003504:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003508:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000350c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003510:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003514:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003518:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000351c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003520:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003524:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003528:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000352c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003530:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003534:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003538:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000353c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003540:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003544:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003548:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000354c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003550:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003554:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003558:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000355c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003560:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003564:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003568:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000356c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003570:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003574:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003578:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000357c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003580:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003584:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003588:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000358c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003590:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003594:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003598:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000359c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035a0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035a4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035a8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035ac:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035b0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035b4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035b8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035bc:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035c0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035c4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035c8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035cc:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035d0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035d4:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035d8:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035dc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035e0:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035e4:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035e8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035ec:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035f0:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    800035f4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800035f8:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    800035fc:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003600:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003604:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003608:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000360c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003610:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003614:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003618:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000361c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003620:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003624:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003628:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000362c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003630:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003634:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003638:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000363c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003640:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003644:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003648:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000364c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003650:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003654:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003658:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000365c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003660:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003664:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003668:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000366c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003670:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003674:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003678:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000367c:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003680:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003684:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003688:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    8000368c:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    80003690:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003694:	00553023          	sd	t0,0(a0)
+  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
+    80003698:	08053303          	ld	t1,128(a0)
+  addi     t0, t1, 1
+    8000369c:	00130293          	addi	t0,t1,1
+  .endr
+
+# Loop C: narrower load over a wider store (partial overlap)
+  .rept    64
+  sd       t0, 0(a0)
+    800036a0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036a4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036a8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036ac:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036b0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036b4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036b8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036bc:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036c0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036c4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036c8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036cc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036d0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036d4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036d8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036dc:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036e0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036e4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036e8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036ec:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036f0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800036f4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800036f8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800036fc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003700:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003704:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003708:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000370c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003710:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003714:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003718:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000371c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003720:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003724:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003728:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000372c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003730:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003734:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003738:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000373c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003740:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003744:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003748:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000374c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003750:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003754:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003758:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000375c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003760:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003764:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003768:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000376c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003770:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003774:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003778:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000377c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003780:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003784:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003788:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000378c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003790:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003794:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003798:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000379c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037a0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037a4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037a8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037ac:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037b0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037b4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037b8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037bc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037c0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037c4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037c8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037cc:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037d0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037d4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037d8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037dc:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037e0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037e4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037e8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037ec:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037f0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800037f4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800037f8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800037fc:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003800:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003804:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003808:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000380c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003810:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003814:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003818:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000381c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003820:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003824:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003828:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000382c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003830:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003834:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003838:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000383c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003840:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003844:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003848:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000384c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003850:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003854:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003858:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000385c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003860:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003864:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003868:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000386c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003870:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003874:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003878:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000387c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003880:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003884:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003888:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000388c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003890:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003894:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003898:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000389c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038a0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038a4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038a8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038ac:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038b0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038b4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038b8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038bc:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038c0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038c4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038c8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038cc:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038d0:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038d4:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038d8:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038dc:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038e0:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038e4:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038e8:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038ec:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038f0:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    800038f4:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    800038f8:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    800038fc:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003900:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003904:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003908:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000390c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003910:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003914:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003918:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000391c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003920:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003924:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003928:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000392c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003930:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003934:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003938:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000393c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003940:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003944:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003948:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000394c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003950:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003954:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003958:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000395c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003960:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003964:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003968:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000396c:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003970:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003974:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003978:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    8000397c:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003980:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003984:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003988:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    8000398c:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    80003990:	00130293          	addi	t0,t1,1
+  sd       t0, 0(a0)
+    80003994:	00553023          	sd	t0,0(a0)
+  lw       t1, 0(a0)                # word read of a doubleword store
+    80003998:	00052303          	lw	t1,0(a0)
+  addi     t0, t1, 1
+    8000399c:	00130293          	addi	t0,t1,1
+
+
+
+======================================================================
+RESULTS TABLE
+======================================================================
+METRIC                    |        OFFICIAL |             NET
+======================================================================
+Cycles                    |            1638 |            1598
+Instructions              |             603 |             586
+I-Cache Misses            |             149 |             146
+D-Cache Misses            |               2 |               2
+I-Cache Accesses          |            1107 |            1073
+D-Cache Accesses          |             395 |             386
+Branches                  |               0 |               0
+Branch Miss + Unpred      |               0 |               0
+Time (us)                 |              32 |              32
+IPC                       |          0.3681 |          0.3667
+======================================================================
+
+Clean result (OFFICIAL):  [1638, 603, 149, 2, 1107, 395, 0, 0, 32, 0.3681]
+Clean result (NET):       [1598, 586, 146, 2, 1073, 386, 0, 0, 32, 0.3667]
+

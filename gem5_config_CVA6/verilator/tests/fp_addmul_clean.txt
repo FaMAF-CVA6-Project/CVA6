@@ -1,0 +1,479 @@
+  li       t0, 0x3F800000           # 1.0f
+    8000307e:	3f8002b7          	lui	t0,0x3f800
+  fmv.w.x  f0, t0
+    80003082:	f0028053          	fmv.w.x	ft0,t0
+  li       t0, 0x38D1B717           # about 1e-4f, keeps the sum small
+    80003086:	38d1b2b7          	lui	t0,0x38d1b
+    8000308a:	7172829b          	addiw	t0,t0,1815
+  fmv.w.x  f1, t0
+    8000308e:	f00280d3          	fmv.w.x	ft1,t0
+  li       t0, 0x3FF0000000000000   # 1.0
+    80003092:	3ff0029b          	addiw	t0,zero,1023
+    80003096:	12d2                	slli	t0,t0,0x34
+  fmv.d.x  f2, t0
+    80003098:	f2028153          	fmv.d.x	ft2,t0
+  li       t0, 0x3F1A36E2EB1C432D   # about 1e-4
+    8000309c:	003f22b7          	lui	t0,0x3f2
+    800030a0:	a372829b          	addiw	t0,t0,-1481
+    800030a4:	02ba                	slli	t0,t0,0xe
+    800030a6:	8bb28293          	addi	t0,t0,-1861 # 3f18bb <CSR_MHPMCOUNTER8+0x3f0db3>
+    800030aa:	02b2                	slli	t0,t0,0xc
+    800030ac:	c7128293          	addi	t0,t0,-911
+    800030b0:	02ba                	slli	t0,t0,0xe
+    800030b2:	32d28293          	addi	t0,t0,813
+  fmv.d.x  f3, t0
+    800030b6:	f20281d3          	fmv.d.x	ft3,t0
+
+# single-precision add chain
+  .rept    64
+  fadd.s   f0, f0, f1
+    800030ba:	00107053          	fadd.s	ft0,ft0,ft1
+    800030be:	00107053          	fadd.s	ft0,ft0,ft1
+    800030c2:	00107053          	fadd.s	ft0,ft0,ft1
+    800030c6:	00107053          	fadd.s	ft0,ft0,ft1
+    800030ca:	00107053          	fadd.s	ft0,ft0,ft1
+    800030ce:	00107053          	fadd.s	ft0,ft0,ft1
+    800030d2:	00107053          	fadd.s	ft0,ft0,ft1
+    800030d6:	00107053          	fadd.s	ft0,ft0,ft1
+    800030da:	00107053          	fadd.s	ft0,ft0,ft1
+    800030de:	00107053          	fadd.s	ft0,ft0,ft1
+    800030e2:	00107053          	fadd.s	ft0,ft0,ft1
+    800030e6:	00107053          	fadd.s	ft0,ft0,ft1
+    800030ea:	00107053          	fadd.s	ft0,ft0,ft1
+    800030ee:	00107053          	fadd.s	ft0,ft0,ft1
+    800030f2:	00107053          	fadd.s	ft0,ft0,ft1
+    800030f6:	00107053          	fadd.s	ft0,ft0,ft1
+    800030fa:	00107053          	fadd.s	ft0,ft0,ft1
+    800030fe:	00107053          	fadd.s	ft0,ft0,ft1
+    80003102:	00107053          	fadd.s	ft0,ft0,ft1
+    80003106:	00107053          	fadd.s	ft0,ft0,ft1
+    8000310a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000310e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003112:	00107053          	fadd.s	ft0,ft0,ft1
+    80003116:	00107053          	fadd.s	ft0,ft0,ft1
+    8000311a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000311e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003122:	00107053          	fadd.s	ft0,ft0,ft1
+    80003126:	00107053          	fadd.s	ft0,ft0,ft1
+    8000312a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000312e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003132:	00107053          	fadd.s	ft0,ft0,ft1
+    80003136:	00107053          	fadd.s	ft0,ft0,ft1
+    8000313a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000313e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003142:	00107053          	fadd.s	ft0,ft0,ft1
+    80003146:	00107053          	fadd.s	ft0,ft0,ft1
+    8000314a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000314e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003152:	00107053          	fadd.s	ft0,ft0,ft1
+    80003156:	00107053          	fadd.s	ft0,ft0,ft1
+    8000315a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000315e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003162:	00107053          	fadd.s	ft0,ft0,ft1
+    80003166:	00107053          	fadd.s	ft0,ft0,ft1
+    8000316a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000316e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003172:	00107053          	fadd.s	ft0,ft0,ft1
+    80003176:	00107053          	fadd.s	ft0,ft0,ft1
+    8000317a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000317e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003182:	00107053          	fadd.s	ft0,ft0,ft1
+    80003186:	00107053          	fadd.s	ft0,ft0,ft1
+    8000318a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000318e:	00107053          	fadd.s	ft0,ft0,ft1
+    80003192:	00107053          	fadd.s	ft0,ft0,ft1
+    80003196:	00107053          	fadd.s	ft0,ft0,ft1
+    8000319a:	00107053          	fadd.s	ft0,ft0,ft1
+    8000319e:	00107053          	fadd.s	ft0,ft0,ft1
+    800031a2:	00107053          	fadd.s	ft0,ft0,ft1
+    800031a6:	00107053          	fadd.s	ft0,ft0,ft1
+    800031aa:	00107053          	fadd.s	ft0,ft0,ft1
+    800031ae:	00107053          	fadd.s	ft0,ft0,ft1
+    800031b2:	00107053          	fadd.s	ft0,ft0,ft1
+    800031b6:	00107053          	fadd.s	ft0,ft0,ft1
+  .endr
+
+# double-precision add chain
+  .rept    64
+  fadd.d   f2, f2, f3
+    800031ba:	02317153          	fadd.d	ft2,ft2,ft3
+    800031be:	02317153          	fadd.d	ft2,ft2,ft3
+    800031c2:	02317153          	fadd.d	ft2,ft2,ft3
+    800031c6:	02317153          	fadd.d	ft2,ft2,ft3
+    800031ca:	02317153          	fadd.d	ft2,ft2,ft3
+    800031ce:	02317153          	fadd.d	ft2,ft2,ft3
+    800031d2:	02317153          	fadd.d	ft2,ft2,ft3
+    800031d6:	02317153          	fadd.d	ft2,ft2,ft3
+    800031da:	02317153          	fadd.d	ft2,ft2,ft3
+    800031de:	02317153          	fadd.d	ft2,ft2,ft3
+    800031e2:	02317153          	fadd.d	ft2,ft2,ft3
+    800031e6:	02317153          	fadd.d	ft2,ft2,ft3
+    800031ea:	02317153          	fadd.d	ft2,ft2,ft3
+    800031ee:	02317153          	fadd.d	ft2,ft2,ft3
+    800031f2:	02317153          	fadd.d	ft2,ft2,ft3
+    800031f6:	02317153          	fadd.d	ft2,ft2,ft3
+    800031fa:	02317153          	fadd.d	ft2,ft2,ft3
+    800031fe:	02317153          	fadd.d	ft2,ft2,ft3
+    80003202:	02317153          	fadd.d	ft2,ft2,ft3
+    80003206:	02317153          	fadd.d	ft2,ft2,ft3
+    8000320a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000320e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003212:	02317153          	fadd.d	ft2,ft2,ft3
+    80003216:	02317153          	fadd.d	ft2,ft2,ft3
+    8000321a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000321e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003222:	02317153          	fadd.d	ft2,ft2,ft3
+    80003226:	02317153          	fadd.d	ft2,ft2,ft3
+    8000322a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000322e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003232:	02317153          	fadd.d	ft2,ft2,ft3
+    80003236:	02317153          	fadd.d	ft2,ft2,ft3
+    8000323a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000323e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003242:	02317153          	fadd.d	ft2,ft2,ft3
+    80003246:	02317153          	fadd.d	ft2,ft2,ft3
+    8000324a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000324e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003252:	02317153          	fadd.d	ft2,ft2,ft3
+    80003256:	02317153          	fadd.d	ft2,ft2,ft3
+    8000325a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000325e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003262:	02317153          	fadd.d	ft2,ft2,ft3
+    80003266:	02317153          	fadd.d	ft2,ft2,ft3
+    8000326a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000326e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003272:	02317153          	fadd.d	ft2,ft2,ft3
+    80003276:	02317153          	fadd.d	ft2,ft2,ft3
+    8000327a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000327e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003282:	02317153          	fadd.d	ft2,ft2,ft3
+    80003286:	02317153          	fadd.d	ft2,ft2,ft3
+    8000328a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000328e:	02317153          	fadd.d	ft2,ft2,ft3
+    80003292:	02317153          	fadd.d	ft2,ft2,ft3
+    80003296:	02317153          	fadd.d	ft2,ft2,ft3
+    8000329a:	02317153          	fadd.d	ft2,ft2,ft3
+    8000329e:	02317153          	fadd.d	ft2,ft2,ft3
+    800032a2:	02317153          	fadd.d	ft2,ft2,ft3
+    800032a6:	02317153          	fadd.d	ft2,ft2,ft3
+    800032aa:	02317153          	fadd.d	ft2,ft2,ft3
+    800032ae:	02317153          	fadd.d	ft2,ft2,ft3
+    800032b2:	02317153          	fadd.d	ft2,ft2,ft3
+    800032b6:	02317153          	fadd.d	ft2,ft2,ft3
+  .endr
+
+# single-precision multiply chain
+  li       t0, 0x3F800001           # just above 1.0f
+    800032ba:	3f8002b7          	lui	t0,0x3f800
+    800032be:	2285                	addiw	t0,t0,1
+  fmv.w.x  f4, t0
+    800032c0:	f0028253          	fmv.w.x	ft4,t0
+  li       t0, 0x3F800000           # 1.0f
+    800032c4:	3f8002b7          	lui	t0,0x3f800
+  fmv.w.x  f5, t0
+    800032c8:	f00282d3          	fmv.w.x	ft5,t0
+  .rept    64
+  fmul.s   f5, f5, f4
+    800032cc:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032d0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032d4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032d8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032dc:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032e0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032e4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032e8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032ec:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032f0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032f4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032f8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800032fc:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003300:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003304:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003308:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000330c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003310:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003314:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003318:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000331c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003320:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003324:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003328:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000332c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003330:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003334:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003338:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000333c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003340:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003344:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003348:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000334c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003350:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003354:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003358:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000335c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003360:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003364:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003368:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000336c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003370:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003374:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003378:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000337c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003380:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003384:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003388:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000338c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003390:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003394:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    80003398:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    8000339c:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033a0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033a4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033a8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033ac:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033b0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033b4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033b8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033bc:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033c0:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033c4:	1042f2d3          	fmul.s	ft5,ft5,ft4
+    800033c8:	1042f2d3          	fmul.s	ft5,ft5,ft4
+  .endr
+
+# double-precision multiply chain
+  li       t0, 0x3FF0000000000001   # just above 1.0
+    800033cc:	3ff0029b          	addiw	t0,zero,1023
+    800033d0:	12d2                	slli	t0,t0,0x34
+    800033d2:	0285                	addi	t0,t0,1
+  fmv.d.x  f6, t0
+    800033d4:	f2028353          	fmv.d.x	ft6,t0
+  li       t0, 0x3FF0000000000000   # 1.0
+    800033d8:	3ff0029b          	addiw	t0,zero,1023
+    800033dc:	12d2                	slli	t0,t0,0x34
+  fmv.d.x  f7, t0
+    800033de:	f20283d3          	fmv.d.x	ft7,t0
+  .rept    64
+  fmul.d   f7, f7, f6
+    800033e2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033e6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033ea:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033ee:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033f2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033f6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033fa:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800033fe:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003402:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003406:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000340a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000340e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003412:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003416:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000341a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000341e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003422:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003426:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000342a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000342e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003432:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003436:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000343a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000343e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003442:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003446:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000344a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000344e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003452:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003456:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000345a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000345e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003462:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003466:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000346a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000346e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003472:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003476:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000347a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000347e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003482:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003486:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000348a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000348e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003492:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    80003496:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000349a:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    8000349e:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034a2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034a6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034aa:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034ae:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034b2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034b6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034ba:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034be:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034c2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034c6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034ca:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034ce:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034d2:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034d6:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034da:	1263f3d3          	fmul.d	ft7,ft7,ft6
+    800034de:	1263f3d3          	fmul.d	ft7,ft7,ft6
+  .endr
+
+# fused multiply-add chains, both precisions
+  .rept    64
+  fmadd.s  f0, f0, f1, f0
+    800034e2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034e6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034ea:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034ee:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034f2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034f6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034fa:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800034fe:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003502:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003506:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000350a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000350e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003512:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003516:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000351a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000351e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003522:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003526:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000352a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000352e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003532:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003536:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000353a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000353e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003542:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003546:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000354a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000354e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003552:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003556:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000355a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000355e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003562:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003566:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000356a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000356e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003572:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003576:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000357a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000357e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003582:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003586:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000358a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000358e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003592:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    80003596:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000359a:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    8000359e:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035a2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035a6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035aa:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035ae:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035b2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035b6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035ba:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035be:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035c2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035c6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035ca:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035ce:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035d2:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035d6:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035da:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+    800035de:	00107043          	fmadd.s	ft0,ft0,ft1,ft0
+  .endr
+  .rept    64
+  fmadd.d  f2, f2, f3, f2
+    800035e2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035e6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035ea:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035ee:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035f2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035f6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035fa:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800035fe:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003602:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003606:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000360a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000360e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003612:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003616:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000361a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000361e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003622:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003626:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000362a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000362e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003632:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003636:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000363a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000363e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003642:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003646:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000364a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000364e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003652:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003656:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000365a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000365e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003662:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003666:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000366a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000366e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003672:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003676:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000367a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000367e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003682:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003686:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000368a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000368e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003692:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    80003696:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000369a:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    8000369e:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036a2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036a6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036aa:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036ae:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036b2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036b6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036ba:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036be:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036c2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036c6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036ca:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036ce:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036d2:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036d6:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036da:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+    800036de:	12317143          	fmadd.d	ft2,ft2,ft3,ft2
+
+
+
+======================================================================
+RESULTS TABLE
+======================================================================
+METRIC                    |        OFFICIAL |             NET
+======================================================================
+Cycles                    |            1411 |            1371
+Instructions              |             430 |             413
+I-Cache Misses            |             106 |             103
+D-Cache Misses            |               0 |               0
+I-Cache Accesses          |             768 |             734
+D-Cache Accesses          |               9 |               0
+Branches                  |               0 |               0
+Branch Miss + Unpred      |               0 |               0
+Time (us)                 |              28 |              28
+IPC                       |          0.3047 |          0.3012
+======================================================================
+
+Clean result (OFFICIAL):  [1411, 430, 106, 0, 768, 9, 0, 0, 28, 0.3047]
+Clean result (NET):       [1371, 413, 103, 0, 734, 0, 0, 0, 28, 0.3012]
+

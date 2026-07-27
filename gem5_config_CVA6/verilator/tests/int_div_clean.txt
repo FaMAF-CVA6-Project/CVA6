@@ -1,0 +1,914 @@
+# Loop A: large dividend / small divisor -> near worst case
+  li       t3, 0x7FFFFFFFFFFFFFFF
+    8000307e:	fff00e1b          	addiw	t3,zero,-1
+    80003082:	1e7e                	slli	t3,t3,0x3f
+    80003084:	1e7d                	addi	t3,t3,-1
+  li       t1, 3
+    80003086:	430d                	li	t1,3
+  .rept    48
+  div      t0, t3, t1               # big / small
+    80003088:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000308c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003090:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003094:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003098:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000309c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030a0:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030a4:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030a8:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030ac:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030b0:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030b4:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030b8:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030bc:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030c0:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030c4:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030c8:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030cc:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030d0:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030d4:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030d8:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030dc:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030e0:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030e4:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030e8:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030ec:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030f0:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800030f4:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800030f8:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800030fc:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003100:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003104:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003108:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000310c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003110:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003114:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003118:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000311c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003120:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003124:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003128:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000312c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003130:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003134:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003138:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000313c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003140:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003144:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003148:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000314c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003150:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003154:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003158:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000315c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003160:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003164:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003168:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000316c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003170:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003174:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003178:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000317c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003180:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003184:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003188:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000318c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003190:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003194:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003198:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000319c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031a0:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031a4:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031a8:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031ac:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031b0:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031b4:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031b8:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031bc:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031c0:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031c4:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031c8:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031cc:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031d0:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031d4:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031d8:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031dc:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031e0:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031e4:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031e8:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031ec:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031f0:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800031f4:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800031f8:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800031fc:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003200:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003204:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003208:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000320c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003210:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003214:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003218:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000321c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003220:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003224:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003228:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000322c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003230:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003234:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003238:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000323c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003240:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003244:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003248:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000324c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003250:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003254:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003258:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000325c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003260:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003264:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003268:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000326c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003270:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003274:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003278:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    8000327c:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003280:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003284:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003288:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    8000328c:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    80003290:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    80003294:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    80003298:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    8000329c:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800032a0:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800032a4:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800032a8:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800032ac:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800032b0:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800032b4:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800032b8:	00136313          	ori	t1,t1,1
+  div      t0, t3, t1               # big / small
+    800032bc:	026e42b3          	div	t0,t3,t1
+  andi     t1, t0, 7                # next divisor from result, stays small
+    800032c0:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1                # never zero
+    800032c4:	00136313          	ori	t1,t1,1
+  .endr
+
+# Loop B: small dividend / large divisor -> best case
+  li       t3, 1
+    800032c8:	4e05                	li	t3,1
+  li       t1, 0x4000000000000000   # not 0x7FFF..., which would overflow
+    800032ca:	0010031b          	addiw	t1,zero,1
+    800032ce:	137a                	slli	t1,t1,0x3e
+  .rept    48                       # to negative on the first add below
+  div      t0, t3, t1               # 1 / huge = 0
+    800032d0:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800032d4:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800032d8:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800032da:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800032de:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800032e2:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800032e4:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800032e8:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800032ec:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800032ee:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800032f2:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800032f6:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800032f8:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800032fc:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003300:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003302:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003306:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000330a:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000330c:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003310:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003314:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003316:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000331a:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000331e:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003320:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003324:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003328:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000332a:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000332e:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003332:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003334:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003338:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000333c:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000333e:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003342:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003346:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003348:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000334c:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003350:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003352:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003356:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000335a:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000335c:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003360:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003364:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003366:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000336a:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000336e:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003370:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003374:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003378:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000337a:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000337e:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003382:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003384:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003388:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000338c:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000338e:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003392:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003396:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003398:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000339c:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033a0:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033a2:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033a6:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033aa:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033ac:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033b0:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033b4:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033b6:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033ba:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033be:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033c0:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033c4:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033c8:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033ca:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033ce:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033d2:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033d4:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033d8:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033dc:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033de:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033e2:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033e6:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033e8:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033ec:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033f0:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033f2:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800033f6:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800033fa:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800033fc:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003400:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003404:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003406:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000340a:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000340e:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003410:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003414:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003418:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000341a:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000341e:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003422:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003424:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003428:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000342c:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000342e:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003432:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003436:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003438:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000343c:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003440:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003442:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003446:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000344a:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000344c:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003450:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003454:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003456:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000345a:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000345e:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003460:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003464:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003468:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000346a:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000346e:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003472:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003474:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003478:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000347c:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000347e:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003482:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003486:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003488:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    8000348c:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    80003490:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    80003492:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    80003496:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    8000349a:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    8000349c:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800034a0:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800034a4:	9316                	add	t1,t1,t0
+  div      t0, t3, t1               # 1 / huge = 0
+    800034a6:	026e42b3          	div	t0,t3,t1
+  ori      t0, t0, 1
+    800034aa:	0012e293          	ori	t0,t0,1
+  add      t1, t1, t0               # keep the chain, divisor stays huge and positive
+    800034ae:	9316                	add	t1,t1,t0
+  .endr
+
+# Loop C: remainder form, same worst-case shape
+  li       t3, 0x7FFFFFFFFFFFFFFF
+    800034b0:	fff00e1b          	addiw	t3,zero,-1
+    800034b4:	1e7e                	slli	t3,t3,0x3f
+    800034b6:	1e7d                	addi	t3,t3,-1
+  li       t1, 5
+    800034b8:	4315                	li	t1,5
+  .rept    48
+  rem      t0, t3, t1
+    800034ba:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034be:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034c2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800034c6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034ca:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034ce:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800034d2:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034d6:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034da:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800034de:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034e2:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034e6:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800034ea:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034ee:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034f2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800034f6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800034fa:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800034fe:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003502:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003506:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000350a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000350e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003512:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003516:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000351a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000351e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003522:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003526:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000352a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000352e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003532:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003536:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000353a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000353e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003542:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003546:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000354a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000354e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003552:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003556:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000355a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000355e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003562:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003566:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000356a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000356e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003572:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003576:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000357a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000357e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003582:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003586:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000358a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000358e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003592:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003596:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000359a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000359e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035a2:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035a6:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035aa:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035ae:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035b2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035b6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035ba:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035be:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035c2:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035c6:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035ca:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035ce:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035d2:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035d6:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035da:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035de:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035e2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035e6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035ea:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035ee:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035f2:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800035f6:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800035fa:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800035fe:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003602:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003606:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000360a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000360e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003612:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003616:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000361a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000361e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003622:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003626:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000362a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000362e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003632:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003636:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000363a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000363e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003642:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003646:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000364a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000364e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003652:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003656:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000365a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000365e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003662:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003666:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000366a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000366e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003672:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003676:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000367a:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000367e:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    80003682:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003686:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    8000368a:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000368e:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    80003692:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    80003696:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    8000369a:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    8000369e:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036a2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036a6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036aa:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036ae:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036b2:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036b6:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036ba:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036be:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036c2:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036c6:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036ca:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036ce:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036d2:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036d6:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036da:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036de:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036e2:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036e6:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036ea:	00136313          	ori	t1,t1,1
+  rem      t0, t3, t1
+    800036ee:	026e62b3          	rem	t0,t3,t1
+  andi     t1, t0, 7
+    800036f2:	0072f313          	andi	t1,t0,7
+  ori      t1, t1, 1
+    800036f6:	00136313          	ori	t1,t1,1
+
+
+
+======================================================================
+RESULTS TABLE
+======================================================================
+METRIC                    |        OFFICIAL |             NET
+======================================================================
+Cycles                    |            6790 |            6750
+Instructions              |             460 |             443
+I-Cache Misses            |             107 |             104
+D-Cache Misses            |               0 |               0
+I-Cache Accesses          |             824 |             790
+D-Cache Accesses          |               9 |               0
+Branches                  |               0 |               0
+Branch Miss + Unpred      |               0 |               0
+Time (us)                 |             135 |             135
+IPC                       |          0.0677 |          0.0656
+======================================================================
+
+Clean result (OFFICIAL):  [6790, 460, 107, 0, 824, 9, 0, 0, 135, 0.0677]
+Clean result (NET):       [6750, 443, 104, 0, 790, 0, 0, 0, 135, 0.0656]
+
