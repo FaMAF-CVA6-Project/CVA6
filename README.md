@@ -47,10 +47,21 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `benchmarks/gem5/`                              | gem5 benchmarks and `run_gem5.py` (runs the same test on gem5, writes the trace, prints metrics).  |
 | `viewers/MinorFlow`                             | The MinorFlow visualizer, as a submodule.                                                          |
 | `viewers/CVA6Flow`                              | The CVA6Flow visualizer, as a submodule.                                                           |
-| `our_docs/`                                     | The project's own documentation.                                                                   |
+| `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                      |
 
 Everything else (`common/`, `util/`, `pd/`, `spyglass/`, `ci/`, `cva6_docs/` and so on) is standard upstream CVA6.
+
+## The benchmarks
+
+`benchmarks/` holds the test programs used in the project plus the driver scripts that run them on each simulator. Both drivers accept the same C and assembly tests and print the same metrics table, so results from CVA6 and gem5 can be compared directly.
+
+- `benchmarks/verilator/`: the CVA6 tests and `run_verilator.py` (runs on the CVA6 core).
+- `benchmarks/gem5/`: the gem5 tests and `run_gem5.py` (runs on the gem5 MinorCPU RISC-V model).
+
+Each folder also carries a `test_template.c` and a `test_template.S` to start a new test from. The template brackets the region to measure between `MAIN PROGRAM` and `END OF MAIN PROGRAM` comment markers: on the CVA6 side it reads the hardware performance counters around that region and leaves the deltas in `s2`–`s10`, and on the gem5 side it wraps the region in `m5_reset_stats` and `m5_dump_stats`. That region is what each driver measures and what it prints as disassembly, so writing a new test means filling it in.
+
+The scripts are kept here for version control, but each one is run inside its own Docker image, from the "Run a test" sections below.
 
 ## Prerequisites
 
@@ -175,10 +186,16 @@ gcc -Wall -Wextra -O3 -g -std=c99 -o <executable_name> <program_name>.c
 Then run it on the Verilated CVA6 to produce the VCD trace and the metrics table:
 
 ```bash
-python3 run_verilator.py cv64a6_imafdc_sv39_hpdcache <test>.c
+python3 run_verilator.py <target> <test> [--lang c|asm] [--no-vcd]
 ```
 
-`.S`, `.s` and `.asm` tests are auto-detected, and you can force the type with `--lang c|asm`. Add `--no-vcd` if you only want the metrics. Load the resulting VCD in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow).
+- `<target>`: the CVA6 configuration, for example `cv64a6_imafdc_sv39_hpdcache`.
+- `<test>`: a `.c` or `.S/.s/.asm` file. The type is auto-detected from the extension, and `--lang` forces it.
+- `--no-vcd`: skip the trace and report metrics only.
+
+It compiles the test, runs it on the Verilated CVA6, disassembles it, and prints a metrics table (cycles, instructions, cache misses and accesses, branches, mispredictions, time and IPC) with an overhead-corrected "net" column that discounts the fixed cost of the measurement code. The disassembly of the measured region and the table are also written to a `<test>_clean.txt` next to the compiled binary.
+
+A VCD is written by default. Load it in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow).
 
 ### Limitations and considerations
 
@@ -215,13 +232,19 @@ docker stop <container_name> # stop
 
 ### Run a test
 
-From the gem5 root, run a test to produce its debug trace and the metrics table:
+From the **gem5 root**, run a test to produce its debug trace and the metrics table:
 
 ```bash
-python3 run_gem5.py <config>.py <test>.c
+python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
 ```
 
-`<config>.py` is the gem5 MinorCPU configuration script. `.S`, `.s` and `.asm` tests are auto-detected, and `--no-trace` gives metrics only. The trace is written to `results/<test>_trace.txt`. Load it in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow).
+- `<config>.py`: the gem5 MinorCPU configuration script.
+- `<test>`: a `.c` or `.S/.s/.asm` file, auto-detected as above (`--lang` to force).
+- `--no-trace`: skip the trace and report metrics only.
+
+It compiles the test (linking gem5's `m5op.S` so the test can call `m5_reset_stats` and `m5_dump_stats`), runs gem5 into `results/`, disassembles the test, and prints the same metrics table as the CVA6 side, read from gem5's `stats.txt`.
+
+The trace is written to `results/<test>_trace.txt`. Load it in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow).
 
 ---
 
@@ -240,6 +263,6 @@ The CVA6 core and its dependencies are the work of the [OpenHW Group](https://gi
 
 Everything added by this project is the work of the FaMAF CVA6 Project and remains the copyright of its authors:
 
-- the benchmarks and run scripts under `benchmarks/`,
-- the documentation under `our_docs/`,
+- the benchmarks and run scripts under `benchmarks/`, MIT-licensed (see [benchmarks/LICENSE](benchmarks/LICENSE)),
+- the dockerfiles under `dockerfiles/`,
 - and the two visualizer submodules, [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow) and [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow), which are MIT-licensed in their own repositories.
