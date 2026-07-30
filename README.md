@@ -55,6 +55,7 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `gem5_config_CVA6/`                             | The gem5 configuration matched to CVA6, and the paired runs from both sides.                       |
 | `verilator_changes/`                            | Local changes to the Verilator harness. Work in progress.                                          |
 | `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
+| `LICENSE.FaMAF`                                 | MIT licence covering this project's own work.                                                      |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                      |
 
 Everything else (`common/`, `util/`, `pd/`, `spyglass/`, `ci/`, `cva6_docs/` and so on) is standard upstream CVA6.
@@ -311,10 +312,11 @@ Both are single, dependency-free HTML files with a live demo on GitHub Pages and
 
 The CVA6 core and its dependencies are the work of the [OpenHW Group](https://github.com/openhwgroup/cva6) and contributors, under their original licences (see `LICENSE`, `LICENSE.Berkeley` and `LICENSE.SiFive`), which are preserved here.
 
-Everything added by this project is the work of the FaMAF CVA6 Project and remains the copyright of its authors:
+Everything added by this project is the work of the FaMAF CVA6 Project and remains the copyright of its authors, released under the MIT Licence in [LICENSE.FaMAF](LICENSE.FaMAF):
 
 - the benchmarks and run scripts under `benchmarks/`,
 - the dockerfiles under `dockerfiles/`,
 - the gem5 configuration that matches CVA6 under `gem5_config_CVA6`,
 - the verilator changes under `verilator_changes`, 
-- and the two visualizer submodules, [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow) and [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow), which are MIT-licensed in their own repositories.
+- the documentation written for this fork, starting with this README,
+- and the two visualizer submodules, [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow) and [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow), which carry the same MIT licence in their own repositories.
