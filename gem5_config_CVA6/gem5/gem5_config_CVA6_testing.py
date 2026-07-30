@@ -45,25 +45,23 @@ from m5.objects import (  # type: ignore
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
 #
-#   1   matched baseline
-#   2   store forwarding re-enabled (isolate the LSQ patch)
-#   3   replay delay 2 -> 0 (isolate the re-request modelling)
-#   4   L1D replacement PLRU -> LRU (isolate the policy)
-#   5   L1I replacement random -> LRU (isolate the policy)
-#   6   fetch1FetchLimit 2 -> 1 (reproduce the fetch starvation)
-#   7   fetch1FetchLimit 2 -> 3 (fetch headroom check)
-#   8   Morillas 2025 branch predictor only (over our baseline)
-#   9   FU latency int_mul/fp_cvt/fp_noncomp +1 (execute-latency check)
-#  10   FU latency as 9 plus fp_addmul 3 -> 4 (double-precision check)
-#  11   LSQ requests queue 2 -> 4 (store-load throughput check)
-#  12   LSQ requests queue 2 -> 8 (store-load throughput check)
-#  13   LSQ store buffer 4 -> 8 (store-load throughput check)
-#  14   LSQ requests queue 8 and store buffer 8 (store-load throughput check)
-#
-# The full Morillas 2025 configuration is a separate path, not a TEST row,
-# because it changes the memory model, the cache line size and the whole FU
-# schedule, none of which fit the single-knob override mechanism. Select it
-# with USE_MORILLAS below.
+#   1   matched baseline                            workload: all
+#   2   store forwarding re-enabled (LSQ patch)     workload: store_fwd
+#   3   replay delay 2 -> 0 (LSQ patch)             workload: store_fwd
+#   4   L1D replacement PLRU -> LRU                 workload: full_test
+#   5   L1I replacement random -> LRU               workload: full_test
+#   6   fetch1FetchLimit 2 -> 1 (starvation)        workload: matmul_small
+#   7   fetch1FetchLimit 2 -> 3 (headroom)          workload: matmul_small
+#   8   Morillas 2025 branch predictor only         workload: branch_stress, full_test
+#   9   FU latency int_mul, fp_cvt, fp_noncomp +1   workload: daxpy, full_test
+#  10   FU latency as 9 plus fp_addmul 3 -> 4       workload: fp_addmul, daxpy, full_test
+#  11   LSQ requests queue 2 -> 4                   workload: store_fwd
+#  12   LSQ requests queue 2 -> 8                   workload: store_fwd
+#  13   LSQ store buffer 4 -> 8                     workload: store_fwd
+#  14   LSQ requests queue 8, store buffer 8        workload: store_fwd
+#  15   decodeInputBufferSize 1 -> 4                workload: daxpy, full_test
+#  16   decodeInputBufferSize 1 -> 8                workload: daxpy, full_test
+#  17   fetch2InputBufferSize 2 -> 4                workload: daxpy, full_test
 
 TEST = 1
 
@@ -91,6 +89,9 @@ TESTS = {
     12: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
     13: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
     14: ("LSQ queue 8 buffer 8",         {"executeLSQRequestsQueueSize": 8, "executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    15: ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    16: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    17: ("fetch2 buffer 2->4",           {"fetch2InputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
 }
 
 
@@ -345,7 +346,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = False
-        self.decodeInputBufferSize = 4
+        self.decodeInputBufferSize = 1
         self.decodeToExecuteForwardDelay = 1
         self.decodeInputWidth = 1
         self.decodeCycleInput = False
