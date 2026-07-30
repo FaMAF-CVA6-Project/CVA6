@@ -1,0 +1,225 @@
+
+programs/atomic_fence:     file format elf64-littleriscv
+
+
+Disassembly of section .text:
+
+00000000000100e8 <main>:
+main():
+   100e8:	4501                	li	a0,0
+   100ea:	4581                	li	a1,0
+   100ec:	388000ef          	jal	10474 <m5_reset_stats>
+   100f0:	00001517          	auipc	a0,0x1
+   100f4:	3e050513          	addi	a0,a0,992 # 114d0 <__DATA_BEGIN__>
+   100f8:	4281                	li	t0,0
+   100fa:	100535af          	lr.d	a1,(a0)
+   100fe:	00558613          	addi	a2,a1,5
+   10102:	18c536af          	sc.d	a3,a2,(a0)
+   10106:	100535af          	lr.d	a1,(a0)
+   1010a:	00558613          	addi	a2,a1,5
+   1010e:	18c536af          	sc.d	a3,a2,(a0)
+   10112:	100535af          	lr.d	a1,(a0)
+   10116:	00558613          	addi	a2,a1,5
+   1011a:	18c536af          	sc.d	a3,a2,(a0)
+   1011e:	100535af          	lr.d	a1,(a0)
+   10122:	00558613          	addi	a2,a1,5
+   10126:	18c536af          	sc.d	a3,a2,(a0)
+   1012a:	100535af          	lr.d	a1,(a0)
+   1012e:	00558613          	addi	a2,a1,5
+   10132:	18c536af          	sc.d	a3,a2,(a0)
+   10136:	100535af          	lr.d	a1,(a0)
+   1013a:	00558613          	addi	a2,a1,5
+   1013e:	18c536af          	sc.d	a3,a2,(a0)
+   10142:	100535af          	lr.d	a1,(a0)
+   10146:	00558613          	addi	a2,a1,5
+   1014a:	18c536af          	sc.d	a3,a2,(a0)
+   1014e:	100535af          	lr.d	a1,(a0)
+   10152:	00558613          	addi	a2,a1,5
+   10156:	18c536af          	sc.d	a3,a2,(a0)
+   1015a:	100535af          	lr.d	a1,(a0)
+   1015e:	00558613          	addi	a2,a1,5
+   10162:	18c536af          	sc.d	a3,a2,(a0)
+   10166:	100535af          	lr.d	a1,(a0)
+   1016a:	00558613          	addi	a2,a1,5
+   1016e:	18c536af          	sc.d	a3,a2,(a0)
+   10172:	100535af          	lr.d	a1,(a0)
+   10176:	00558613          	addi	a2,a1,5
+   1017a:	18c536af          	sc.d	a3,a2,(a0)
+   1017e:	100535af          	lr.d	a1,(a0)
+   10182:	00558613          	addi	a2,a1,5
+   10186:	18c536af          	sc.d	a3,a2,(a0)
+   1018a:	100535af          	lr.d	a1,(a0)
+   1018e:	00558613          	addi	a2,a1,5
+   10192:	18c536af          	sc.d	a3,a2,(a0)
+   10196:	100535af          	lr.d	a1,(a0)
+   1019a:	00558613          	addi	a2,a1,5
+   1019e:	18c536af          	sc.d	a3,a2,(a0)
+   101a2:	100535af          	lr.d	a1,(a0)
+   101a6:	00558613          	addi	a2,a1,5
+   101aa:	18c536af          	sc.d	a3,a2,(a0)
+   101ae:	100535af          	lr.d	a1,(a0)
+   101b2:	00558613          	addi	a2,a1,5
+   101b6:	18c536af          	sc.d	a3,a2,(a0)
+   101ba:	460d                	li	a2,3
+   101bc:	00c5372f          	amoadd.d	a4,a2,(a0)
+   101c0:	20c537af          	amoxor.d	a5,a2,(a0)
+   101c4:	40c5382f          	amoor.d	a6,a2,(a0)
+   101c8:	60c538af          	amoand.d	a7,a2,(a0)
+   101cc:	a0c5332f          	amomax.d	t1,a2,(a0)
+   101d0:	80c533af          	amomin.d	t2,a2,(a0)
+   101d4:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   101d8:	00c5372f          	amoadd.d	a4,a2,(a0)
+   101dc:	20c537af          	amoxor.d	a5,a2,(a0)
+   101e0:	40c5382f          	amoor.d	a6,a2,(a0)
+   101e4:	60c538af          	amoand.d	a7,a2,(a0)
+   101e8:	a0c5332f          	amomax.d	t1,a2,(a0)
+   101ec:	80c533af          	amomin.d	t2,a2,(a0)
+   101f0:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   101f4:	00c5372f          	amoadd.d	a4,a2,(a0)
+   101f8:	20c537af          	amoxor.d	a5,a2,(a0)
+   101fc:	40c5382f          	amoor.d	a6,a2,(a0)
+   10200:	60c538af          	amoand.d	a7,a2,(a0)
+   10204:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10208:	80c533af          	amomin.d	t2,a2,(a0)
+   1020c:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10210:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10214:	20c537af          	amoxor.d	a5,a2,(a0)
+   10218:	40c5382f          	amoor.d	a6,a2,(a0)
+   1021c:	60c538af          	amoand.d	a7,a2,(a0)
+   10220:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10224:	80c533af          	amomin.d	t2,a2,(a0)
+   10228:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   1022c:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10230:	20c537af          	amoxor.d	a5,a2,(a0)
+   10234:	40c5382f          	amoor.d	a6,a2,(a0)
+   10238:	60c538af          	amoand.d	a7,a2,(a0)
+   1023c:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10240:	80c533af          	amomin.d	t2,a2,(a0)
+   10244:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10248:	00c5372f          	amoadd.d	a4,a2,(a0)
+   1024c:	20c537af          	amoxor.d	a5,a2,(a0)
+   10250:	40c5382f          	amoor.d	a6,a2,(a0)
+   10254:	60c538af          	amoand.d	a7,a2,(a0)
+   10258:	a0c5332f          	amomax.d	t1,a2,(a0)
+   1025c:	80c533af          	amomin.d	t2,a2,(a0)
+   10260:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10264:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10268:	20c537af          	amoxor.d	a5,a2,(a0)
+   1026c:	40c5382f          	amoor.d	a6,a2,(a0)
+   10270:	60c538af          	amoand.d	a7,a2,(a0)
+   10274:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10278:	80c533af          	amomin.d	t2,a2,(a0)
+   1027c:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10280:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10284:	20c537af          	amoxor.d	a5,a2,(a0)
+   10288:	40c5382f          	amoor.d	a6,a2,(a0)
+   1028c:	60c538af          	amoand.d	a7,a2,(a0)
+   10290:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10294:	80c533af          	amomin.d	t2,a2,(a0)
+   10298:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   1029c:	00c5372f          	amoadd.d	a4,a2,(a0)
+   102a0:	20c537af          	amoxor.d	a5,a2,(a0)
+   102a4:	40c5382f          	amoor.d	a6,a2,(a0)
+   102a8:	60c538af          	amoand.d	a7,a2,(a0)
+   102ac:	a0c5332f          	amomax.d	t1,a2,(a0)
+   102b0:	80c533af          	amomin.d	t2,a2,(a0)
+   102b4:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   102b8:	00c5372f          	amoadd.d	a4,a2,(a0)
+   102bc:	20c537af          	amoxor.d	a5,a2,(a0)
+   102c0:	40c5382f          	amoor.d	a6,a2,(a0)
+   102c4:	60c538af          	amoand.d	a7,a2,(a0)
+   102c8:	a0c5332f          	amomax.d	t1,a2,(a0)
+   102cc:	80c533af          	amomin.d	t2,a2,(a0)
+   102d0:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   102d4:	00c5372f          	amoadd.d	a4,a2,(a0)
+   102d8:	20c537af          	amoxor.d	a5,a2,(a0)
+   102dc:	40c5382f          	amoor.d	a6,a2,(a0)
+   102e0:	60c538af          	amoand.d	a7,a2,(a0)
+   102e4:	a0c5332f          	amomax.d	t1,a2,(a0)
+   102e8:	80c533af          	amomin.d	t2,a2,(a0)
+   102ec:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   102f0:	00c5372f          	amoadd.d	a4,a2,(a0)
+   102f4:	20c537af          	amoxor.d	a5,a2,(a0)
+   102f8:	40c5382f          	amoor.d	a6,a2,(a0)
+   102fc:	60c538af          	amoand.d	a7,a2,(a0)
+   10300:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10304:	80c533af          	amomin.d	t2,a2,(a0)
+   10308:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   1030c:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10310:	20c537af          	amoxor.d	a5,a2,(a0)
+   10314:	40c5382f          	amoor.d	a6,a2,(a0)
+   10318:	60c538af          	amoand.d	a7,a2,(a0)
+   1031c:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10320:	80c533af          	amomin.d	t2,a2,(a0)
+   10324:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10328:	00c5372f          	amoadd.d	a4,a2,(a0)
+   1032c:	20c537af          	amoxor.d	a5,a2,(a0)
+   10330:	40c5382f          	amoor.d	a6,a2,(a0)
+   10334:	60c538af          	amoand.d	a7,a2,(a0)
+   10338:	a0c5332f          	amomax.d	t1,a2,(a0)
+   1033c:	80c533af          	amomin.d	t2,a2,(a0)
+   10340:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10344:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10348:	20c537af          	amoxor.d	a5,a2,(a0)
+   1034c:	40c5382f          	amoor.d	a6,a2,(a0)
+   10350:	60c538af          	amoand.d	a7,a2,(a0)
+   10354:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10358:	80c533af          	amomin.d	t2,a2,(a0)
+   1035c:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   10360:	00c5372f          	amoadd.d	a4,a2,(a0)
+   10364:	20c537af          	amoxor.d	a5,a2,(a0)
+   10368:	40c5382f          	amoor.d	a6,a2,(a0)
+   1036c:	60c538af          	amoand.d	a7,a2,(a0)
+   10370:	a0c5332f          	amomax.d	t1,a2,(a0)
+   10374:	80c533af          	amomin.d	t2,a2,(a0)
+   10378:	08c53e2f          	amoswap.d	t3,a2,(a0)
+   1037c:	e110                	sd	a2,0(a0)
+   1037e:	0ff0000f          	fence
+   10382:	6114                	ld	a3,0(a0)
+   10384:	e110                	sd	a2,0(a0)
+   10386:	0ff0000f          	fence
+   1038a:	6114                	ld	a3,0(a0)
+   1038c:	e110                	sd	a2,0(a0)
+   1038e:	0ff0000f          	fence
+   10392:	6114                	ld	a3,0(a0)
+   10394:	e110                	sd	a2,0(a0)
+   10396:	0ff0000f          	fence
+   1039a:	6114                	ld	a3,0(a0)
+   1039c:	e110                	sd	a2,0(a0)
+   1039e:	0ff0000f          	fence
+   103a2:	6114                	ld	a3,0(a0)
+   103a4:	e110                	sd	a2,0(a0)
+   103a6:	0ff0000f          	fence
+   103aa:	6114                	ld	a3,0(a0)
+   103ac:	e110                	sd	a2,0(a0)
+   103ae:	0ff0000f          	fence
+   103b2:	6114                	ld	a3,0(a0)
+   103b4:	e110                	sd	a2,0(a0)
+   103b6:	0ff0000f          	fence
+   103ba:	6114                	ld	a3,0(a0)
+   103bc:	4501                	li	a0,0
+   103be:	4581                	li	a1,0
+   103c0:	0ba000ef          	jal	1047a <m5_dump_stats>
+
+
+
+======================================================================
+RESULTS TABLE
+======================================================================
+METRIC                    |        OFFICIAL |             NET
+======================================================================
+Cycles                    |             688 |             688
+Instructions              |             193 |             193
+I-Cache Misses            |              45 |              45
+D-Cache Misses            |               0 |               0
+I-Cache Accesses          |             193 |             193
+D-Cache Accesses          |              16 |              16
+Branches                  |               4 |               4
+Branch Miss + Unpred      |               2 |               2
+Time (us)                 |              14 |              14
+IPC                       |          0.2805 |          0.2805
+======================================================================
+
+Clean result (OFFICIAL):  [688, 193, 45, 0, 193, 16, 4, 2, 14, 0.2805]
+Clean result (NET):       [688, 193, 45, 0, 193, 16, 4, 2, 14, 0.2805]
+
