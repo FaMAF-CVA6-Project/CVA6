@@ -61,7 +61,7 @@ from m5.objects import (  # type: ignore
 #  14   LSQ requests queue 8, store buffer 8        workload: store_fwd
 #  15   decodeInputBufferSize 1 -> 4                workload: daxpy, full_test
 #  16   decodeInputBufferSize 1 -> 8                workload: daxpy, full_test
-#  17   fetch2InputBufferSize 2 -> 4                workload: daxpy, full_test
+#  17   fetch2InputBufferSize 2 -> 4                workload: fetch2_probe
 
 TEST = 1
 
