@@ -45,7 +45,6 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `core/`                                         | The CVA6 core RTL (SystemVerilog).                                                                 |
 | `corev_apu/`                                    | The SoC wrapper and testbench infrastructure.                                                      |
-| `config/`                                       | Core configuration, including the `cv64a6_imafdc_sv39_hpdcache_wb` target.                         |
 | `verif/`                                        | Verification and simulation harness (Verilator under `verif/sim`).                                 |
 | `vendor/`                                       | Vendored upstream dependencies, pinned so nothing is fetched.                                      |
 | `benchmarks/verilator/`                         | Verilator benchmarks, `run_verilator.py` and `run_all_verilator_benchmarks.py`. |
@@ -281,7 +280,7 @@ docker stop <container_name> # stop
 
 ### Run a test
 
-From the `/gem5.py`, run a test to produce its debug trace and the metrics table:
+From `/gem5`, run a test to produce its debug trace and the metrics table:
 
 ```bash
 python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
