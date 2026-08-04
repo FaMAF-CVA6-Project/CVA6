@@ -79,6 +79,10 @@ python3 run_all_gem5_benchmarks.py <config>.py [folder] [--no-trace]   # default
 
 They collect the C and assembly tests in the folder, skip the templates, run each one through the corresponding driver, and print a pass/fail summary with per-test timings at the end. A failing test does not stop the batch. Tests that share a name are reported up front as a warning, since the drivers name their outputs after the test and would overwrite each other. Add `-r` to include subfolders, or `--dry-run` to see the list and the name clashes without running anything.
 
+Every test that passes has its three files moved into a `batch_results/` folder, and its leftovers deleted: `run_results/`, and that test's files in the simulator's own output. So the whole batch lands in one folder instead of a trace per test spread across the tree. `--out-dir` picks a different folder.
+
+A test that **fails** is the exception: nothing of its is collected or deleted, so its output stays where the simulator wrote it and is still there when the batch ends. The final line says where. If nothing failed, the simulator's output folder goes too, since by then it holds nothing worth keeping.
+
 On the Verilator side only the first test builds the core. The rest reuse it through `--keep-build`, which is safe because the target and the trace setting are the same for the whole batch. Pass `--rebuild-each` to rebuild before every test.
 
 ### The calibration sweep
@@ -99,7 +103,7 @@ python3 run_CVA6_testing_sweep.py [--configs 1,4-6] [--tests-dir programs] [--no
 
 For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the three files out of `run_results/` into `CVA6_testing_sweep_results/` as `<test>_trace.config<N>.txt`, `<test>_clean.config<N>.txt` and `<test>.config<N>.list`, so one configuration never overwrites another. An entry whose workload is `all` runs the `DEFAULT_ALL_TESTS` list at the top of the script, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
 
-Once a run is collected its leftovers are deleted, both `run_results/` and `m5out/`. A debug trace runs to hundreds of megabytes and a full sweep is 33 runs, so keeping them would cost far more disk than the sweep is worth. A run that fails is left alone, since its output is what there is to debug with.
+Once a run is collected its leftovers are deleted: `run_results/`, and that run's files in `m5out/`. A run that **fails** is the exception: nothing of its is collected or deleted, so its output survives the rest of the sweep and is still in `m5out/` at the end. If nothing failed, `m5out/` goes too.
 
 Selecting a configuration means editing the config file, so the script backs it up and restores it when the sweep ends, fails or is interrupted. `--list` prints the plan without touching anything. A workload matching no file is reported with the closest filenames, and any configuration left with nothing to run is called out rather than skipped in silence.
 
