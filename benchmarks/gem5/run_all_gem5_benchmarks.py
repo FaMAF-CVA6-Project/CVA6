@@ -13,6 +13,7 @@ gem5 root, and the default test folder is relative to it.
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -28,6 +29,12 @@ RUNNER_NAME = "run_gem5.py"
 
 # What run_gem5.py needs from the gem5 root, used to check where we are.
 GEM5_BIN = os.path.join("build", "RISCV", "gem5.opt")
+
+# Where run_gem5.py has gem5 write, cleared after each collected run.
+GEM5_OUT_DIR = "m5out"
+
+# Where the batch gathers what it keeps, one folder for the whole run.
+DEFAULT_OUT_DIR = "batch_results"
 
 # Recognised test extensions, matching run_gem5.py. Case-sensitive: .S is
 # assembly and .s is too, but .c is the only C spelling accepted.
@@ -86,15 +93,86 @@ def warn_duplicates(tests, folder):
         return
 
     print(f"[WARN] {len(duplicates)} test name(s) appear more than once. "
-          f"run_gem5.py names its outputs after the program, so these runs "
-          f"overwrite each other's binary and their run_results/ trace, .list "
-          f"and _clean.txt:")
+          f"Outputs are named after the program, so these runs overwrite "
+          f"each other's binary and their collected trace, .list and "
+          f"_clean.txt:")
     for stem in sorted(duplicates):
         print(f"[WARN]   '{stem}':")
         for path in duplicates[stem]:
             print(f"[WARN]     {os.path.relpath(path, folder)}")
     print("[WARN] They will all be run. Keep the last one's results only, or "
           "rename them.\n")
+
+
+def driver_results_dir(runner):
+    """The run_results/ folder run_gem5.py copies its keepers into."""
+    return os.path.join(os.path.dirname(os.path.abspath(runner)),
+                        "run_results")
+
+
+def output_paths(results_dir, test_name):
+    """The three files run_gem5.py leaves in run_results/ for this test."""
+    return {
+        "trace": os.path.join(results_dir, f"{test_name}_trace.txt"),
+        "clean": os.path.join(results_dir, f"{test_name}_clean.txt"),
+        "list": os.path.join(results_dir, f"{test_name}.list"),
+    }
+
+
+def collect(results_dir, test_name, out_dir, want_trace):
+    """Move this run's three files into the batch's out folder."""
+    collected = 0
+    for key, source in output_paths(results_dir, test_name).items():
+        if key == "trace" and not want_trace:
+            continue
+        if not os.path.isfile(source):
+            print(f"[WARN] Expected output missing: {source}")
+            continue
+        try:
+            shutil.move(source, os.path.join(out_dir,
+                                             os.path.basename(source)))
+            collected += 1
+        except OSError as e:
+            print(f"[WARN] Could not collect {source}: {e}")
+
+    if collected:
+        print(f"[INFO] Collected {collected} file(s) into {out_dir}")
+    return collected
+
+
+def discard_run(results_dir, test_name):
+    """Delete what this run left behind, once it has been collected.
+
+    A debug trace runs to hundreds of megabytes and one is produced per run,
+    so keeping them would cost far more disk than the results are worth. Only
+    this test's files are removed, so a failed run's output survives the rest
+    of the batch."""
+    if os.path.isdir(results_dir):
+        shutil.rmtree(results_dir, ignore_errors=True)
+    for name in (f"{test_name}_trace.txt", f"{test_name}_clean.txt",
+                 f"{test_name}.list"):
+        path = os.path.join(GEM5_OUT_DIR, name)
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+def discard_gem5_out():
+    """Remove gem5's output folder, once nothing in it is worth keeping."""
+    if os.path.isdir(GEM5_OUT_DIR):
+        shutil.rmtree(GEM5_OUT_DIR, ignore_errors=True)
+
+
+def clear_stale_outputs(results_dir, test_name):
+    """Remove the previous run's files so nothing stale gets collected."""
+    for path in output_paths(results_dir, test_name).values():
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 def format_duration(seconds):
@@ -143,6 +221,9 @@ def main():
     parser.add_argument("folder", nargs="?", default=DEFAULT_TESTS_DIR,
                         help=f"Folder holding the tests. "
                              f"Defaults to {DEFAULT_TESTS_DIR}/")
+    parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
+                        help=f"Where to gather the results. Defaults to "
+                             f"{DEFAULT_OUT_DIR}/")
     parser.add_argument("--no-trace", action="store_true",
                         help="Forwarded to run_gem5.py: no debug trace, "
                              "metrics only")
@@ -185,6 +266,7 @@ def main():
     print(f"Folder   : {folder}")
     print(f"Config   : {args.config_file}")
     print(f"Runner   : {runner}")
+    print(f"Out dir  : {os.path.abspath(args.out_dir)}")
     print(f"Tracing  : "
           f"{'disabled (--no-trace)' if args.no_trace else 'enabled'}")
     print(SEP + "\n")
@@ -209,14 +291,21 @@ def main():
         print("[INFO] Dry run, nothing executed.")
         return 0
 
+    results_dir = driver_results_dir(runner)
+    out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
     results = []
     batch_start = time.time()
 
     for index, path in enumerate(tests, 1):
         name = os.path.basename(path)
+        test_name = os.path.splitext(name)[0]
         print("\n" + SEP)
         print(f"[{index}/{len(tests)}] {name}")
         print(SEP + "\n")
+
+        clear_stale_outputs(results_dir, test_name)
 
         cmd = [sys.executable, runner, args.config_file, path]
         if args.no_trace:
@@ -233,11 +322,23 @@ def main():
         elapsed = time.time() - start
 
         if code != 0:
+            # Leave this one where gem5 put it: its output is what there is
+            # to debug with.
             print(f"\n[WARN] '{name}' failed with exit code {code}. "
-                  f"Continuing with the rest.")
+                  f"Its output is left in place. Continuing with the rest.")
+        else:
+            collect(results_dir, test_name, out_dir, not args.no_trace)
+            discard_run(results_dir, test_name)
         results.append((name, code, elapsed))
 
     failed = print_summary(results, time.time() - batch_start)
+    print(f"[INFO] Results in {out_dir}")
+    if failed:
+        print(f"[INFO] The failed test(s) left their output in "
+              f"{os.path.abspath(GEM5_OUT_DIR)}")
+    else:
+        # Nothing in there is worth keeping now, so take the folder with it.
+        discard_gem5_out()
     return 1 if failed else 0
 
 

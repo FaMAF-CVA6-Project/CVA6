@@ -13,7 +13,9 @@ batch, so the rest run with run_verilator.py's --keep-build. Pass
 --rebuild-each to go back to rebuilding the core before every test.
 """
 import argparse
+import datetime
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -26,6 +28,11 @@ DEFAULT_TESTS_DIR = "/cva6/verif/tests/custom/FaMAF"
 
 # The driver this script delegates to, looked up next to it and then in cwd.
 RUNNER_NAME = "run_verilator.py"
+
+CVA6_ROOT = "/cva6"
+
+# Where the batch gathers what it keeps, one folder for the whole run.
+DEFAULT_OUT_DIR = "batch_results"
 
 # Recognised test extensions, matching run_verilator.py. Case-sensitive: .S
 # is assembly and .s is too, but .c is the only C spelling accepted.
@@ -84,14 +91,102 @@ def warn_duplicates(tests, folder):
         return
 
     print(f"[WARN] {len(duplicates)} test name(s) appear more than once. "
-          f"run_verilator.py names its outputs after the test, so these runs "
-          f"overwrite each other's log, binary, .list and _clean.txt:")
+          f"Outputs are named after the test, so these runs overwrite each "
+          f"other's collected .vcd, .list and _clean.txt:")
     for stem in sorted(duplicates):
         print(f"[WARN]   '{stem}':")
         for path in duplicates[stem]:
             print(f"[WARN]     {os.path.relpath(path, folder)}")
     print("[WARN] They will all be run. Keep the last one's results only, or "
           "rename them.\n")
+
+
+def driver_results_dir(runner):
+    """The run_results/ folder run_verilator.py copies its keepers into."""
+    return os.path.join(os.path.dirname(os.path.abspath(runner)),
+                        "run_results")
+
+
+def sim_output_dir():
+    """The simulation tree run_verilator.py writes: logs, VCD, binaries."""
+    today = datetime.date.today().strftime("%Y-%m-%d")
+    return os.path.join(CVA6_ROOT, "verif/sim", f"out_{today}")
+
+
+def output_paths(results_dir, test_name):
+    """The three files run_verilator.py leaves in run_results/ for this test."""
+    return {
+        "vcd": os.path.join(results_dir, f"{test_name}.vcd"),
+        "list": os.path.join(results_dir, f"{test_name}.list"),
+        "clean": os.path.join(results_dir, f"{test_name}_clean.txt"),
+    }
+
+
+def collect(results_dir, test_name, out_dir, want_vcd):
+    """Move this run's three files into the batch's out folder."""
+    collected = 0
+    for key, source in output_paths(results_dir, test_name).items():
+        if key == "vcd" and not want_vcd:
+            continue
+        if not os.path.isfile(source):
+            print(f"[WARN] Expected output missing: {source}")
+            continue
+        try:
+            shutil.move(source, os.path.join(out_dir,
+                                             os.path.basename(source)))
+            collected += 1
+        except OSError as e:
+            print(f"[WARN] Could not collect {source}: {e}")
+
+    if collected:
+        print(f"[INFO] Collected {collected} file(s) into {out_dir}")
+    return collected
+
+
+def sim_run_files(test_name, target):
+    """This test's files inside the simulation tree."""
+    log_dir = os.path.join(sim_output_dir(), "veri-testharness_sim")
+    bin_dir = os.path.join(sim_output_dir(), "directed_tests")
+    return [
+        os.path.join(log_dir, f"{test_name}.{target}.vcd"),
+        os.path.join(log_dir, f"{test_name}.{target}.log"),
+        os.path.join(bin_dir, f"{test_name}.o"),
+        os.path.join(bin_dir, f"{test_name}.list"),
+        os.path.join(bin_dir, f"{test_name}_clean.txt"),
+    ]
+
+
+def discard_run(results_dir, test_name, target):
+    """Delete what this run left behind, once it has been collected.
+
+    A VCD runs to hundreds of megabytes and a batch produces one per test, so
+    keeping them would cost far more disk than the batch is worth. Only this
+    test's files are removed, so a failed test's output survives the rest of
+    the batch."""
+    if os.path.isdir(results_dir):
+        shutil.rmtree(results_dir, ignore_errors=True)
+    for path in sim_run_files(test_name, target):
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+
+def discard_sim_tree():
+    """Remove the simulation tree, once nothing in it is worth keeping."""
+    if os.path.isdir(sim_output_dir()):
+        shutil.rmtree(sim_output_dir(), ignore_errors=True)
+
+
+def clear_stale_outputs(results_dir, test_name):
+    """Remove the previous run's files so nothing stale gets collected."""
+    for path in output_paths(results_dir, test_name).values():
+        if os.path.isfile(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 def format_duration(seconds):
@@ -141,6 +236,9 @@ def main():
     parser.add_argument("folder", nargs="?", default=DEFAULT_TESTS_DIR,
                         help=f"Folder holding the tests. "
                              f"Defaults to {DEFAULT_TESTS_DIR}")
+    parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
+                        help=f"Where to gather the results. Defaults to "
+                             f"{DEFAULT_OUT_DIR}/")
     parser.add_argument("--no-vcd", action="store_true",
                         help="Forwarded to run_verilator.py: no .vcd trace, "
                              "metrics only")
@@ -177,6 +275,7 @@ def main():
     print(f"Folder   : {folder}")
     print(f"Target   : {args.target}")
     print(f"Runner   : {runner}")
+    print(f"Out dir  : {os.path.abspath(args.out_dir)}")
     print(f"Tracing  : {'disabled (--no-vcd)' if args.no_vcd else 'enabled'}")
     print(f"Build    : "
           f"{'rebuilt before every test' if args.rebuild_each else 'built once, then reused'}")
@@ -202,14 +301,21 @@ def main():
         print("[INFO] Dry run, nothing executed.")
         return 0
 
+    results_dir = driver_results_dir(runner)
+    out_dir = os.path.abspath(args.out_dir)
+    os.makedirs(out_dir, exist_ok=True)
+
     results = []
     batch_start = time.time()
 
     for index, path in enumerate(tests, 1):
         name = os.path.basename(path)
+        test_name = os.path.splitext(name)[0]
         print("\n" + SEP)
         print(f"[{index}/{len(tests)}] {name}")
         print(SEP + "\n")
+
+        clear_stale_outputs(results_dir, test_name)
 
         cmd = [sys.executable, runner, args.target, path]
         if args.no_vcd:
@@ -231,11 +337,23 @@ def main():
         elapsed = time.time() - start
 
         if code != 0:
+            # Leave this one where the simulation put it: its output is what
+            # there is to debug with.
             print(f"\n[WARN] '{name}' failed with exit code {code}. "
-                  f"Continuing with the rest.")
+                  f"Its output is left in place. Continuing with the rest.")
+        else:
+            collect(results_dir, test_name, out_dir, not args.no_vcd)
+            discard_run(results_dir, test_name, args.target)
         results.append((name, code, elapsed))
 
     failed = print_summary(results, time.time() - batch_start)
+    print(f"[INFO] Results in {out_dir}")
+    if failed:
+        print(f"[INFO] The failed test(s) left their output under "
+              f"{sim_output_dir()}")
+    else:
+        # Nothing in there is worth keeping now, so take the tree with it.
+        discard_sim_tree()
     return 1 if failed else 0
 
 
