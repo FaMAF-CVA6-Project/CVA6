@@ -1,3 +1,79 @@
+  nop
+    8000307e:	0001                	nop
+
+0000000080003080 <$xrv64i2p1_m2p0_a2p1_f2p2_d2p2_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbkb1p0_zbkx1p0_zbs1p0_zknd1p0_zkne1p0_zknh1p0>:
+$xrv64i2p1_m2p0_a2p1_f2p2_d2p2_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbkb1p0_zbkx1p0_zbs1p0_zknd1p0_zkne1p0_zknh1p0():
+  .balign  16
+  .option  push
+  .option  norvc
+
+  li       t2, 8                    # outer passes over the stride buffer
+    80003080:	00800393          	li	t2,8
+
+0000000080003084 <fetch2_outer>:
+fetch2_outer():
+
+fetch2_outer:
+  la       a5, stride_buf
+    80003084:	00003797          	auipc	a5,0x3
+    80003088:	f7c78793          	addi	a5,a5,-132 # 80006000 <stride_buf>
+  li       t1, 512
+    8000308c:	20000313          	li	t1,512
+1:
+  ld       t3, 0(a5)                # misses, and the next address depends on it
+    80003090:	0007be03          	ld	t3,0(a5)
+  add      a5, a5, t3               # dependent, so the chain cannot overlap
+    80003094:	01c787b3          	add	a5,a5,t3
+  addi     t1, t1, -1
+    80003098:	fff30313          	addi	t1,t1,-1
+  bnez     t1, 1b                   # taken: everything fetched past here is waste
+    8000309c:	fe031ae3          	bnez	t1,80003090 <fetch2_outer+0xc>
+  j        2f                       # skip the pad, so it is never executed
+    800030a0:	0840006f          	j	80003124 <fetch2_outer+0xa0>
+  .rept    32
+  nop
+    800030a4:	00000013          	nop
+    800030a8:	00000013          	nop
+    800030ac:	00000013          	nop
+    800030b0:	00000013          	nop
+    800030b4:	00000013          	nop
+    800030b8:	00000013          	nop
+    800030bc:	00000013          	nop
+    800030c0:	00000013          	nop
+    800030c4:	00000013          	nop
+    800030c8:	00000013          	nop
+    800030cc:	00000013          	nop
+    800030d0:	00000013          	nop
+    800030d4:	00000013          	nop
+    800030d8:	00000013          	nop
+    800030dc:	00000013          	nop
+    800030e0:	00000013          	nop
+    800030e4:	00000013          	nop
+    800030e8:	00000013          	nop
+    800030ec:	00000013          	nop
+    800030f0:	00000013          	nop
+    800030f4:	00000013          	nop
+    800030f8:	00000013          	nop
+    800030fc:	00000013          	nop
+    80003100:	00000013          	nop
+    80003104:	00000013          	nop
+    80003108:	00000013          	nop
+    8000310c:	00000013          	nop
+    80003110:	00000013          	nop
+    80003114:	00000013          	nop
+    80003118:	00000013          	nop
+    8000311c:	00000013          	nop
+    80003120:	00000013          	nop
+  .endr
+2:
+  addi     t2, t2, -1
+    80003124:	fff38393          	addi	t2,t2,-1
+  bnez     t2, fetch2_outer
+    80003128:	f4039ee3          	bnez	t2,80003084 <fetch2_outer>
+
+000000008000312c <$xrv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbkb1p0_zbkx1p0_zbs1p0_zknd1p0_zkne1p0_zknh1p0>:
+$xrv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zifencei2p0_zmmul1p0_zba1p0_zbb1p0_zbc1p0_zbkb1p0_zbkx1p0_zbs1p0_zknd1p0_zkne1p0_zknh1p0():
+
 
 
 ======================================================================
