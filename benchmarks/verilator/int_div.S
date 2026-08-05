@@ -107,6 +107,24 @@ main:
   andi     t1, t0, 7
   ori      t1, t1, 1
   .endr
+
+# Loop D: independent stream, worst-case operands, rotating dests
+  li       t3, 0x7FFFFFFFFFFFFFFF
+  li       t1, 3
+  .rept    16
+  div      t4, t3, t1
+  div      t5, t3, t1
+  div      t6, t3, t1
+  .endr
+
+# Loop E: divw worst case, big 32-bit dividend / small divisor
+  li       t3, 0x7FFFFFFF
+  li       t1, 3
+  .rept    48
+  divw     t0, t3, t1
+  andi     t1, t0, 7
+  ori      t1, t1, 1
+  .endr
 # ---------------------------------------------------------
 # END OF MAIN PROGRAM
 # ---------------------------------------------------------
