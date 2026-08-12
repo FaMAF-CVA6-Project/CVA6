@@ -293,6 +293,7 @@ python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
 - `<config>.py`: the gem5 MinorCPU configuration script.
 - `<test>`: a `.c` or `.S/.s/.asm` file, auto-detected as above (`--lang` to force).
 - `--no-trace`: skip the trace and report metrics only.
+- anything else: passed on to the configuration script, so a configuration that defines its own options gets them here. Put them after a `--` when a flag takes a value or its name collides with one of the above.
 
 It compiles the test (linking gem5's `m5op.S` so the test can call `m5_reset_stats` and `m5_dump_stats`), runs gem5 into `m5out/`, disassembles the test, and prints the same metrics table as the CVA6 side, read from gem5's `stats.txt`.
 
