@@ -74,38 +74,40 @@ Each folder also has a batch runner, for when you want the whole set instead of 
 
 ```bash
 python3 run_all_verilator_benchmarks.py <target> [folder] [--no-vcd]   # defaults to /cva6/verif/tests/custom/FaMAF
-python3 run_all_gem5_benchmarks.py <config>.py [folder] [--no-trace]   # defaults to /gem5/programs/
+python3 run_all_gem5_benchmarks.py <config>.py [folder] [-j N] [--no-trace]   # defaults to /gem5/programs/
 ```
 
 They collect the C and assembly tests in the folder, skip the templates, run each one through the corresponding driver, and print a pass/fail summary with per-test timings at the end. A failing test does not stop the batch. Tests that share a name are reported up front as a warning, since the drivers name their outputs after the test and would overwrite each other. Add `-r` to include subfolders, or `--dry-run` to see the list and the name clashes without running anything.
 
-Every test that passes has its three files moved into a `batch_results/` folder, and its leftovers deleted: `run_results/`, and that test's files in the simulator's own output. So the whole batch lands in one folder instead of a trace per test spread across the tree. `--out-dir` picks a different folder.
+Every test that passes has its three files moved into a `batch_results/` folder and its leftovers deleted, so the whole batch lands in one folder instead of a trace per test spread across the tree. `--out-dir` picks a different folder.
 
-A test that **fails** is the exception: nothing of its is collected or deleted, so its output stays where the simulator wrote it and is still there when the batch ends. The final line says where. If nothing failed, the simulator's output folder goes too, since by then it holds nothing worth keeping.
+A test that **fails** is the exception: nothing of its is collected or deleted, so its output stays where the simulator wrote it and is still there when the batch ends. The final line says where.
 
 On the Verilator side only the first test builds the core. The rest reuse it through `--keep-build`, which is safe because the target and the trace setting are the same for the whole batch. Pass `--rebuild-each` to rebuild before every test.
+
+The **gem5 batch runs several tests at once**. gem5 is single-threaded, so `-j` (4 by default) gives you that many simulations in parallel, each working in its own folder under `m5out/` and `run_results/` so they cannot overwrite each other's `stats.txt`. `-j 1` goes back to one at a time with the output streaming live. Above that, each test's output is printed as one block when it finishes, and the summary is still in the order the tests were listed.
 
 ### The calibration sweep
 
 Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a time and comparing the result against the core. [gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py](gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py) holds that as a table of configurations, `TEST 1` being the matched baseline and every other entry a single-knob change, with the workloads that localize it:
 
 ```
-#   1   matched baseline                            workload: all
-#   6   fetch1FetchLimit 2 -> 1 (starvation)        workload: matmul_small
-#  10   FU latency as 9 plus fp_addmul 3 -> 4       workload: fp_addmul, daxpy, full_test
+#   1   adopted baseline                            workload: all
+#   4   fetch1FetchLimit 2 -> 1 (starvation)        workload: matmul_small
+#  21   fp_addmul without the double mask           workload: fp_addmul
 ```
 
 `run_CVA6_testing_sweep.py`, next to it, replays the whole thing. It always sweeps that config, the one it is written for. Run it from the `/gem5`:
 
 ```bash
-python3 run_CVA6_testing_sweep.py [--configs 1,4-6] [--tests-dir programs] [--no-trace] [--list]
+python3 run_CVA6_testing_sweep.py [-j N] [--configs 1,4-6] [--tests-dir programs] [--no-trace] [--list]
 ```
 
 For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the three files out of `run_results/` into `CVA6_testing_sweep_results/` as `<test>_trace.config<N>.txt`, `<test>_clean.config<N>.txt` and `<test>.config<N>.list`, so one configuration never overwrites another. An entry whose workload is `all` runs the `DEFAULT_ALL_TESTS` list at the top of the script, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
 
-Once a run is collected its leftovers are deleted: `run_results/`, and that run's files in `m5out/`. A run that **fails** is the exception: nothing of its is collected or deleted, so its output survives the rest of the sweep and is still in `m5out/` at the end. If nothing failed, `m5out/` goes too.
+The sweep runs `-j` simulations at once, 4 by default, so a full sweep of every configuration is worth starting. Each run works in its own folder under `m5out/` and `run_results/`, which is what makes that safe, and once collected that folder is deleted. A run that **fails** is the exception: nothing of its is collected or deleted, so its output stays under `m5out/<config><N>_<test>/` and is still there at the end. Both parent folders are removed if the sweep leaves them empty, and left alone otherwise, since a plain `run_gem5.py` run writes into them too.
 
-Selecting a configuration means editing the config file, so the script backs it up and restores it when the sweep ends, fails or is interrupted. `--list` prints the plan without touching anything. A workload matching no file is reported with the closest filenames, and any configuration left with nothing to run is called out rather than skipped in silence.
+The sweep never edits the file you point it at: it writes one temporary copy per configuration with the selector set, runs those, and deletes them at the end. So an interrupted sweep leaves nothing to restore, and two sweeps can run at once. `--list` prints the plan without touching anything. A workload matching no file is reported with the closest filenames, and any configuration left with nothing to run is called out rather than skipped in silence.
 
 The benchmark scripts are kept here for version control, but each one is run inside its own Docker image, from the "Run a test" sections below.
 
@@ -297,7 +299,7 @@ python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
 
 It compiles the test (linking gem5's `m5op.S` so the test can call `m5_reset_stats` and `m5_dump_stats`), runs gem5 into `m5out/`, disassembles the test, and prints the same metrics table as the CVA6 side, read from gem5's `stats.txt`.
 
-gem5 writes to `m5out/` as usual, and the three files worth keeping, the trace, the `.list` and the `<test>_clean.txt` with the measured region and the table, are copied to a `run_results/` folder next to the script.
+gem5 writes to `m5out/` and the test is compiled there too, so a run is self-contained. The three files worth keeping, the trace, the `.list` and the `<test>_clean.txt` with the measured region and the table, are copied to a `run_results/` folder next to the script. `--gem5-out-dir` and `--results-dir` move either one, which is how concurrent runs are kept apart.
 
 The trace is `run_results/<test>_trace.txt`. Load it in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow).
 
