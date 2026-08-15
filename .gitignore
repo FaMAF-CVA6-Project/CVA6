@@ -51,8 +51,9 @@ Bender.lock
 # Both following lines are needed to list contents of ISA manual build dir.
 !/vendor/riscv/riscv-isa-manual/build/
 !/vendor/riscv/riscv-isa-manual/build/*
-# Our CVA6-specific files
+# Our files
 cva6_files
+verilator_changes/memory_latency
 # To big to be tracked
 gem5_config_CVA6/verilator/tests/*.vcd*
 gem5_config_CVA6/verilator/tests/*.list*
