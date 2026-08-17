@@ -448,7 +448,9 @@ def main():
                 # Leave this one where gem5 put it: its output is what there
                 # is to debug with.
                 print(f"[WARN] '{name}' failed with exit code {code}. Its "
-                      f"output is left in {job_gem5_out}. Continuing.")
+                      f"output is left in {job_gem5_out}, including the whole "
+                      f"of gem5's stdout and stderr as "
+                      f"{os.path.splitext(name)[0]}_error.log. Continuing.")
             else:
                 collected = collect(job_results, out_dir, not args.no_trace)
                 if collected:
