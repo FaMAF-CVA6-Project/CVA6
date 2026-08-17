@@ -155,6 +155,8 @@ def sim_run_files(test_name, target):
     return [
         os.path.join(log_dir, f"{test_name}.{target}.vcd"),
         os.path.join(log_dir, f"{test_name}.{target}.log"),
+        # run_CVA6.py's own capture of the build and the simulation.
+        os.path.join(sim_output_dir(), f"{test_name}_run.log"),
         os.path.join(bin_dir, f"{test_name}.o"),
         os.path.join(bin_dir, f"{test_name}.list"),
         os.path.join(bin_dir, f"{test_name}_clean.txt"),
@@ -403,7 +405,9 @@ def main():
             # Leave this one where the simulation put it: its output is what
             # there is to debug with.
             print(f"\n[WARN] '{name}' failed with exit code {code}. "
-                  f"Its output is left in place. Continuing with the rest.")
+                  f"Its output is left in place, including "
+                  f"{os.path.join(sim_output_dir(), test_name + '_run.log')}. "
+                  f"Continuing with the rest.")
         else:
             collect(results_dir, test_name, out_dir, not args.no_vcd)
             discard_run(results_dir, test_name, args.target)
