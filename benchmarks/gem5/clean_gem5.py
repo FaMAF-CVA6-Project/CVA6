@@ -29,7 +29,7 @@ ROOT_DIRS = {
     "m5out":                      "run_gem5.py: gem5's output, stats and binary",
     "batch_results":              "run_all_gem5_benchmarks.py",
     "CVA6_testing_sweep_results": "run_CVA6_testing_sweep.py",
-    "mem_tests_results":          "run_memory_latency_sweep.py",
+    "MinorFlow_sweep_results":    "run_MinorFlow_sweep.py",
 }
 
 # Folders that appear beside a runner script. Matched at any depth, but only
@@ -40,7 +40,7 @@ SIBLING_DIRS = {
 }
 
 RUNNERS = {"run_gem5.py", "run_all_gem5_benchmarks.py",
-           "run_CVA6_testing_sweep.py", "run_memory_latency_sweep.py"}
+           "run_CVA6_testing_sweep.py", "run_MinorFlow_sweep.py"}
 
 # Never descended into. These cannot hold a generated folder, and build/ holds
 # the gem5.opt binary the runners call, so walking it is pure cost.
