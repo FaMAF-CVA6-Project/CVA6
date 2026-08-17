@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
@@ -282,7 +283,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
-        self.fetch1ToFetch2BackwardDelay = 1
+        self.fetch1ToFetch2BackwardDelay = 0
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = False
@@ -381,7 +382,10 @@ parser.add_argument("binary", type=str,
                     help="Path to the compiled RISC-V ELF binary")
 args = parser.parse_args()
 
-binary = BinaryResource(args.binary)
+_bin_dir = os.path.dirname(os.path.abspath(args.binary))
+if _bin_dir:
+    os.chdir(_bin_dir)
+binary = BinaryResource(os.path.basename(args.binary))
 
 processor = CVA6Processor()
 

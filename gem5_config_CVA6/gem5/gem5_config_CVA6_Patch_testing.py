@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
@@ -47,8 +48,8 @@ from m5.objects import (  # type: ignore
 
 # Calibration harness for the CVA6 gem5 MinorCPU configuration.
 #
-# TEST 1 is the frozen CPU-side baseline. TEST 58 is the full production
-# configuration, identical to gem5_config_CVA6.py with every mechanism on.
+# TEST 1 is the frozen CPU-side baseline. TEST 99 is the full production
+# configuration, identical to gem5_config_CVA6_Patch.py with every mechanism on.
 # Every other TEST is a single-knob perturbation reproducing one experiment
 # of the calibration campaign, with the measured or expected observation in
 # its comment.
@@ -131,7 +132,7 @@ from m5.objects import (  # type: ignore
 #  57   + transcribed L1I policy (IG1)            workload: all
 #  58   production minus direct targets (BG)      workload: btb_pressure
 #   --- grounded frontend candidates, bilateral bubble measurement ---
-#  59   same-cycle fetch2 redirect                workload: all
+#  59   same-cycle fetch2 redirect (adopted)      workload: all
 #  60   BTB as the JALR store                     workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
@@ -275,7 +276,8 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
-    58: ("production minus direct targets", {}, "16KiB", "32KiB",
+    58: ("production minus direct targets",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -302,7 +304,8 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
-    99: ("full production",               {}, "16KiB", "32KiB",
+    99: ("full production",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -310,7 +313,7 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
-         {"directTargetsFromDecode": True}),
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
 }
 
 
@@ -710,6 +713,8 @@ class CVA6CPU(RiscvMinorCPU):
         )
         if bp.get("directTargetsFromDecode", False):
             self.branchPred.directTargetsFromDecode = True
+        if "indirectBranchPred" in bp:
+            self.branchPred.indirectBranchPred = bp["indirectBranchPred"]
 
 
 class MorillasCPU(RiscvMinorCPU):
@@ -903,7 +908,10 @@ else:
 print(f"   Binary        : {args.binary}")
 print("=" * 70)
 
-binary = BinaryResource(args.binary)
+_bin_dir = os.path.dirname(os.path.abspath(args.binary))
+if _bin_dir:
+    os.chdir(_bin_dir)
+binary = BinaryResource(os.path.basename(args.binary))
 
 processor = CVA6Processor(
     cpu_overrides=cpu_overrides,

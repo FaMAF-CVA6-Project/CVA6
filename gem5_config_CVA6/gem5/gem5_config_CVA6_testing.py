@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
@@ -44,8 +45,8 @@ from m5.objects import (  # type: ignore
 # Calibration harness for the CVA6 gem5 MinorCPU configuration.
 #
 # CVA6 calibration harness: runs on UNMODIFIED gem5 v25.0.0.1.
-# TEST 1 is the frozen CPU-side baseline.Patch-dependent tests
-# (2, 40 to 59)  live in gem5_config_CVA6_Patch_testing.py only.
+# TEST 1 is the frozen CPU-side baseline. Patch-dependent tests live in 
+# gem5_config_CVA6_Patch_testing.py only.
 # Every other TEST is a single-knob perturbation reproducing one experiment
 # of the calibration campaign, with the measured or expected observation in
 # its comment.
@@ -727,7 +728,10 @@ else:
 print(f"   Binary        : {args.binary}")
 print("=" * 70)
 
-binary = BinaryResource(args.binary)
+_bin_dir = os.path.dirname(os.path.abspath(args.binary))
+if _bin_dir:
+    os.chdir(_bin_dir)
+binary = BinaryResource(os.path.basename(args.binary))
 
 processor = CVA6Processor(
     cpu_overrides=cpu_overrides,
