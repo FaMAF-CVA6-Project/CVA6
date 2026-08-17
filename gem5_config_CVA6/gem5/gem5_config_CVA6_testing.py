@@ -34,34 +34,76 @@ from m5.objects import (  # type: ignore
     ReturnAddrStack,
     RiscvMinorCPU,
     SimpleBTB,
+    TimingExprLiteral,
+    TimingExprSrcReg,
+    TimingExprUn,
+    TimingExprBin,
+    TimingExprIf,
 )
 
-# Calibration harness for the CVA6 gem5 MinorCPU configuration. TEST 1 is the
-# final matched baseline. Every other TEST is a single-knob perturbation used
-# to localise a divergence during calibration, or a published alternative for
-# comparison.
+# Calibration harness for the CVA6 gem5 MinorCPU configuration.
 #
-# TEST table fields:
+# CVA6 calibration harness: runs on UNMODIFIED gem5 v25.0.0.1.
+# TEST 1 is the frozen CPU-side baseline.Patch-dependent tests
+# (2, 40 to 59)  live in gem5_config_CVA6_Patch_testing.py only.
+# Every other TEST is a single-knob perturbation reproducing one experiment
+# of the calibration campaign, with the measured or expected observation in
+# its comment.
+#
+# TEST table fields (unchanged shape):
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
 #
-#   1   matched baseline                            workload: all
-#   2   store forwarding re-enabled (LSQ patch)     workload: store_fwd
-#   3   replay delay 2 -> 0 (LSQ patch)             workload: store_fwd
-#   4   L1D replacement PLRU -> LRU                 workload: full_test
-#   5   L1I replacement random -> LRU               workload: full_test
-#   6   fetch1FetchLimit 2 -> 1 (starvation)        workload: matmul_small
-#   7   fetch1FetchLimit 2 -> 3 (headroom)          workload: matmul_small
-#   8   Morillas 2025 branch predictor only         workload: branch_stress, full_test
-#   9   FU latency int_mul, fp_cvt, fp_noncomp +1   workload: daxpy, full_test
-#  10   FU latency as 9 plus fp_addmul 3 -> 4       workload: fp_addmul, daxpy, full_test
-#  11   LSQ requests queue 2 -> 4                   workload: store_fwd
-#  12   LSQ requests queue 2 -> 8                   workload: store_fwd
-#  13   LSQ store buffer 4 -> 8                     workload: store_fwd
-#  14   LSQ requests queue 8, store buffer 8        workload: store_fwd
-#  15   decodeInputBufferSize 1 -> 4                workload: daxpy, full_test
-#  16   decodeInputBufferSize 1 -> 8                workload: daxpy, full_test
-#  17   fetch2InputBufferSize 2 -> 4                workload: fetch2_probe
+# Special keys:
+#   bp_overrides["fuVariant"]        selects a CVA6FUPool variant (below)
+#   dcache_overrides["_membus_width"]   crossbar payload width in bytes
+#   dcache_overrides["_mem_bandwidth"]  SimpleMemory bandwidth string
+#
+#   1   adopted baseline                          workload: all
+#   --- replacement policies ---
+#   3   L1I random -> LRU                         workload: full_test
+#   --- fetch geometry (the two-sided bound) ---
+#   4   fetch1FetchLimit 2 -> 1                   workload: matmul_small
+#   5   fetch1FetchLimit 2 -> 3                   workload: matmul_small
+#   6   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   7   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
+#   8   L1I response_latency 0 -> 1               workload: daxpy
+#   --- decode buffer (structural hypothesis refuted) ---
+#   9   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
+#  10   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
+#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#  11   requests queue 2 -> 4                     workload: store_fwd
+#  12   requests queue 2 -> 8                     workload: store_fwd
+#  13   store buffer 4 -> 8                       workload: store_fwd
+#  14   requests 8, store buffer 8                workload: store_fwd
+#   --- branch prediction ---
+#  15   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
+#  16   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
+#  17   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#   --- functional units ---
+#  18   int_mul opLat 2 -> 1                      workload: daxpy, full_test
+#  19   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  20   serdiv base 1 -> 0                        workload: int_div
+#  21   fp_addmul without the double mask         workload: fp_addmul
+#  22   FP mem classes back on vec_mem_fast       workload: daxpy
+#  23   atomic occupancy entries removed          workload: atomic_fence
+#   --- memory path ---
+#  24   response_latency 4 -> 5                   workload: daxpy
+#  25   response_latency 4 -> 6                   workload: daxpy
+#  26   response_latency 4 -> 3                   workload: daxpy
+#  27   membus width 8 -> 16                      workload: daxpy
+#  28   membus width 8 -> 4                       workload: daxpy
+#  29   write_buffers 8 -> 2                      workload: daxpy
+#  30   memory bandwidth 12.8G -> 0.4GB/s         workload: daxpy
+#  31   threadPolicy -> RoundRobin                workload: daxpy
+#  32   mem latency 0 -> 60ns                     workload: daxpy
+#  33   L1D 16KiB                                 workload: daxpy
+#  34   L1D 64KiB                                 workload: daxpy
+#  35   L1D assoc 8 -> 2                          workload: daxpy
+#  36   L1I 4KiB                                  workload: daxpy
+#  37   L1D mshrs 8 -> 1                          workload: daxpy
+#  38   L1D hit lat +1                            workload: daxpy
+#  39   L1I resp 0 -> 2                           workload: daxpy
 
 TEST = 1
 
@@ -70,29 +112,101 @@ USE_MORILLAS = False
 
 
 TESTS = {
-    1: ("matched baseline",              {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    2: ("store forwarding on",           {"executeLSQNoStoreForwarding": False,
-                                          "executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    3: ("replay delay 2->0",             {"executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    4: ("L1D PLRU->LRU",                 {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "60ns", {}),
-    5: ("L1I random->LRU",               {}, "16KiB", "32KiB", {}, {"replacement_policy": LRURP()}, "50MHz", "60ns", {}),
-    6: ("fetch1FetchLimit 2->1",         {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    7: ("fetch1FetchLimit 2->3",         {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    8: ("Morillas branch predictor",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns",
-        {"localPredictorSize": 1024, "bhtInstShiftAmt": 2,
-         "btbNumEntries": 64, "btbAssociativity": 16, "btbInstShiftAmt": 2}),
-    9: ("FU exec latency +1",            {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns",
-        {"fuLatency": "a1"}),
-    10: ("FU exec latency +1, addmul 4", {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns",
-         {"fuLatency": "a2"}),
-    11: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    12: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    13: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    14: ("LSQ queue 8 buffer 8",         {"executeLSQRequestsQueueSize": 8, "executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    15: ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    16: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    17: ("fetch2 buffer 2->4",           {"fetch2InputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    1:  ("adopted baseline",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    3:  ("L1I random->LRU",              {}, "16KiB", "32KiB", {}, {"replacement_policy": LRURP()}, "50MHz", "0ns", {}),
+    4:  ("fetch1FetchLimit 2->1",        {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    5:  ("fetch1FetchLimit 2->3",        {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    6:  ("fetch 8B alternative side",    {"fetch1LineWidth": 8, "fetch1LineSnapWidth": 8,
+                                          "fetch2InputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    7:  ("fetch2 buffer 2->4",           {"fetch2InputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    8:  ("L1I response 0->1",            {}, "16KiB", "32KiB", {}, {"response_latency": 1}, "50MHz", "0ns", {}),
+    9:  ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    10: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    11: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    12: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    13: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    14: ("LSQ queue 8 buffer 8",         {"executeLSQRequestsQueueSize": 8, "executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    15: ("Morillas branch predictor",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"localPredictorSize": 1024, "bhtInstShiftAmt": 2,
+          "btbNumEntries": 64, "btbAssociativity": 16, "btbInstShiftAmt": 2}),
+    16: ("BTB 32->512",                  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"btbNumEntries": 512}),
+    17: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"btbNumEntries": 4096}),
+    18: ("int_mul opLat 2->1",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "int_mul_1"}),
+    19: ("fp_divsqrt legacy 2 flat +2",  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "divsqrt_legacy"}),
+    20: ("serdiv base 1->0",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "serdiv_base0"}),
+    21: ("fp_addmul without fmt mask",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "addmul_flat"}),
+    22: ("FP mem classes on vec unit",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "fp_on_vec"}),
+    23: ("atomic occupancy removed",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"fuVariant": "no_occupancy"}),
+    24: ("response_latency 4->5",        {}, "16KiB", "32KiB", {"response_latency": 5}, {}, "50MHz", "0ns", {}),
+    25: ("response_latency 4->6",        {}, "16KiB", "32KiB", {"response_latency": 6}, {}, "50MHz", "0ns", {}),
+    26: ("response_latency 4->3",        {}, "16KiB", "32KiB", {"response_latency": 3}, {}, "50MHz", "0ns", {}),
+    27: ("membus width 8->16",           {}, "16KiB", "32KiB", {"_membus_width": 16}, {}, "50MHz", "0ns", {}),
+    28: ("membus width 8->4",            {}, "16KiB", "32KiB", {"_membus_width": 4}, {}, "50MHz", "0ns", {}),
+    29: ("write_buffers 8->2",           {}, "16KiB", "32KiB", {"write_buffers": 2}, {}, "50MHz", "0ns", {}),
+    30: ("memory bandwidth 0.4GB/s",     {}, "16KiB", "32KiB", {"_mem_bandwidth": "0.4GB/s"}, {}, "50MHz", "0ns", {}),
+    31: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    32: ("legacy 60ns memory",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    33: ("L1D 16KiB",                    {}, "16KiB", "16KiB", {}, {}, "50MHz", "0ns", {}),
+    34: ("L1D 64KiB",                    {}, "16KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
+    35: ("L1D assoc 8->2",               {}, "16KiB", "32KiB", {"assoc": 2}, {}, "50MHz", "0ns", {}),
+    36: ("L1I 4KiB",                     {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    37: ("L1D mshrs 8->1",               {}, "16KiB", "32KiB", {"mshrs": 1}, {}, "50MHz", "0ns", {}),
+    38: ("L1D hit lat +1",               {}, "16KiB", "32KiB", {"tag_latency": 2, "data_latency": 2}, {}, "50MHz", "0ns", {}),
+    39: ("L1I resp 0->2",                {}, "16KiB", "32KiB", {}, {"response_latency": 2}, "50MHz", "0ns", {}),
 }
+
+
+def _lit(value):
+    e = TimingExprLiteral()
+    e.value = value
+    return e
+
+
+def _src(index):
+    e = TimingExprSrcReg()
+    e.index = index
+    return e
+
+
+def _un(op, arg):
+    e = TimingExprUn()
+    e.op = op
+    e.arg = arg
+    return e
+
+
+def _bin(op, left, right):
+    e = TimingExprBin()
+    e.op = op
+    e.left = left
+    e.right = right
+    return e
+
+
+def _if(cond, then_expr, else_expr):
+    e = TimingExprIf()
+    e.cond = cond
+    e.trueExpr = then_expr
+    e.falseExpr = else_expr
+    return e
+
+
+def serdivExtraLatency(base=1):
+    """Data-dependent latency of the CVA6 integer divider."""
+    bits_a = _un('timingExprSizeInBits', _src(0))
+    bits_b = _un('timingExprSizeInBits', _src(1))
+    diff = _bin('timingExprSub', bits_a, bits_b)
+    clamped = _if(_bin('timingExprSGreaterThan',
+                  bits_a, bits_b), diff, _lit(0))
+    return _bin('timingExprAdd', clamped, _lit(base))
 
 
 def minorMakeOpClassSet(op_classes):
@@ -101,24 +215,11 @@ def minorMakeOpClassSet(op_classes):
     return MinorOpClassSet(opClasses=[boxOpClass(o) for o in op_classes])
 
 
-# fu_latency selects the scalar-integer and scalar-FP execute latencies.
-#   "baseline"  the matched CVA6 values
-#   "a1"        int_mul 2, fp_cvt 3, fp_noncomp 2 (RTL registers plus one)
-#   "a2"        a1 plus fp_addmul 4 (double-precision ADDMUL)
-_FU_LAT = {
-    "baseline": {"int_mul": 1, "int_div": 20, "fp_addmul": 3, "fp_cvt": 2,
-                 "fp_noncomp": 1, "fp_divsqrt": 20, "mem_fu": 2},
-    "a1":       {"int_mul": 2, "int_div": 20, "fp_addmul": 3, "fp_cvt": 3,
-                 "fp_noncomp": 2, "fp_divsqrt": 20, "mem_fu": 2},
-    "a2":       {"int_mul": 2, "int_div": 20, "fp_addmul": 4, "fp_cvt": 3,
-                 "fp_noncomp": 2, "fp_divsqrt": 20, "mem_fu": 2},
-}
-
-
 class CVA6FUPool(MinorFUPool):
-    def __init__(self, fu_latency="baseline"):
+    # variant selects one FU-level perturbation, "baseline" is the adopted
+    # configuration, identical to gem5_config_CVA6.py.
+    def __init__(self, variant="baseline"):
         super().__init__()
-        lat = _FU_LAT[fu_latency]
 
         int_alu = MinorFU()
         int_alu.opClasses = minorMakeOpClassSet(['IntAlu'])
@@ -127,43 +228,93 @@ class CVA6FUPool(MinorFUPool):
 
         int_mul = MinorFU()
         int_mul.opClasses = minorMakeOpClassSet(['IntMult'])
-        int_mul.opLat = lat["int_mul"]
+        int_mul.opLat = 1 if variant == "int_mul_1" else 2
         int_mul.issueLat = 1
 
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
-        int_div.opLat = lat["int_div"]
-        int_div.issueLat = lat["int_div"]
+        int_div.opLat = 2
+        int_div.issueLat = 2
+        int_div.timings = [MinorFUTiming(
+            description='IntDivSerdiv',
+            srcRegsRelativeLats=[0],
+            extraCommitLatExpr=serdivExtraLatency(
+                base=0 if variant == "serdiv_base0" else 1))]
 
         fp_addmul = MinorFU()
         fp_addmul.opClasses = minorMakeOpClassSet(
             ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
-        fp_addmul.opLat = lat["fp_addmul"]
+        fp_addmul.opLat = 3
         fp_addmul.issueLat = 1
+        if variant != "addmul_flat":
+            fp_addmul.timings = [MinorFUTiming(
+                description='FpAddMulDouble',
+                srcRegsRelativeLats=[0],
+                mask=0x06000000,
+                match=0x02000000,
+                extraCommitLat=1)]
 
         fp_cvt = MinorFU()
         fp_cvt.opClasses = minorMakeOpClassSet(['FloatCvt'])
-        fp_cvt.opLat = lat["fp_cvt"]
+        fp_cvt.opLat = 2
         fp_cvt.issueLat = 1
 
         fp_noncomp = MinorFU()
         fp_noncomp.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
-        fp_noncomp.opLat = lat["fp_noncomp"]
+        fp_noncomp.opLat = 1
         fp_noncomp.issueLat = 1
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
-        fp_divsqrt.opLat = lat["fp_divsqrt"]
-        fp_divsqrt.issueLat = 17
+        if variant == "divsqrt_legacy":
+            fp_divsqrt.opLat = 2
+            fp_divsqrt.issueLat = 2
+            fp_divsqrt.timings = [MinorFUTiming(
+                description='FpDivSqrtLegacy',
+                srcRegsRelativeLats=[0],
+                extraCommitLat=2)]
+        else:
+            fp_divsqrt.opLat = 15
+            fp_divsqrt.issueLat = 15
+            fp_divsqrt.timings = [MinorFUTiming(
+                description='FpDivSqrtDouble',
+                srcRegsRelativeLats=[0],
+                mask=0x06000000,
+                match=0x02000000,
+                extraCommitLat=7)]
 
+        mem_classes = ['MemRead', 'MemWrite']
+        if variant != "fp_on_vec":
+            mem_classes += ['FloatMemRead', 'FloatMemWrite']
         mem_fu = MinorFU()
-        mem_fu.opClasses = minorMakeOpClassSet(['MemRead', 'MemWrite'])
-        mem_fu.opLat = lat["mem_fu"]
+        mem_fu.opClasses = minorMakeOpClassSet(mem_classes)
+        mem_fu.opLat = 2
         mem_fu.issueLat = 1
+        if variant != "no_occupancy":
+            mem_fu.timings = [
+                MinorFUTiming(
+                    description='LrScOccupancy',
+                    srcRegsRelativeLats=[0],
+                    mask=0xF000007F,
+                    match=0x1000002F,
+                    extraCommitLat=10),
+                MinorFUTiming(
+                    description='AmoOccupancy',
+                    srcRegsRelativeLats=[0],
+                    mask=0x0000007F,
+                    match=0x0000002F,
+                    extraCommitLat=13),
+                MinorFUTiming(
+                    description='FenceOccupancy',
+                    srcRegsRelativeLats=[0],
+                    mask=0x0000007F,
+                    match=0x0000000F,
+                    extraCommitLat=3),
+            ]
 
         simd_int_fast = MinorDefaultFloatSimdFU()
         simd_int_fast.opClasses = minorMakeOpClassSet([
-            'SimdAdd', 'SimdAlu', 'SimdCmp', 'SimdShift',
+            'SimdAdd', 'SimdAlu', 'SimdCmp', 'SimdShift', 'SimdShiftAcc',
             'SimdMisc', 'SimdExt', 'SimdConfig'
         ])
         simd_int_fast.timings = [MinorFUTiming(
@@ -212,14 +363,17 @@ class CVA6FUPool(MinorFUPool):
         pred.opLat = 1
         pred.issueLat = 1
 
-        vec_mem_fast = MinorFU()
-        vec_mem_fast.opClasses = minorMakeOpClassSet([
-            'FloatMemRead', 'FloatMemWrite',
+        vec_fast_classes = [
             'SimdUnitStrideLoad', 'SimdUnitStrideStore',
             'SimdUnitStrideMaskLoad', 'SimdUnitStrideMaskStore',
             'SimdUnitStrideFaultOnlyFirstLoad',
             'SimdWholeRegisterLoad', 'SimdWholeRegisterStore'
-        ])
+        ]
+        if variant == "fp_on_vec":
+            vec_fast_classes = ['FloatMemRead',
+                                'FloatMemWrite'] + vec_fast_classes
+        vec_mem_fast = MinorFU()
+        vec_mem_fast.opClasses = minorMakeOpClassSet(vec_fast_classes)
         vec_mem_fast.timings = [MinorFUTiming(
             description='VecMemFast', srcRegsRelativeLats=[1], extraAssumedLat=2)]
         vec_mem_fast.opLat = 2
@@ -228,7 +382,10 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_slow = MinorFU()
         vec_mem_slow.opClasses = minorMakeOpClassSet([
             'SimdStridedLoad', 'SimdStridedStore',
-            'SimdIndexedLoad', 'SimdIndexedStore'
+            'SimdIndexedLoad', 'SimdIndexedStore',
+            'SimdUnitStrideSegmentedLoad', 'SimdUnitStrideSegmentedStore',
+            'SimdUnitStrideSegmentedFaultOnlyFirstLoad',
+            'SimdStrideSegmentedLoad', 'SimdStrideSegmentedStore'
         ])
         vec_mem_slow.timings = [MinorFUTiming(
             description='VecMemSlow', srcRegsRelativeLats=[1], extraAssumedLat=2)]
@@ -236,7 +393,7 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_slow.issueLat = 4
 
         misc = MinorDefaultMiscFU()
-        misc.opClasses = minorMakeOpClassSet(['InstPrefetch'])
+        misc.opClasses = minorMakeOpClassSet(['InstPrefetch', 'IprAccess'])
         misc.opLat = 1
         misc.issueLat = 1
 
@@ -334,10 +491,11 @@ class CVA6CPU(RiscvMinorCPU):
         super().__init__()
         overrides = dict(overrides or {})
         bp = dict(bp or {})
-        fu_latency = bp.pop("fuLatency", "baseline")
+        fu_variant = bp.pop("fuVariant", "baseline")
 
-        self.executeFuncUnits = CVA6FUPool(fu_latency=fu_latency)
+        self.executeFuncUnits = CVA6FUPool(variant=fu_variant)
 
+        # Adopted baseline, identical to gem5_config_CVA6.py.
         self.fetch1FetchLimit = 2
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
@@ -363,12 +521,11 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeLSQRequestsQueueSize = 2
         self.executeLSQTransfersQueueSize = 8
         self.executeLSQStoreBufferSize = 4
-        self.executeLSQNoStoreForwarding = True
-        self.executeLSQStoreCollisionReplayDelay = 2
         self.executeBranchDelay = 1
         self.executeSetTraceTimeOnCommit = True
         self.executeSetTraceTimeOnIssue = False
         self.executeAllowEarlyMemoryIssue = True
+        self.threadPolicy = 'SingleThreaded'
         self.enableIdling = False
 
         bp_class_name = overrides.pop("branchPred", "LocalBP")
@@ -468,6 +625,8 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
         super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)
         self._dcache_overrides = dict(dcache_overrides or {})
         self._icache_overrides = dict(icache_overrides or {})
+        self._membus_width = self._dcache_overrides.pop("_membus_width", 8)
+        self._dcache_overrides.pop("_mem_bandwidth", None)
         self._morillas = morillas
 
     def incorporate_cache(self, board):
@@ -478,6 +637,7 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.membus.frontend_latency = 1
             self.membus.forward_latency = 1
             self.membus.response_latency = 1
+            self.membus.width = self._membus_width
 
         for i, core in enumerate(board.get_processor().get_cores()):
             if self._morillas:
@@ -504,10 +664,11 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
                 self.l1dcaches[i].writeback_clean = True
                 continue
 
+            # Adopted baseline, identical to gem5_config_CVA6.py.
             self.l1icaches[i].assoc = 4
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
-            self.l1icaches[i].response_latency = 1
+            self.l1icaches[i].response_latency = 0
             self.l1icaches[i].mshrs = 1
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
@@ -518,7 +679,7 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1dcaches[i].assoc = 8
             self.l1dcaches[i].tag_latency = 1
             self.l1dcaches[i].data_latency = 1
-            self.l1dcaches[i].response_latency = 1
+            self.l1dcaches[i].response_latency = 4
             self.l1dcaches[i].mshrs = 8
             self.l1dcaches[i].tgts_per_mshr = 16
             self.l1dcaches[i].write_buffers = 8
@@ -546,21 +707,23 @@ if USE_MORILLAS:
     l1i_size, l1d_size = "16KiB", "32KiB"
     cpu_overrides = dcache_overrides = icache_overrides = bp_overrides = {}
     mem_latency = None
+    mem_bandwidth = "12.8GiB/s"
 else:
     if TEST not in TESTS:
         raise ValueError(
             f"TEST={TEST} is not in the test table. Valid IDs: {sorted(TESTS.keys())}")
     (test_name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
      icache_overrides, clk_freq, mem_latency, bp_overrides) = TESTS[TEST]
+    mem_bandwidth = dict(dcache_overrides).get("_mem_bandwidth", "12.8GiB/s")
 
 print("=" * 70)
 if USE_MORILLAS:
     print("   MORILLAS 2025 FULL CONFIGURATION")
 else:
-    print(f"   CVA6 MATCH  -  TEST {TEST}: {test_name}")
+    print(f"   CVA6 HARNESS  -  TEST {TEST}: {test_name}")
     print(f"   CPU overrides : {cpu_overrides}")
     print(f"   BP overrides  : {bp_overrides}")
-    print(f"   Mem latency   : {mem_latency}")
+    print(f"   Mem latency   : {mem_latency}   Bandwidth: {mem_bandwidth}")
 print(f"   Binary        : {args.binary}")
 print("=" * 70)
 
@@ -586,7 +749,7 @@ else:
     memory = SingleChannelSimpleMemory(
         latency=mem_latency,
         latency_var="0ns",
-        bandwidth="12.8GiB/s",
+        bandwidth=mem_bandwidth,
         size="1GiB",
     )
 

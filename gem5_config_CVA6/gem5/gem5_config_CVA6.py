@@ -28,20 +28,67 @@ from m5.objects import (  # type: ignore
     ReturnAddrStack,
     RiscvMinorCPU,
     SimpleBTB,
+    TimingExprLiteral,
+    TimingExprSrcReg,
+    TimingExprUn,
+    TimingExprBin,
+    TimingExprIf,
 )
 
 # gem5 MinorCPU configuration matched to CVA6 (cv64a6_imafdc_sv39_hpdcache_wb).
 # Every value is either derived from a CVA6 RTL localparam or is a gem5-side
-# estimate where CVA6 has no clean counterpart. Two functional-unit latencies
-# (int_div, fp_divsqrt) are representative stand-ins for iterative units that
-# are data-dependent in the RTL and off every calibrated kernel's hot path.
-# The store-forwarding and replay-delay behaviour requires the MinorCPU LSQ
-# patch. Remove those two lines to run against an unpatched gem5.
+# estimate where CVA6 has no clean counterpart.
 
 CLK_FREQ = "50MHz"
+MEM_LATENCY = "0ns"
 L1I_SIZE = "16KiB"
 L1D_SIZE = "32KiB"
-MEM_LATENCY = "60ns"
+
+
+def _lit(value):
+    e = TimingExprLiteral()
+    e.value = value
+    return e
+
+
+def _src(index):
+    e = TimingExprSrcReg()
+    e.index = index
+    return e
+
+
+def _un(op, arg):
+    e = TimingExprUn()
+    e.op = op
+    e.arg = arg
+    return e
+
+
+def _bin(op, left, right):
+    e = TimingExprBin()
+    e.op = op
+    e.left = left
+    e.right = right
+    return e
+
+
+def _if(cond, then_expr, else_expr):
+    e = TimingExprIf()
+    e.cond = cond
+    e.trueExpr = then_expr
+    e.falseExpr = else_expr
+    return e
+
+
+def serdivExtraLatency(base=2):
+    """Data-dependent latency of the CVA6 integer divider."""
+    bits_a = _un('timingExprSizeInBits', _src(0))
+    bits_b = _un('timingExprSizeInBits', _src(1))
+    diff = _bin('timingExprSub', bits_a, bits_b)
+    # max(bits(a) - bits(b), 0), since the subtraction is unsigned and wraps
+    clamped = _if(_bin('timingExprSGreaterThan',
+                  bits_a, bits_b), diff, _lit(0))
+    return _bin('timingExprAdd', clamped, _lit(base))
 
 
 def minorMakeOpClassSet(op_classes):
@@ -61,19 +108,29 @@ class CVA6FUPool(MinorFUPool):
 
         int_mul = MinorFU()
         int_mul.opClasses = minorMakeOpClassSet(['IntMult'])
-        int_mul.opLat = 1
+        int_mul.opLat = 2
         int_mul.issueLat = 1
 
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
-        int_div.opLat = 20
-        int_div.issueLat = 20
+        int_div.opLat = 2
+        int_div.issueLat = 2
+        int_div.timings = [MinorFUTiming(
+            description='IntDivSerdiv',
+            srcRegsRelativeLats=[0],
+            extraCommitLatExpr=serdivExtraLatency(base=1))]
 
         fp_addmul = MinorFU()
         fp_addmul.opClasses = minorMakeOpClassSet(
             ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
         fp_addmul.opLat = 3
         fp_addmul.issueLat = 1
+        fp_addmul.timings = [MinorFUTiming(
+            description='FpAddMulDouble',
+            srcRegsRelativeLats=[0],
+            mask=0x06000000,
+            match=0x02000000,
+            extraCommitLat=1)]
 
         fp_cvt = MinorFU()
         fp_cvt.opClasses = minorMakeOpClassSet(['FloatCvt'])
@@ -87,19 +144,46 @@ class CVA6FUPool(MinorFUPool):
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
-        fp_divsqrt.opLat = 20
-        fp_divsqrt.issueLat = 17
+        fp_divsqrt.opLat = 15
+        fp_divsqrt.issueLat = 15
+        fp_divsqrt.timings = [MinorFUTiming(
+            description='FpDivSqrtDouble',
+            srcRegsRelativeLats=[0],
+            mask=0x06000000,
+            match=0x02000000,
+            extraCommitLat=7)]
 
         mem_fu = MinorFU()
-        mem_fu.opClasses = minorMakeOpClassSet(['MemRead', 'MemWrite'])
+        mem_fu.opClasses = minorMakeOpClassSet(
+            ['MemRead', 'MemWrite', 'FloatMemRead', 'FloatMemWrite'])
         mem_fu.opLat = 2
         mem_fu.issueLat = 1
+        mem_fu.timings = [
+            MinorFUTiming(
+                description='LrScOccupancy',
+                srcRegsRelativeLats=[0],
+                mask=0xF000007F,
+                match=0x1000002F,
+                extraCommitLat=10),
+            MinorFUTiming(
+                description='AmoOccupancy',
+                srcRegsRelativeLats=[0],
+                mask=0x0000007F,
+                match=0x0000002F,
+                extraCommitLat=13),
+            MinorFUTiming(
+                description='FenceOccupancy',
+                srcRegsRelativeLats=[0],
+                mask=0x0000007F,
+                match=0x0000000F,
+                extraCommitLat=3),
+        ]
 
         # Vector and SIMD units are inert under CVA6 RVV = 0, retained only for
         # op-class completeness.
         simd_int_fast = MinorDefaultFloatSimdFU()
         simd_int_fast.opClasses = minorMakeOpClassSet([
-            'SimdAdd', 'SimdAlu', 'SimdCmp', 'SimdShift',
+            'SimdAdd', 'SimdAlu', 'SimdCmp', 'SimdShift', 'SimdShiftAcc',
             'SimdMisc', 'SimdExt', 'SimdConfig'
         ])
         simd_int_fast.timings = [MinorFUTiming(
@@ -150,7 +234,6 @@ class CVA6FUPool(MinorFUPool):
 
         vec_mem_fast = MinorFU()
         vec_mem_fast.opClasses = minorMakeOpClassSet([
-            'FloatMemRead', 'FloatMemWrite',
             'SimdUnitStrideLoad', 'SimdUnitStrideStore',
             'SimdUnitStrideMaskLoad', 'SimdUnitStrideMaskStore',
             'SimdUnitStrideFaultOnlyFirstLoad',
@@ -164,7 +247,10 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_slow = MinorFU()
         vec_mem_slow.opClasses = minorMakeOpClassSet([
             'SimdStridedLoad', 'SimdStridedStore',
-            'SimdIndexedLoad', 'SimdIndexedStore'
+            'SimdIndexedLoad', 'SimdIndexedStore',
+            'SimdUnitStrideSegmentedLoad', 'SimdUnitStrideSegmentedStore',
+            'SimdUnitStrideSegmentedFaultOnlyFirstLoad',
+            'SimdStrideSegmentedLoad', 'SimdStrideSegmentedStore'
         ])
         vec_mem_slow.timings = [MinorFUTiming(
             description='VecMemSlow', srcRegsRelativeLats=[1], extraAssumedLat=2)]
@@ -172,7 +258,7 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_slow.issueLat = 4
 
         misc = MinorDefaultMiscFU()
-        misc.opClasses = minorMakeOpClassSet(['InstPrefetch'])
+        misc.opClasses = minorMakeOpClassSet(['InstPrefetch', 'IprAccess'])
         misc.opLat = 1
         misc.issueLat = 1
 
@@ -221,10 +307,8 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeSetTraceTimeOnCommit = True
         self.executeSetTraceTimeOnIssue = False
         self.executeAllowEarlyMemoryIssue = True
+        self.threadPolicy = 'SingleThreaded'
         self.enableIdling = False
-        # Requires the MinorCPU LSQ patch. Remove both lines for stock gem5.
-        self.executeLSQNoStoreForwarding = True
-        self.executeLSQStoreCollisionReplayDelay = 2
 
         # Branch predictor.
         self.branchPred = LocalBP(
@@ -252,9 +336,6 @@ class CVA6Processor(BaseCPUProcessor):
 
 
 class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
-    def __init__(self, l1d_size, l1i_size):
-        super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)
-
     def incorporate_cache(self, board):
         super().incorporate_cache(board)
 
@@ -264,13 +345,14 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
         self.membus.frontend_latency = 1
         self.membus.forward_latency = 1
         self.membus.response_latency = 1
+        self.membus.width = 8
 
         for i, core in enumerate(board.get_processor().get_cores()):
             # L1I: 16 KiB, 4-way, 128-bit line.
             self.l1icaches[i].assoc = 4
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
-            self.l1icaches[i].response_latency = 1
+            self.l1icaches[i].response_latency = 0
             self.l1icaches[i].mshrs = 1
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
@@ -278,11 +360,12 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].writeback_clean = False
             self.l1icaches[i].replacement_policy = RandomRP()
 
-            # L1D: 32 KiB, 8-way, 128-bit line.
+            # L1D: 32 KiB, 8-way, 128-bit line, frozen miss-latency
+            # split: the whole miss cost sits on response_latency.
             self.l1dcaches[i].assoc = 8
             self.l1dcaches[i].tag_latency = 1
             self.l1dcaches[i].data_latency = 1
-            self.l1dcaches[i].response_latency = 1
+            self.l1dcaches[i].response_latency = 4
             self.l1dcaches[i].mshrs = 8
             self.l1dcaches[i].tgts_per_mshr = 16
             self.l1dcaches[i].write_buffers = 8
