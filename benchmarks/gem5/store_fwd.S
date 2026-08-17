@@ -9,6 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
   la       a0, fwd_buf
   li       t0, 0x0123456789ABCDEF
 
@@ -32,6 +36,7 @@ main:
   lw       t1, 0(a0)              # word read of a doubleword store
   addi     t0, t1, 1
   .endr
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -45,6 +50,7 @@ main:
   nop
   .endr
 
+# EXIT
   call     m5_exit
 
   .section .data

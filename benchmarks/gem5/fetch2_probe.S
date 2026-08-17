@@ -9,6 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
   .balign  16
   .option  push
   .option  norvc
@@ -32,6 +36,7 @@ fetch2_outer:
   bnez     t2, fetch2_outer
 
   .option  pop
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -45,6 +50,7 @@ fetch2_outer:
   nop
   .endr
 
+# EXIT
   call     m5_exit
 
   .section .data

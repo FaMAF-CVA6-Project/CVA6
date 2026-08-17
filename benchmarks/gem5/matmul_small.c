@@ -1,8 +1,10 @@
 #include <gem5/m5ops.h>
 
+#define BARE_ALIGN __attribute__((aligned(4096)))
+
 #define N 8
 
-static int A[N][N];
+BARE_ALIGN static int A[N][N];
 static int B[N][N];
 static volatile int C[N][N];
 
@@ -20,6 +22,7 @@ int main(void)
     m5_reset_stats(0, 0);
 
     // MAIN PROGRAM
+    __asm__ volatile("j 1770f; .balign 4096; 1770:" ::: "memory");
     for (int i = 0; i < N; i++)
     {
         for (int j = 0; j < N; j++)

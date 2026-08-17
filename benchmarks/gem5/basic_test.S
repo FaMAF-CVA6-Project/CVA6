@@ -9,7 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
-  nop
+  j         __region_start
+
+  .balign   4096
+__region_start:
 # -----------------------------------------------------------
 # SECTION 1 - Initialize integer registers
 # Hits IntALU (li expands to lui+addiw or just addi).
@@ -154,6 +157,8 @@ main:
   c.or      s1, s0
   c.xor     s1, s0
   c.mv      s3, s1
+
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -167,4 +172,5 @@ main:
   nop
   .endr
 
+# EXIT
   call      m5_exit

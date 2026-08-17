@@ -9,6 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
   li       t0, 0x3F800000         # 1.0f
   fmv.w.x  f0, t0
   li       t0, 0x38D1B717         # about 1e-4f, keeps the sum small
@@ -53,6 +57,7 @@ main:
   .rept    64
   fmadd.d  f2, f2, f3, f2
   .endr
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -66,4 +71,5 @@ main:
   nop
   .endr
 
+# EXIT
   call     m5_exit

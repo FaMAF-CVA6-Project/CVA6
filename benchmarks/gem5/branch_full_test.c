@@ -1,5 +1,7 @@
 #include <gem5/m5ops.h>
 
+#define BARE_ALIGN __attribute__((aligned(4096)))
+
 #define PHASE_A_REPS 64
 #define PHASE_B_REPS 32
 #define PHASE_C_REPS 32
@@ -7,7 +9,7 @@
 
 typedef int (*fn_t)(int);
 
-static fn_t fn_table[8];
+BARE_ALIGN static fn_t fn_table[8];
 
 static int fn_0(int v) { return v + 1; }
 static int fn_1(int v) { return v + 2; }
@@ -37,6 +39,7 @@ int main(void)
     m5_reset_stats(0, 0);
 
     // MAIN PROGRAM
+    __asm__ volatile("j 1770f; .balign 4096; 1770:" ::: "memory");
     unsigned int rs = 2463534242u;
     int acc = 0;
 

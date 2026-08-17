@@ -9,6 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
 # Loop A: large dividend / small divisor -> near worst case
   li       t3, 0x7FFFFFFFFFFFFFFF
   li       t1, 3
@@ -53,6 +57,7 @@ main:
   andi     t1, t0, 7
   ori      t1, t1, 1
   .endr
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -66,4 +71,5 @@ main:
   nop
   .endr
 
+# EXIT
   call     m5_exit

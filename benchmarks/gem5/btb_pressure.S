@@ -9,6 +9,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
   .option  push
   .option  norvc
 
@@ -32,6 +36,7 @@ runahead_outer:
   bnez     t2, runahead_outer
 
   .option  pop
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -45,4 +50,5 @@ runahead_outer:
   nop
   .endr
 
+# EXIT
   call     m5_exit

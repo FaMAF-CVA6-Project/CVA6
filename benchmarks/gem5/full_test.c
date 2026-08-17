@@ -1,5 +1,7 @@
 #include <gem5/m5ops.h>
 
+#define BARE_ALIGN __attribute__((aligned(4096)))
+
 // Sized against the CVA6 32 KiB 8-way D-cache. fp_x and fp_y are 4 KiB each
 // and stream is 32 KiB, so the working set is 40 KiB and cannot all be held,
 // which keeps the streaming phases missing rather than warming up once and
@@ -18,7 +20,7 @@
 #define SP_BR_REPS 8
 #define SP_ST_REPS 2
 
-static double fp_x[SP_VEC];
+BARE_ALIGN static double fp_x[SP_VEC];
 static double fp_y[SP_VEC];
 static int stream[SP_STREAM];
 static int mm_a[SP_MM_N][SP_MM_N];
@@ -57,6 +59,7 @@ int main(void)
     m5_reset_stats(0, 0);
 
     // MAIN PROGRAM
+    __asm__ volatile("j 1770f; .balign 4096; 1770:" ::: "memory");
     unsigned int rs = 2463534242u;
     int acc = 0;
     double fp_acc = 0.0;

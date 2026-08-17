@@ -1,10 +1,12 @@
   .data
+  .balign  4096
 N:
   .dword   4096           # Size of the vectors
 Alpha:
   .dword   2              # Scalar multiplier
 
   .bss
+  .balign  4096
   .align   3
 X:
   .zero    32768          # Vector X (4096)*8 bytes
@@ -24,6 +26,10 @@ main:
 # -----------------------------------------------------------
 # MAIN PROGRAM
 # -----------------------------------------------------------
+  j        __region_start
+
+  .balign  4096
+__region_start:
   la       t0, N          # Address of N
   ld       t1, 0(t0)      # t1 = N
 
@@ -55,6 +61,7 @@ loop:
 
   addi     t4, t4, 1      # i++
   blt      t4, t1, loop   # while i < N
+__region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
 # -----------------------------------------------------------
@@ -68,5 +75,5 @@ loop:
   nop
   .endr
 
-# SALIDA
+# EXIT
   call     m5_exit
