@@ -728,10 +728,7 @@ else:
 print(f"   Binary        : {args.binary}")
 print("=" * 70)
 
-_bin_dir = os.path.dirname(os.path.abspath(args.binary))
-if _bin_dir:
-    os.chdir(_bin_dir)
-binary = BinaryResource(os.path.basename(args.binary))
+binary = BinaryResource(args.binary)
 
 processor = CVA6Processor(
     cpu_overrides=cpu_overrides,
@@ -769,6 +766,9 @@ board = SimpleBoard(
 if not USE_MORILLAS:
     board.cache_line_size = 16
 board.set_se_binary_workload(binary)
+
+for _core in board.get_processor().get_cores():
+    _core.core.workload[0].cmd = [os.path.basename(args.binary)]
 
 simulator = Simulator(board=board)
 print("Starting CVA6 simulation")
