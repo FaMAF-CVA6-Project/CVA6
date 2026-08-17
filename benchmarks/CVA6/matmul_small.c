@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <string.h>
 #include <limits.h>
 #include <encoding.h>
@@ -5,12 +6,13 @@
 #define uint64_t __uint64_t
 #define CPU_FREQ_HZ 50000000ULL
 #define asm __asm__
+#define BARE_ALIGN __attribute__((aligned(4096)))
 
-#define ARR_SIZE 16384
-#define REPEATS 2
+#define N 8
 
-static int buffer[ARR_SIZE];
-static volatile int g_sink;
+BARE_ALIGN static int A[N][N];
+static int B[N][N];
+static volatile int C[N][N];
 
 void configure_pmu()
 {
@@ -44,10 +46,39 @@ int main()
     uint64_t start_hpm8 = read_csr(mhpmcounter8);
 
     // MAIN PROGRAM
-    for (int r = 0; r < REPEATS; r++)
-        for (int i = 0; i < ARR_SIZE; i++)
-            buffer[i] = i + r;
-    g_sink = buffer[ARR_SIZE - 1];
+    __asm__ volatile("j 1770f; .balign 4096; 1770:" ::: "memory");
+    for (int i = 0; i < N; i++)
+    {
+        for (int j = 0; j < N; j++)
+        {
+            A[i][j] = (i * 7 + j * 3) & 0xff;
+            B[i][j] = (i * 5 + j * 11) & 0xff;
+        }
+    }
+
+    for (int rep = 0; rep < 16; rep++)
+    {
+        for (int i = 0; i < N; i++)
+        {
+            for (int j = 0; j < N; j++)
+            {
+                int sum = 0;
+                for (int k = 0; k < N; k++)
+                {
+                    sum += A[i][k] * B[k][j];
+                }
+                C[i][j] = sum;
+            }
+        }
+    }
+
+    static volatile int sink;
+    int total = 0;
+
+    for (int i = 0; i < N; i++)
+        for (int j = 0; j < N; j++)
+            total += C[i][j];
+    sink = total;
     // END OF MAIN PROGRAM
 
     // Final read of performance counters

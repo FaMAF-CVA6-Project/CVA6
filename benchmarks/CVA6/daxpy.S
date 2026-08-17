@@ -1,3 +1,20 @@
+  .data
+  .balign  4096
+N:
+  .dword   4096                     # Size of the vectors
+Alpha:
+  .dword   2                        # Scalar multiplier
+
+  .bss
+  .balign  4096
+  .align   3
+X:
+  .zero    32768                    # Vector X (4096)*8 bytes
+Y:
+  .zero    32768                    # Vector Y (4096)*8 bytes
+Z:
+  .zero    32768                    # Vector Z (4096)*8 bytes
+
   .section .text
   .global  main
 
@@ -81,40 +98,42 @@ main:
 # ---------------------------------------------------------
 # MAIN PROGRAM
 # ---------------------------------------------------------
-  li       t0, 0x3FF8000000000000   # 1.5
-  fmv.d.x  f3, t0
+  j        __region_start
 
-# fdiv.d dependent chain: converges towards 4.5
-  li       t0, 0x4010000000000000   # 4.0
-  fmv.d.x  f2, t0
-  .rept    32
-  fdiv.d   f2, f2, f3
-  fadd.d   f2, f2, f3
-  .endr
+  .balign  4096
+__region_start:
+  la       t0, N                    # Address of N
+  ld       t1, 0(t0)                # t1 = N
 
-# fsqrt.d dependent chain: converges towards about 3.2
-  li       t0, 0x4024000000000000   # 10.0
-  fmv.d.x  f4, t0
-  .rept    32
-  fsqrt.d  f4, f4
-  fadd.d   f4, f4, f3
-  .endr
+  la       t2, Alpha                # Address of Alpha
+  ld       t3, 0(t2)                # t3 = Alpha (integer)
+  fcvt.d.l f10, t3                  # f10 = (double) Alpha
 
-# single-precision counterparts
-  li       t0, 0x3FC00000           # 1.5f
-  fmv.w.x  f5, t0
-  li       t0, 0x40800000           # 4.0f
-  fmv.w.x  f6, t0
-  .rept    32
-  fdiv.s   f6, f6, f5
-  fadd.s   f6, f6, f5
-  .endr
-  li       t0, 0x41200000           # 10.0f
-  fmv.w.x  f7, t0
-  .rept    32
-  fsqrt.s  f7, f7
-  fadd.s   f7, f7, f5
-  .endr
+  la       s2, X                    # Base of X
+  la       s3, Y                    # Base of Y
+  la       s4, Z                    # Base of Z
+
+  mv       s5, s2                   # Offset X -> s5
+  mv       s6, s3                   # Offset Y -> s6
+  mv       s7, s4                   # Offset Z -> s7
+
+  li       t4, 0                    # Loop index i = 0
+
+  .align   4
+loop:
+  fld      f5, 0(s5)                # f5 = X[i]
+  fld      f6, 0(s6)                # f6 = Y[i]
+  fmul.d   f7, f10, f5              # f7 = alpha * X[i]
+  fadd.d   f8, f7, f6               # f8 = f7 + Y[i]
+  fsd      f8, 0(s7)                # Z[i] = f8
+
+  addi     s5, s5, 8
+  addi     s6, s6, 8
+  addi     s7, s7, 8
+
+  addi     t4, t4, 1                # i++
+  blt      t4, t1, loop             # while i < N
+__region_end:
 # ---------------------------------------------------------
 # END OF MAIN PROGRAM
 # ---------------------------------------------------------
@@ -178,11 +197,3 @@ main:
   li       a0, 0
   jal      exit
 
-# ---------------------------------------------------------
-# DATA SECTION
-# ---------------------------------------------------------
-
-  .section .bss
-  .align   4
-  .space   1024
-stack_top:

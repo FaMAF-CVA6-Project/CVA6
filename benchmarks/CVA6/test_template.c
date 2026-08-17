@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <string.h>
 #include <limits.h>
 #include <encoding.h>
@@ -5,8 +6,7 @@
 #define uint64_t __uint64_t
 #define CPU_FREQ_HZ 50000000ULL
 #define asm __asm__
-
-static volatile int fib_result;
+#define BARE_ALIGN __attribute__((aligned(4096)))
 
 void configure_pmu()
 {
@@ -25,13 +25,6 @@ void configure_pmu()
     asm volatile("csrw 0x320, zero");
 }
 
-__attribute__((noinline)) static int fib(int n)
-{
-    if (n < 2)
-        return n;
-    return fib(n - 1) + fib(n - 2);
-}
-
 int main()
 {
     configure_pmu();
@@ -47,7 +40,7 @@ int main()
     uint64_t start_hpm8 = read_csr(mhpmcounter8);
 
     // MAIN PROGRAM
-    fib_result = fib(15);
+    __asm__ volatile("j 1770f; .balign 4096; 1770:" ::: "memory");
     // END OF MAIN PROGRAM
 
     // Final read of performance counters

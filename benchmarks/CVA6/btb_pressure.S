@@ -81,29 +81,34 @@ main:
 # ---------------------------------------------------------
 # MAIN PROGRAM
 # ---------------------------------------------------------
-  la       a0, fwd_buf
-  li       t0, 0x0123456789ABCDEF
+  j        __region_start
 
-# Loop A: load from the address just stored (collision)
-  .rept    64
-  sd       t0, 0(a0)
-  ld       t1, 0(a0)                # same address as the store above
-  addi     t0, t1, 1                # dependency, forces full serialisation
-  .endr
+  .balign  4096
+__region_start:
+  .option  push
+  .option  norvc
 
-# Loop B: control, load from a different line (no collision)
-  .rept    64
-  sd       t0, 0(a0)
-  ld       t1, 128(a0)              # 8 cache lines away at 128-bit lines
-  addi     t0, t1, 1
-  .endr
+  li       t0, 0
+  li       t2, 4                    # outer passes over the whole footprint
 
-# Loop C: narrower load over a wider store (partial overlap)
-  .rept    64
-  sd       t0, 0(a0)
-  lw       t1, 0(a0)                # word read of a doubleword store
-  addi     t0, t1, 1
+runahead_outer:
+  .rept    128
+  li       t1, 8
+1:
+  addi     t1, t1, -1
+  addi     t0, t0, 1
+  bnez     t1, 1b                   # taken 7 times, run-ahead spills into the pad
+  j        2f                       # skip the pad, so it is never executed
+  .rept    32
+  nop
   .endr
+2:
+  .endr
+  addi     t2, t2, -1
+  bnez     t2, runahead_outer
+
+  .option  pop
+__region_end:
 # ---------------------------------------------------------
 # END OF MAIN PROGRAM
 # ---------------------------------------------------------
@@ -166,16 +171,3 @@ main:
 # ---------------------------------------------------------
   li       a0, 0
   jal      exit
-
-# ---------------------------------------------------------
-# DATA SECTION
-# ---------------------------------------------------------
-  .section .data
-  .align   6
-fwd_buf:
-  .space   512
-
-  .section .bss
-  .align   4
-  .space   1024
-stack_top:
