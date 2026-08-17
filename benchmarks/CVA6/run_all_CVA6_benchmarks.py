@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Run every benchmark in a folder through run_verilator.py.
+Run every benchmark in a folder through run_CVA6.py.
 
 Collects the C and assembly tests in a directory, drops the templates, and
 runs them one by one against the same target, printing a pass/fail summary
-at the end. Each test is handed to run_verilator.py untouched, so its
+at the end. Each test is handed to run_CVA6.py untouched, so its
 metrics table and its VCD are exactly what a single run would produce.
 
 Only the first test pays for the Verilator build: the model does not depend
 on the test, and the target and the trace setting are fixed for the whole
-batch, so the rest run with run_verilator.py's --keep-build. Pass
+batch, so the rest run with run_CVA6.py's --keep-build. Pass
 --rebuild-each to go back to rebuilding the core before every test.
 """
 import argparse
@@ -24,28 +24,33 @@ import time
 # CONFIGURATION
 # ==============================================================================
 # Default folder, as laid out inside the manuel313/cva6 image.
-DEFAULT_TESTS_DIR = "/cva6/verif/tests/custom/FaMAF"
+DEFAULT_TESTS_DIR = "/cva6/benchmarks"
 
 # The driver this script delegates to, looked up next to it and then in cwd.
-RUNNER_NAME = "run_verilator.py"
+RUNNER_NAME = "run_CVA6.py"
 
 CVA6_ROOT = "/cva6"
 
 # Where the batch gathers what it keeps, one folder for the whole run.
 DEFAULT_OUT_DIR = "batch_results"
 
-# Recognised test extensions, matching run_verilator.py. Case-sensitive: .S
+# Recognised test extensions, matching run_CVA6.py. Case-sensitive: .S
 # is assembly and .s is too, but .c is the only C spelling accepted.
 SOURCE_EXTS = {".c", ".S", ".s", ".asm", ".sx"}
 
 # A file whose name contains this is a starting point, not a benchmark.
 TEMPLATE_MARKER = "template"
 
+# What run_CVA6.py writes above its metrics table, and where the batch
+# gathers every one of those tables once the runs are done.
+METRICS_MARKER = "RESULTS TABLE"
+METRICS_FILE = "metrics.txt"
+
 SEP = "=" * 70
 
 
 def find_runner():
-    """Locate run_verilator.py next to this script, then in the cwd."""
+    """Locate run_CVA6.py next to this script, then in the cwd."""
     here = os.path.dirname(os.path.abspath(__file__))
     for candidate in (os.path.join(here, RUNNER_NAME),
                       os.path.abspath(RUNNER_NAME)):
@@ -102,19 +107,19 @@ def warn_duplicates(tests, folder):
 
 
 def driver_results_dir(runner):
-    """The run_results/ folder run_verilator.py copies its keepers into."""
+    """The run_results/ folder run_CVA6.py copies its keepers into."""
     return os.path.join(os.path.dirname(os.path.abspath(runner)),
                         "run_results")
 
 
 def sim_output_dir():
-    """The simulation tree run_verilator.py writes: logs, VCD, binaries."""
+    """The simulation tree run_CVA6.py writes: logs, VCD, binaries."""
     today = datetime.date.today().strftime("%Y-%m-%d")
     return os.path.join(CVA6_ROOT, "verif/sim", f"out_{today}")
 
 
 def output_paths(results_dir, test_name):
-    """The three files run_verilator.py leaves in run_results/ for this test."""
+    """The three files run_CVA6.py leaves in run_results/ for this test."""
     return {
         "vcd": os.path.join(results_dir, f"{test_name}.vcd"),
         "list": os.path.join(results_dir, f"{test_name}.list"),
@@ -189,6 +194,64 @@ def clear_stale_outputs(results_dir, test_name):
                 pass
 
 
+def extract_metrics(clean_path):
+    """The metrics section of a _clean.txt, or None if it holds none.
+
+    A _clean.txt is the measured region of the disassembly followed by the
+    metrics table, so everything from the rule above the table's title to the
+    end of the file is the section wanted here."""
+    try:
+        with open(clean_path) as f:
+            lines = f.read().splitlines()
+    except OSError as e:
+        print(f"[WARN] Could not read {clean_path}: {e}")
+        return None
+
+    for i, line in enumerate(lines):
+        if line.startswith(METRICS_MARKER):
+            # Take the rule above the title too, so the block arrives boxed.
+            start = i - 1 if i and set(lines[i - 1]) == {"="} else i
+            return "\n".join(lines[start:]).rstrip()
+
+    return None
+
+
+def write_metrics_file(out_dir, entries, info):
+    """Gather every run's metrics table into one metrics.txt.
+
+    entries is [(label, clean file)] in the order the runs were listed, so the
+    file reads in the same order as the summary above it. A run whose table is
+    missing is named rather than skipped silently."""
+    blocks, missing = [], []
+    for label, clean_path in entries:
+        block = extract_metrics(clean_path)
+        if block is None:
+            missing.append(label)
+            continue
+        blocks.append(f">>> {label}\n{block}")
+
+    if missing:
+        print(f"[WARN] No metrics table for: {', '.join(missing)}")
+    if not blocks:
+        print(f"[WARN] No metrics tables found, so no {METRICS_FILE} written")
+        return None
+
+    path = os.path.join(out_dir, METRICS_FILE)
+    try:
+        with open(path, "w") as f:
+            f.write(f"{SEP}\nALL METRICS\n{SEP}\n")
+            for line in info:
+                f.write(line + "\n")
+            f.write(f"{SEP}\n\n")
+            f.write("\n\n".join(blocks) + "\n")
+    except OSError as e:
+        print(f"[WARN] Could not write {path}: {e}")
+        return None
+
+    print(f"[INFO] {len(blocks)} metrics table(s) gathered in {path}")
+    return path
+
+
 def format_duration(seconds):
     minutes, secs = divmod(int(seconds), 60)
     if minutes:
@@ -225,14 +288,14 @@ def print_summary(results, total_elapsed):
 def main():
     parser = argparse.ArgumentParser(
         description="Run every benchmark in a folder through "
-                    "run_verilator.py.",
+                    "run_CVA6.py.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"Templates (any file with '{TEMPLATE_MARKER}' in its name) "
                f"are skipped.\nWith no folder given, "
                f"{DEFAULT_TESTS_DIR} is used.")
     parser.add_argument("target",
-                        help="Architecture target passed to run_verilator.py "
-                             "(e.g. cv64a6_imafdc_sv39_hpdcache)")
+                        help="Architecture target passed to run_CVA6.py "
+                             "(e.g. cv64a6_imafdc_sv39_hpdcache_wb)")
     parser.add_argument("folder", nargs="?", default=DEFAULT_TESTS_DIR,
                         help=f"Folder holding the tests. "
                              f"Defaults to {DEFAULT_TESTS_DIR}")
@@ -240,7 +303,7 @@ def main():
                         help=f"Where to gather the results. Defaults to "
                              f"{DEFAULT_OUT_DIR}/")
     parser.add_argument("--no-vcd", action="store_true",
-                        help="Forwarded to run_verilator.py: no .vcd trace, "
+                        help="Forwarded to run_CVA6.py: no .vcd trace, "
                              "metrics only")
     parser.add_argument("--rebuild-each", action="store_true",
                         help="Rebuild the Verilated core before every test. "
@@ -255,7 +318,7 @@ def main():
                              "without running anything")
     args = parser.parse_args()
 
-    # Keep our own output interleaved correctly with each run_verilator.py
+    # Keep our own output interleaved correctly with each run_CVA6.py
     # run. Redirected to a file, stdout would otherwise be block-buffered
     # here while the children write straight through, scrambling the log.
     if hasattr(sys.stdout, "reconfigure"):
@@ -347,6 +410,17 @@ def main():
         results.append((name, code, elapsed))
 
     failed = print_summary(results, time.time() - batch_start)
+
+    # Only a run that passed left a table behind to gather.
+    write_metrics_file(
+        out_dir,
+        [(name, os.path.join(out_dir,
+                             f"{os.path.splitext(name)[0]}_clean.txt"))
+         for name, code, _ in results if code == 0],
+        [f"Folder : {folder}",
+         f"Target : {args.target}",
+         f"Runs   : {len(results)}, {len(results) - failed} passed"])
+
     print(f"[INFO] Results in {out_dir}")
     if failed:
         print(f"[INFO] The failed test(s) left their output under "
