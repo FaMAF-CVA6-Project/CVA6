@@ -129,11 +129,12 @@ from m5.objects import (  # type: ignore
 #   --- fence, instruction-cache policy, front end ---
 #  56   + fence flushes the L1D                   workload: atomic_fence
 #  57   + transcribed L1I policy (IG1)            workload: all
-#  58   full production (BG1 on btb_pressure)     workload: all
-#  59   production minus direct targets (BG)      workload: btb_pressure
+#  58   production minus direct targets (BG)      workload: btb_pressure
 #   --- grounded frontend candidates, bilateral bubble measurement ---
-#  60   same-cycle fetch2 redirect                workload: all
-#  61   BTB as the JALR store                     workload: all
+#  59   same-cycle fetch2 redirect                workload: all
+#  60   BTB as the JALR store                     workload: all
+#   --- full patch baseline ---
+#  99   full production                           workload: all
 
 TEST = 1
 
@@ -274,16 +275,7 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
-    58: ("full production",               {}, "16KiB", "32KiB",
-         {"_port_model": True, "evict_on_allocate": True,
-          "victim_readout_stall": True,
-          "replacement_policy": HPDcacheRandomRP(),
-          "victim_readable_until_fill": True,
-          "response_latency": 2, "fill_delay": 2,
-          "fence_flushes_dcache": True},
-         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
-         {"directTargetsFromDecode": True}),
-    59: ("production minus direct targets", {}, "16KiB", "32KiB",
+    58: ("production minus direct targets", {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -291,7 +283,7 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
-    60: ("same-cycle fetch2 redirect",   {"fetch1ToFetch2BackwardDelay": 0},
+    59: ("same-cycle fetch2 redirect",   {"fetch1ToFetch2BackwardDelay": 0},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -301,7 +293,7 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True}),
-    61: ("BTB as the JALR store",        {}, "16KiB", "32KiB",
+    60: ("BTB as the JALR store",        {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -309,7 +301,16 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
-         {"directTargetsFromDecode": True, "indirectBranchPred": NULL})
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
+    99: ("full production",               {}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True}),
 }
 
 
