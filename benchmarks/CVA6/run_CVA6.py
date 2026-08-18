@@ -21,24 +21,24 @@ import subprocess
 # ==============================================================================
 OVERHEAD_PROFILES = {
     "c": {
-        'x18': 183,  # Cycles
-        'x19': 32,   # Instructions
-        'x20': 8,    # I-Cache misses
+        'x18': 180,  # Cycles
+        'x19': 33,   # Instructions
+        'x20': 9,    # I-Cache misses
         'x21': 8,    # D-Cache misses
-        'x22': 56,   # I-Cache accesses
+        'x22': 62,   # I-Cache accesses
         'x23': 32,   # D-Cache accesses
-        'x24': 0,    # Branches
+        'x24': 1,    # Branches
         'x25': 0,    # Branch mispredicts + unpredicted
         'x26': 3,    # Time (us)
     },
     "asm": {
         'x18': 40,   # Cycles
-        'x19': 17,   # Instructions
-        'x20': 3,    # I-Cache misses
+        'x19': 18,   # Instructions
+        'x20': 4,    # I-Cache misses
         'x21': 0,    # D-Cache misses
-        'x22': 34,   # I-Cache accesses
+        'x22': 40,   # I-Cache accesses
         'x23': 9,    # D-Cache accesses
-        'x24': 0,    # Branches
+        'x24': 1,    # Branches
         'x25': 0,    # Branch mispredicts + unpredicted
         'x26': 0,    # Time (us)
     },
