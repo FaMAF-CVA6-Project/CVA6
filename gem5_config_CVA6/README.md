@@ -1,6 +1,6 @@
 # gem5_config_CVA6
 
-The gem5 MinorCPU configuration matched to CVA6, and the paired runs that show how close the match is.
+The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 
 ## Layout
 
@@ -12,12 +12,10 @@ The gem5 MinorCPU configuration matched to CVA6, and the paired runs that show h
 | `gem5/gem5_config_CVA6_Patch_testing.py` | The same table for the patched core. This is the sweep's `DEFAULT_CONFIG` |
 | `gem5/run_CVA6_testing_sweep.py` | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep) |
 | `gem5/MinorCPU_CVA6.patch` | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file |
-| `gem5/tests/` | The gem5 side: measured region and MinorFlow JSON per benchmark |
-| `verilator/tests/` | The CVA6 side: measured region and CVA6Flow JSON per benchmark |
+| `gem5/tests/` | The gem5 tests side |
+| `CVA6/tests/` | The CVA6 tests side |
 
-Both `tests/` folders carry the same fourteen benchmarks, `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`, which is the set `DEFAULT_ALL_TESTS` names in the sweep. Each side also has a `*_create_all_jsons.py` that runs its tracer over every trace in the folder, so the JSONs can be regenerated in one go.
-
-The measured region and the metrics table live in `<test>_report.txt` on both sides, each in its own banner-delimited section, and the tables have the same columns.
+The comparison runs over the fourteen benchmarks `DEFAULT_ALL_TESTS` names in the sweep: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`. They live in [benchmarks/gem5/](../benchmarks/gem5/) and [benchmarks/CVA6/](../benchmarks/CVA6/).
 
 ## Results
 
@@ -29,13 +27,14 @@ It comes in two versions. `gem5_config_CVA6.py` runs on a **stock gem5**, using 
 
 Both target `cv64a6_imafdc_sv39_hpdcache_wb` at 50 MHz, with a 16 KiB L1I and a 32 KiB L1D. Every value is either derived from a CVA6 RTL localparam or is a gem5-side estimate where CVA6 has no clean counterpart.
 
-Run it like any other gem5 config:
+Run either like any other gem5 config:
 
 ```bash
-python3 run_gem5.py gem5_config_CVA6.py <test>
+python3 run_gem5.py gem5_config_CVA6.py <test>         # stock gem5
+python3 run_gem5.py gem5_config_CVA6_Patch.py <test>   # patched gem5
 ```
 
-Every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so the configuration doubles as its own ablation harness. Passing all of them reproduces the stock MinorCPU behaviour the calibration started from.
+In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. Passing all of them reproduces the stock MinorCPU behaviour the calibration started from. The stock configuration takes no switches, since it carries none of these mechanisms.
 
 | Switch | Turns off |
 | --- | --- |
