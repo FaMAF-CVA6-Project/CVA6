@@ -66,9 +66,9 @@ Everything else (`common/`, `util/`, `pd/`, `spyglass/`, `ci/`, `cva6_docs/` and
 - `benchmarks/CVA6/`: the CVA6 tests and `run_CVA6.py` (runs on the CVA6 core).
 - `benchmarks/gem5/`: the gem5 tests and `run_gem5.py` (runs on the gem5 MinorCPU RISC-V model).
 
-Whichever driver you use, a run leaves the files worth keeping in a `run_results/` folder next to the script: the trace the viewer renders, the disassembly listing its tracer needs, and the `<test>_clean.txt` with the measured region and the metrics table. The gem5 side adds a fourth, `<test>_stats.txt`, gem5's own `stats.txt` renamed after the program. Everything else stays where the simulator put it, `verif/sim/out_<date>/` on the CVA6 side and `m5out/` on the gem5 side.
+Whichever driver you use, a run leaves the files worth keeping in a `run_results/` folder next to the script: the trace the viewer renders, the disassembly listing its tracer needs, and the `<test>_report.txt` with the measured region and the metrics table. The gem5 side adds a fourth, `<test>_stats.txt`, gem5's own `stats.txt` renamed after the program. Everything else stays where the simulator put it, `verif/sim/out_<date>/` on the CVA6 side and `m5out/` on the gem5 side.
 
-The `_clean.txt` is written in two labelled sections, so the code and the numbers can be told apart at a glance and either can be pulled out by a script:
+The `_report.txt` is written in two labelled sections, so the code and the numbers can be told apart at a glance and either can be pulled out by a script:
 
 ```
 ======================================================================
@@ -101,7 +101,7 @@ They collect the C and assembly tests in the folder, skip the templates, run eac
 
 Every test that passes has its files moved into a `batch_results/` folder and its leftovers deleted, so the whole batch lands in one folder instead of a trace per test spread across the tree. `--out-dir` picks a different folder.
 
-The batch also writes a `metrics.txt` into that folder, holding every run's metrics table and clean arrays in the order the tests were listed, so the whole batch can be read without opening one `_clean.txt` per test.
+The batch also writes a `metrics.txt` into that folder, holding every run's metrics table and clean arrays in the order the tests were listed, so the whole batch can be read without opening one `_report.txt` per test.
 
 A test that **fails** is the exception: nothing of its is collected or deleted, so its output stays where the simulator wrote it and is still there when the batch ends. The final line says where.
 
@@ -125,7 +125,7 @@ Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a t
 python3 run_CVA6_testing_sweep.py [-j N] [--configs 1,4-6] [--tests-dir programs] [--no-trace] [--list]
 ```
 
-For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the files out of `run_results/` into `CVA6_testing_sweep_results/` as `<test>_trace.config<N>.txt`, `<test>_clean.config<N>.txt`, `<test>_stats.config<N>.txt` and `<test>.config<N>.list`. Every metrics table is also gathered into one `metrics.txt` in that folder, labelled by configuration and test. An entry whose workload is `all` runs the `DEFAULT_ALL_TESTS` list at the top of the script, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
+For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the files out of `run_results/` into `CVA6_testing_sweep_results/` as `<test>_trace.config<N>.txt`, `<test>_report.config<N>.txt`, `<test>_stats.config<N>.txt` and `<test>.config<N>.list`. Every metrics table is also gathered into one `metrics.txt` in that folder, labelled by configuration and test. An entry whose workload is `all` runs the `DEFAULT_ALL_TESTS` list at the top of the script, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
 
 The sweep runs `-j` simulations at once, 4 by default, so a full sweep of every configuration is worth starting. Each run works in its own folder under `m5out/` and `run_results/`, which is what makes that safe, and once collected that folder is deleted. A run that **fails** is the exception: nothing of its is collected or deleted, so its output stays under `m5out/config<N>_<test>/` and is still there at the end. Both parent folders are removed if the sweep leaves them empty, and left alone otherwise, since a plain `run_gem5.py` run writes into them too.
 
@@ -288,7 +288,7 @@ python3 run_CVA6.py <target> <test> [--lang c|asm] [--no-vcd] [--keep-build]
 
 It compiles the test, runs it on the Verilated CVA6, disassembles it, and prints a metrics table (cycles, instructions, cache misses and accesses, branches, mispredictions, time and IPC) with a configurable "net" column that discounts the fixed cost of the measurement code.
 
-The simulation writes to `verif/sim/out_<date>/` as usual, and the three files worth keeping, the VCD, the `.list` and the `<test>_clean.txt` with the measured region and the table, are copied to a `run_results/` folder next to the script.
+The simulation writes to `verif/sim/out_<date>/` as usual, and the three files worth keeping, the VCD, the `.list` and the `<test>_report.txt` with the measured region and the table, are copied to a `run_results/` folder next to the script.
 
 A VCD is written by default. Load it in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow).
 
@@ -340,7 +340,7 @@ python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
 
 It compiles the test (linking gem5's `m5op.S` so the test can call `m5_reset_stats` and `m5_dump_stats`), runs gem5 into `m5out/`, disassembles the test, and prints the same metrics table as the CVA6 side, read from gem5's `stats.txt`.
 
-gem5 writes to `m5out/` and the test is compiled there too, so a run is self-contained. The four files worth keeping, the trace, the `.list`, the `<test>_clean.txt` with the measured region and the table, and `<test>_stats.txt` with the statistics behind that table, are copied to a `run_results/` folder next to the script. `--gem5-out-dir` and `--results-dir` move either folder, which is how concurrent runs are kept apart.
+gem5 writes to `m5out/` and the test is compiled there too, so a run is self-contained. The four files worth keeping, the trace, the `.list`, the `<test>_report.txt` with the measured region and the table, and `<test>_stats.txt` with the statistics behind that table, are copied to a `run_results/` folder next to the script. `--gem5-out-dir` and `--results-dir` move either folder, which is how concurrent runs are kept apart.
 
 The trace is `run_results/<test>_trace.txt`. Load it in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow).
 

@@ -119,7 +119,7 @@ def warn_duplicates(tests, folder):
     print(f"[WARN] {len(duplicates)} test name(s) appear more than once. "
           f"Outputs are named after the program, so these runs overwrite "
           f"each other's binary and their collected trace, .list, "
-          f"_clean.txt and _stats.txt:")
+          f"_report.txt and _stats.txt:")
     for stem in sorted(duplicates):
         print(f"[WARN]   '{stem}':")
         for path in duplicates[stem]:
@@ -189,17 +189,17 @@ def prune_empty(path):
         pass
 
 
-def extract_metrics(clean_path):
-    """The metrics section of a _clean.txt, or None if it holds none.
+def extract_metrics(report_path):
+    """The metrics section of a _report.txt, or None if it holds none.
 
-    A _clean.txt is the measured region of the disassembly followed by the
+    A _report.txt is the measured region of the disassembly followed by the
     metrics table, so everything from the rule above the table's title to the
     end of the file is the section wanted here."""
     try:
-        with open(clean_path) as f:
+        with open(report_path) as f:
             lines = f.read().splitlines()
     except OSError as e:
-        print(f"[WARN] Could not read {clean_path}: {e}")
+        print(f"[WARN] Could not read {report_path}: {e}")
         return None
 
     for i, line in enumerate(lines):
@@ -214,12 +214,12 @@ def extract_metrics(clean_path):
 def write_metrics_file(out_dir, entries, info):
     """Gather every run's metrics table into one metrics.txt.
 
-    entries is [(label, clean file)] in the order the runs were listed, so the
+    entries is [(label, report file)] in the order the runs were listed, so the
     file reads in the same order as the summary above it. A run whose table is
     missing is named rather than skipped silently."""
     blocks, missing = [], []
-    for label, clean_path in entries:
-        block = extract_metrics(clean_path)
+    for label, report_path in entries:
+        block = extract_metrics(report_path)
         if block is None:
             missing.append(label)
             continue
@@ -480,7 +480,7 @@ def main():
     write_metrics_file(
         out_dir,
         [(name, os.path.join(out_dir,
-                             f"{os.path.splitext(name)[0]}_clean.txt"))
+                             f"{os.path.splitext(name)[0]}_report.txt"))
          for name, code, _ in ordered if code == 0],
         [f"Folder   : {folder}",
          f"Config   : {args.config_file}",

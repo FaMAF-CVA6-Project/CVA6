@@ -17,7 +17,7 @@ The gem5 MinorCPU configuration matched to CVA6, and the paired runs that show h
 
 Both `tests/` folders carry the same ten benchmarks, `atomic_fence`, `basic_test`, `branch_full_test`, `daxpy`, `fp_addmul`, `fp_divsqrt`, `full_test`, `int_div`, `matmul_small` and `store_fwd`, which is the set `DEFAULT_ALL_TESTS` names in the sweep. Each side also has a `*_create_all_jsons.py` that runs its tracer over every trace in the folder, so the JSONs can be regenerated in one go.
 
-The measured region and the metrics table live in `<test>_clean.txt` on both sides, each in its own banner-delimited section, and the tables have the same columns. That file is the quickest way to compare a benchmark: open the two and read down. Each table's title names the simulator, the program and the L1 geometry the run used, so two tables can be compared without having to remember which cache configuration produced them.
+The measured region and the metrics table live in `<test>_report.txt` on both sides, each in its own banner-delimited section, and the tables have the same columns. That file is the quickest way to compare a benchmark: open the two and read down. Each table's title names the simulator, the program and the L1 geometry the run used, so two tables can be compared without having to remember which cache configuration produced them.
 
 ## The matched configuration
 
