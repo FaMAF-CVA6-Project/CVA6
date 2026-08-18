@@ -1,0 +1,2626 @@
+--- a/src/cpu/minor/BaseMinorCPU.py
++++ b/src/cpu/minor/BaseMinorCPU.py
+@@ -398,6 +398,22 @@
+         2, "Size of LSQ transfers queue (memory transaction queue)"
+     )
+     executeLSQStoreBufferSize = Param.Unsigned(5, "Size of LSQ store buffer")
++
++    executeLSQNoStoreForwarding = Param.Bool(
++        False,
++        "Disable store-to-load forwarding from the LSQ store buffer.  A load "
++        "which fully overlaps a pending store waits for that store to drain "
++        "and then reads the cache, instead of taking the data from the store "
++        "buffer.  Models cores with no forwarding path, such as CVA6.",
++    )
++
++    executeLSQStoreCollisionReplayDelay = Param.Cycles(
++        0,
++        "Cycles a load waits, after a blocking store collision clears, before "
++        "it may access the cache.  Models the cost of restarting the load in "
++        "the LSU of a core without store-to-load forwarding.  Only meaningful "
++        "when executeLSQNoStoreForwarding is set.",
++    )
+     executeBranchDelay = Param.Cycles(
+         1,
+         "Delay from Execute deciding to branch and Fetch1 reacting"
+--- a/src/cpu/minor/execute.cc
++++ b/src/cpu/minor/execute.cc
+@@ -87,7 +87,9 @@
+         params.executeLSQRequestsQueueSize,
+         params.executeLSQTransfersQueueSize,
+         params.executeLSQStoreBufferSize,
+-        params.executeLSQMaxStoreBufferStoresPerCycle),
++        params.executeLSQMaxStoreBufferStoresPerCycle,
++        params.executeLSQNoStoreForwarding,
++        params.executeLSQStoreCollisionReplayDelay),
+     executeInfo(params.numThreads,
+             ExecuteThreadInfo(params.executeCommitLimit)),
+     interruptPriority(0),
+--- a/src/cpu/minor/lsq.cc
++++ b/src/cpu/minor/lsq.cc
+@@ -69,6 +69,7 @@
+     skipped(false),
+     issuedToMemory(false),
+     isTranslationDelayed(false),
++    collisionReplay(0),
+     state(NotIssued)
+ {
+     request = std::make_shared<Request>();
+@@ -796,6 +797,21 @@
+         slot_index--;
+     }
+ 
++    /*  CVA6 has no store-to-load forwarding. Its load unit parks a load in
++     *  WAIT_PAGE_OFFSET until the store buffer drains whenever the address
++     *  collides with a pending store (load_unit.sv, and store_buffer.sv
++     *  page_offset_matches_o). Downgrading a full hit to a partial one makes
++     *  tryToSendToTransfers take the wait path instead of the forward path, so
++     *  the load retries until the store has drained and then reads it from the
++     *  cache. This is the same mechanism containsAddrRangeOf already applies
++     *  to masked requests. The downgrade is here rather than in
++     *  containsAddrRangeOf so that the FullAddrRangeCoverage assertion in
++     *  forwardStoreData keeps its meaning, and so that the non-bufferable
++     *  ordering check, which only tests against NoAddrRangeCoverage, is
++     *  unaffected. */
++    if (lsq.noStoreForwarding && ret == FullAddrRangeCoverage)
++        ret = PartialAddrRangeCoverage;
++
+     return ret;
+ }
+ 
+@@ -1113,9 +1129,29 @@
+               case PartialAddrRangeCoverage:
+                 DPRINTF(MinorMem, "Load partly satisfied by store buffer"
+                     " data. Must wait for the store to complete\n");
++                /* Re-arm the CVA6 re-request countdown for every cycle this
++                 *  load stays blocked, so that it is fully loaded at the
++                 *  moment the collision clears. */
++                request->collisionReplay = storeCollisionReplayDelay;
+                 return;
+                 break;
+               case NoAddrRangeCoverage:
++                /* CVA6 charges two cycles to restart a load that was blocked
++                 *  by a store collision.  Neither IDLE nor WAIT_PAGE_OFFSET
++                 *  asserts data_req in load_unit.sv: the offset clearing only
++                 *  moves the state to WAIT_GNT, which raises the request the
++                 *  cycle after, whereas an unblocked load raises it directly
++                 *  from IDLE.  So the re-request cannot issue until two cycles
++                 *  after the fast path would have, however briefly the load
++                 *  waited.  Spend that countdown here before touching the
++                 *  cache.  storeCollisionReplayDelay is 0 by default, which
++                 *  leaves this a no-op. */
++                if (request->collisionReplay > 0) {
++                    request->collisionReplay--;
++                    DPRINTF(MinorMem, "Store collision cleared, %d replay"
++                        " cycles left\n", request->collisionReplay);
++                    return;
++                }
+                 DPRINTF(MinorMem, "No forwardable data from store buffer\n");
+                 /* Fall through to try access */
+                 break;
+@@ -1404,7 +1440,8 @@
+     unsigned int in_memory_system_limit, unsigned int line_width,
+     unsigned int requests_queue_size, unsigned int transfers_queue_size,
+     unsigned int store_buffer_size,
+-    unsigned int store_buffer_cycle_store_limit) :
++    unsigned int store_buffer_cycle_store_limit,
++    bool no_store_forwarding, Cycles store_collision_replay_delay) :
+     Named(name_),
+     cpu(cpu_),
+     execute(execute_),
+@@ -1413,6 +1450,8 @@
+     state(MemoryRunning),
+     inMemorySystemLimit(in_memory_system_limit),
+     lineWidth((line_width == 0 ? cpu.cacheLineSize() : line_width)),
++    noStoreForwarding(no_store_forwarding),
++    storeCollisionReplayDelay(store_collision_replay_delay),
+     requests(name_ + ".requests", "addr", requests_queue_size),
+     transfers(name_ + ".transfers", "addr", transfers_queue_size),
+     storeBuffer(name_ + ".storeBuffer",
+@@ -1723,6 +1762,18 @@
+      *  barrier so this may result in some mem refs being
+      *  delayed if they are between barriers */
+     lastMemBarrier[inst->id.threadId] = inst->id.execSeqNum;
++
++    /* Signal the data cache that a fence has been issued. In CVA6 this
++     *  is a dedicated wire from the controller to the cache
++     *  (controller.sv flush_dcache_o), not a transaction on the
++     *  request port, so it is sent functionally and consumes no port
++     *  bandwidth. The cache swallows it unconditionally and only acts
++     *  when it is configured to flush on a fence, so a cache without
++     *  that behaviour is entirely unaffected. */
++    RequestPtr fence_req = std::make_shared<Request>(
++        0, 0, 0, Request::funcRequestorId);
++    Packet fence_pkt(fence_req, MemCmd::FlushReq);
++    dcachePort.sendFunctional(&fence_pkt);
+ }
+ 
+ void
+--- a/src/cpu/minor/lsq.hh
++++ b/src/cpu/minor/lsq.hh
+@@ -166,6 +166,12 @@
+         /** Address translation is delayed due to table walk */
+         bool isTranslationDelayed;
+ 
++        /** Countdown of retries still to be skipped after a store collision
++         *  cleared, modelling the LSU re-request of a core without store to
++         *  load forwarding.  Re-armed on every blocked cycle, then counted
++         *  down once the collision clears.  Always 0 when forwarding is on. */
++        unsigned int collisionReplay;
++
+         enum LSQRequestState
+         {
+             NotIssued, /* Newly created */
+@@ -550,6 +556,16 @@
+     /** Memory system access width (and snap) in bytes */
+     const Addr lineWidth;
+ 
++    /** Disable store-to-load forwarding from the store buffer.  A load which
++     *  fully overlaps a pending store waits for that store to drain and then
++     *  reads the cache, rather than taking the data from the store buffer.
++     *  Models cores with no forwarding path, such as CVA6. */
++    const bool noStoreForwarding;
++
++    /** Retries a load skips after a store collision clears, modelling the
++     *  LSU re-request of a core without store-to-load forwarding */
++    const Cycles storeCollisionReplayDelay;
++
+   public:
+     /** The LSQ consists of three queues: requests, transfers and the
+      *  store buffer storeBuffer. */
+@@ -650,7 +666,8 @@
+         unsigned int max_accesses_in_memory_system, unsigned int line_width,
+         unsigned int requests_queue_size, unsigned int transfers_queue_size,
+         unsigned int store_buffer_size,
+-        unsigned int store_buffer_cycle_store_limit);
++        unsigned int store_buffer_cycle_store_limit,
++        bool no_store_forwarding, Cycles store_collision_replay_delay);
+ 
+     virtual ~LSQ();
+ 
+--- a/src/cpu/pred/BranchPredictor.py
++++ b/src/cpu/pred/BranchPredictor.py
+@@ -65,6 +65,7 @@
+         "BTB",
+         "RAS",
+         "Indirect",
++        "Decode",
+     ]
+ 
+ 
+@@ -209,6 +210,17 @@
+         "Low-end CPUs predecoding might be used to identify branches. ",
+     )
+ 
++    directTargetsFromDecode = Param.Bool(
++        False,
++        "Provide the target of a taken direct branch or jump from the "
++        "decoded instruction itself when no predictor supplies one, "
++        "instead of forcing the prediction to not-taken on a BTB miss, "
++        "and keep direct control flow out of the BTB. Models front "
++        "ends that compute direct targets in the fetch path and "
++        "reserve the BTB for indirect targets, as CVA6 does "
++        "(frontend.sv lines 295 and 337).",
++    )
++
+     btb = Param.BranchTargetBuffer(SimpleBTB(), "Branch target buffer (BTB)")
+     ras = Param.ReturnAddrStack(
+         ReturnAddrStack(), "Return address stack, set to NULL to disable RAS."
+--- a/src/cpu/pred/bpred_unit.cc
++++ b/src/cpu/pred/bpred_unit.cc
+@@ -59,6 +59,7 @@
+     : SimObject(params),
+       numThreads(params.numThreads),
+       requiresBTBHit(params.requiresBTBHit),
++      directTargetsFromDecode(params.directTargetsFromDecode),
+       instShiftAmt(params.instShiftAmt),
+       predHist(numThreads),
+       btb(params.btb),
+@@ -286,6 +287,24 @@
+ 
+ 
+     /** ----------------------------------------------
++     * Decode-computed direct targets
++     * -----------------------------------------------
++     * A taken direct branch or jump carries its target in the
++     * instruction itself, so a front end that decodes before it
++     * predicts can always redirect without the BTB. CVA6 computes
++     * these targets in the fetch path (frontend.sv line 295) and
++     * consults the BTB only for JALR (line 246). With this model on,
++     * a taken direct prediction never falls through to not-taken for
++     * want of a target.
++     */
++    if (directTargetsFromDecode && hist->predTaken &&
++        hist->targetProvider == TargetProvider::NoTarget &&
++        inst->isDirectCtrl()) {
++        hist->targetProvider = TargetProvider::Decode;
++        set(hist->target, *inst->branchTarget(pc));
++    }
++
++    /** ----------------------------------------------
+      * Fallthrough
+      * -----------------------------------------------
+      * All the target predictors did their job.
+@@ -583,8 +602,13 @@
+         // Update the BTB for all mispredicted taken branches.
+         // Always if `requiresBTBHit` is true otherwise only if the
+         // branch was direct or no indirect predictor is available.
++        // With decode-computed direct targets, direct control never
++        // needs the BTB, and CVA6 writes its BTB only on a
++        // mispredicted JALR (frontend.sv lines 337 to 339), so keep
++        // direct branches and jumps out of it.
+         if (actually_taken &&
+-            (requiresBTBHit || hist->inst->isDirectCtrl() ||
++            (requiresBTBHit ||
++            (hist->inst->isDirectCtrl() && !directTargetsFromDecode) ||
+             (!iPred && !hist->inst->isReturn()))) {
+ 
+             if (!hist->btbHit) {
+--- a/src/cpu/pred/bpred_unit.hh
++++ b/src/cpu/pred/bpred_unit.hh
+@@ -470,6 +470,13 @@
+      * Low-end CPUs predecoding might be used to identify branches. */
+     const bool requiresBTBHit;
+ 
++    /** Taken direct control flow takes its target from the decoded
++     * instruction when no predictor supplies one, and never installs
++     * in the BTB. Models a front end that computes direct targets in
++     * the fetch path (CVA6 frontend.sv line 295) and reserves the BTB
++     * for indirect targets (frontend.sv lines 337 to 339). */
++    const bool directTargetsFromDecode;
++
+     /** Number of bits to shift instructions by for predictor addresses. */
+     const unsigned instShiftAmt;
+ 
+--- a/src/mem/SConscript
++++ b/src/mem/SConscript
+@@ -46,6 +46,7 @@
+ SimObject('AbstractMemory.py', sim_objects=['AbstractMemory'])
+ SimObject('AddrMapper.py', sim_objects=['AddrMapper', 'RangeAddrMapper'])
+ SimObject('Bridge.py', sim_objects=['Bridge'])
++SimObject('Axi2MemPort.py', sim_objects=['Axi2MemPort'])
+ SimObject('SysBridge.py', sim_objects=['SysBridge'])
+ DebugFlag('SysBridge')
+ SimObject('MemCtrl.py', sim_objects=['MemCtrl'],
+@@ -73,6 +74,7 @@
+ Source('addr_mapper.cc')
+ Source('backdoor_manager.cc')
+ Source('bridge.cc')
++Source('axi2mem_port.cc')
+ Source('coherent_xbar.cc')
+ Source('cfi_mem.cc')
+ Source('drampower.cc')
+@@ -143,6 +145,7 @@
+                       'SnoopFilter'])
+ 
+ DebugFlag('Bridge')
++DebugFlag('Axi2MemPort')
+ DebugFlag('CommMonitor')
+ DebugFlag('DRAM')
+ DebugFlag('DRAMPower')
+--- a/src/mem/cache/Cache.py
++++ b/src/mem/cache/Cache.py
+@@ -151,6 +151,39 @@
+     # In case of the downstream cache is mostly inclusive, this should be
+     # set to False.
+     writeback_clean = Param.Bool(False, "Writeback clean lines")
++    evict_on_allocate = Param.Bool(
++        False,
++        "Select the victim and issue its writeback at MSHR allocation "
++        "time instead of at fill time (CVA6 HPDcache behaviour, "
++        "single-core scope)",
++    )
++    victim_readout_stall = Param.Bool(
++        False,
++        "Block the cpu side for blkSize/8 cycles on a dirty "
++        "evict-at-allocate victim, modelling the data-array readout "
++        "(requires evict_on_allocate)",
++    )
++    victim_readable_until_fill = Param.Bool(
++        False,
++        "Keep an evict-at-allocate victim readable until its refill "
++        "lands, instead of making it unreachable at allocation "
++        "(HPDcache pipelined-directory behaviour, requires "
++        "evict_on_allocate)",
++    )
++    fill_delay = Param.Cycles(
++        0,
++        "Extra cycles between a memory response arriving and the "
++        "fill being handled, moving the fill instant later without "
++        "touching the memory latency shared with other caches. "
++        "Reduce response_latency by the same amount to keep the "
++        "cpu-visible miss latency constant",
++    )
++    fence_flushes_dcache = Param.Bool(
++        False,
++        "A full memory fence flushes this cache, writing back "
++        "every dirty line and holding the cpu side for two "
++        "cycles per line (CVA6 DcacheFlushOnFence behaviour)",
++    )
+ 
+     # Control whether this cache should be mostly inclusive or mostly
+     # exclusive with respect to upstream caches. The behaviour on a
+--- a/src/mem/cache/base.cc
++++ b/src/mem/cache/base.cc
+@@ -91,6 +91,14 @@
+       prefetcher(p.prefetcher),
+       writeAllocator(p.write_allocator),
+       writebackClean(p.writeback_clean),
++      evictOnAllocate(p.evict_on_allocate),
++      victimReadoutStall(p.victim_readout_stall),
++      victimReadableUntilFill(p.victim_readable_until_fill),
++      fillDelay(p.fill_delay),
++      fenceFlushesDcache(p.fence_flushes_dcache),
++      fenceFlushClearEvent([this]{ clearFenceFlushBlocked(); }, name()),
++      deferredFillEvent([this]{ processDeferredFills(); }, name()),
++      victimReadoutClearEvent([this]{ clearVictimReadoutBlocked(); }, name()),
+       tempBlockWriteback(nullptr),
+       writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
+                                     name(), false,
+@@ -196,6 +204,12 @@
+ void
+ BaseCache::init()
+ {
++    fatal_if(victimReadoutStall && !evictOnAllocate,
++             "%s: victim_readout_stall requires evict_on_allocate",
++             name());
++    fatal_if(victimReadableUntilFill && !evictOnAllocate,
++             "%s: victim_readable_until_fill requires evict_on_allocate",
++             name());
+     if (!cpuSidePort.isConnected() || !memSidePort.isConnected())
+         fatal("Cache ports on %s are not connected\n", name());
+     cpuSidePort.sendRangeChange();
+@@ -399,7 +413,14 @@
+             // Here we are using forward_time, modelling the latency of
+             // a miss (outbound) just as forwardLatency, neglecting the
+             // lookupLatency component.
+-            allocateMissBuffer(pkt, forward_time);
++            MSHR *new_mshr = allocateMissBuffer(pkt, forward_time);
++            if (evictOnAllocate && new_mshr && !blk &&
++                !pkt->req->isUncacheable() && allocOnFill(pkt->cmd)) {
++                // evict-at-allocate (rule E1): select the victim and
++                // issue its writeback now, at miss time, as the
++                // HPDcache does at MSHR allocation.
++                reserveOnAllocate(pkt, new_mshr, forward_time);
++            }
+         }
+     }
+ }
+@@ -490,6 +511,32 @@
+ }
+ 
+ void
++BaseCache::scheduleDeferredFill(PacketPtr pkt)
++{
++    const Tick ready = clockEdge(fillDelay);
++    deferredFills.emplace_back(ready, pkt);
++    // Every response waits the same number of cycles, so arrival order
++    // is release order and one event suffices for the whole queue.
++    if (!deferredFillEvent.scheduled()) {
++        schedule(deferredFillEvent, ready);
++    }
++}
++
++void
++BaseCache::processDeferredFills()
++{
++    while (!deferredFills.empty() &&
++           deferredFills.front().first <= curTick()) {
++        PacketPtr pkt = deferredFills.front().second;
++        deferredFills.pop_front();
++        recvTimingResp(pkt);
++    }
++    if (!deferredFills.empty()) {
++        schedule(deferredFillEvent, deferredFills.front().first);
++    }
++}
++
++void
+ BaseCache::recvTimingResp(PacketPtr pkt)
+ {
+     assert(pkt->isResponse());
+@@ -559,8 +606,21 @@
+ 
+         const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
+             writeAllocator->allocate() : mshr->allocOnFill();
++        if (victimReadableUntilFill && !blk && allocate &&
++            mshr->reservedBlk && mshr->reservedBlk->isReservedVictim()) {
++            // Turn the in-place reservation into the incoming block,
++            // in the way chosen at allocation time.
++            blk = consumeReservation(pkt, mshr, writebacks);
++        }
+         blk = handleFill(pkt, blk, writebacks, allocate);
+         assert(blk != nullptr);
++        if (evictOnAllocate && blk != tempBlock) {
++            // Rule V4: the HPDcache pulses its victim-state update
++            // when the refill lands, not when the miss allocates.
++            // Touch here for reserved and fallback fills alike, which
++            // also restores rule E4 in full for the stock policies.
++            tags->replTouch(blk);
++        }
+         ppFill->notify(CacheAccessProbeArg(pkt, accessor));
+     }
+ 
+@@ -957,7 +1017,19 @@
+ 
+             const MSHR* mshr =
+                 mshrQueue.findMatch(regenerateBlkAddr(blk), blk->isSecure());
++            if (blk->isReservedVictim()) {
++                // evict-at-allocate with the victim kept readable: the
++                // block is spoken for by a miss whose refill has not
++                // landed. Refusing makes the caller fall back.
++                return false;
++            }
+             if (mshr) {
++                if (mshr->reservedBlk == blk) {
++                    // evict-at-allocate: never victimise a block that
++                    // is reserved for a pending fill. Returning false
++                    // makes the caller fall back gracefully.
++                    return false;
++                }
+                 // Must be an outstanding upgrade or clean request on a block
+                 // we're about to replace
+                 assert((!blk->isSet(CacheBlk::WritableBit) &&
+@@ -983,6 +1055,181 @@
+     return true;
+ }
+ 
++CacheBlk*
++BaseCache::reserveVictimInPlace(const PacketPtr pkt, PacketList &writebacks,
++                                bool &dirty_victim)
++{
++    const Addr addr = pkt->getAddr();
++    const bool is_secure = pkt->isSecure();
++    const auto partition_id = partitionManager ?
++        partitionManager->readPacketPartitionID(pkt) : 0;
++
++    std::vector<CacheBlk*> evict_blks;
++    CacheBlk *victim = tags->findVictim({addr, is_secure}, blkSize*8,
++                                        evict_blks, partition_id);
++    if (!victim) {
++        return nullptr;
++    }
++
++    // Only the plain single-victim case is modelled. Compression can
++    // co-evict several blocks for one insertion, which has no
++    // counterpart in the HPDcache, so fall back rather than guess.
++    if (evict_blks.size() != 1 || evict_blks[0] != victim) {
++        return nullptr;
++    }
++    if (!victim->isValid()) {
++        // A free way. Nothing to keep readable, so let the stock
++        // allocation path handle this miss.
++        return nullptr;
++    }
++    // Never take a block that is already spoken for, either as
++    // another miss's in-place victim or through a pending
++    // transaction of its own.
++    if (victim->isReservedVictim()) {
++        return nullptr;
++    }
++    if (mshrQueue.findMatch(regenerateBlkAddr(victim),
++                            victim->isSecure())) {
++        // The same test handleEvictions applies, kept identical so
++        // the in-place path refuses exactly what the stock path
++        // refuses.
++        return nullptr;
++    }
++
++    // Flush the victim now if it is dirty, as the miss handler does at
++    // MSHR allocation, but leave the block valid and readable. The
++    // writeback clears the dirty bit, so the block is now clean and
++    // its data still answers hits until the refill overwrites it.
++    if (victim->isSet(CacheBlk::DirtyBit)) {
++        dirty_victim = true;
++        writebacks.push_back(writebackBlk(victim));
++    } else if (!writebackClean) {
++        // Preserve the eviction traffic the stock path would have
++        // produced at this instant, unchanged in kind and timing.
++        PacketPtr clean_evict = cleanEvictBlk(victim);
++        if (clean_evict) {
++            writebacks.push_back(clean_evict);
++        }
++    }
++
++    // handleEvictions is bypassed on this path, and it is where gem5
++    // counts a valid block being displaced. Count it here so the stat
++    // keeps its meaning under the lever.
++    stats.replacements++;
++
++    // handleEvictions is bypassed on this path, and it is where gem5
++    // counts a valid block being displaced. Count it here so the stat
++    // keeps its meaning under the lever.
++    stats.replacements++;
++
++    victim->setReservedVictim();
++    return victim;
++}
++
++CacheBlk*
++BaseCache::consumeReservation(const PacketPtr pkt, MSHR *mshr,
++                              PacketList &writebacks)
++{
++    CacheBlk *victim = mshr->reservedBlk;
++    assert(victim && victim->isReservedVictim());
++
++    // The victim was flushed when it was reserved, but a store may
++    // have hit it in the meantime, so check before dropping the data.
++    if (victim->isSet(CacheBlk::DirtyBit)) {
++        stats.reservationRedirties++;
++        writebacks.push_back(writebackBlk(victim));
++    }
++
++    victim->clearReservedVictim();
++    invalidateBlock(victim);
++    tags->insertBlock(pkt, victim);
++    victim->setWhenReady(curTick());
++    return victim;
++}
++
++void
++BaseCache::reserveOnAllocate(const PacketPtr pkt, MSHR *mshr,
++                             Tick forward_time)
++{
++    // Rules E1 and E2: victim selection, tag insertion and the dirty
++    // victim writeback all happen at MSHR allocation time, mirroring
++    // mshr_alloc_wback in the HPDcache miss pipeline. The inserted
++    // block sits in the valid-but-not-readable transient state until
++    // the refill lands, the same state the stock write-miss path
++    // already creates and the access path already treats as a miss.
++    PacketList writebacks;
++    bool dirty_victim = false;
++    CacheBlk *blk;
++
++    if (victimReadableUntilFill) {
++        // The victim keeps its line and stays readable until the
++        // refill consumes it, which is what the HPDcache data array
++        // does. Selection and the dirty flush still happen now.
++        blk = reserveVictimInPlace(pkt, writebacks, dirty_victim);
++        if (!blk) {
++            stats.reservationFallbacks++;
++            return;
++        }
++        stats.inPlaceReservations++;
++    } else {
++        blk = allocateBlock(pkt, writebacks);
++        if (!blk) {
++            // No victim could be freed, for instance because the
++            // chosen victim has a pending transaction of its own.
++            // Fall back to the stock fill-time allocation.
++            stats.reservationFallbacks++;
++            return;
++        }
++
++        assert(!blk->isSet(CacheBlk::ReadableBit));
++        assert(!blk->isSet(CacheBlk::WritableBit));
++
++        // The data is not present until the refill lands, and
++        // ReadableBit already keeps every consumer away from it.
++        // Fresh insertion leaves whenReady at the MaxTick sentinel,
++        // which getWhenReady asserts against when a coalescing access
++        // to this line reaches calculateAccessLatency before the
++        // fill. Pointing it at now mirrors the stock write-miss
++        // transient, whose whenReady also lies in the past, adds no
++        // latency to the coalescing miss, and is overwritten with the
++        // true ready time by handleFill.
++        blk->setWhenReady(curTick());
++
++        for (const auto &wb : writebacks) {
++            if (wb->cmd == MemCmd::WritebackDirty) {
++                dirty_victim = true;
++            }
++        }
++    }
++
++    mshr->reservedBlk = blk;
++    stats.earlyReservations++;
++
++    doWritebacks(writebacks, forward_time);
++
++    if (victimReadoutStall && dirty_victim) {
++        // Rules E3 and E6: the dirty victim readout occupies the data
++        // array for blkSize over the 8-byte access word, 2 cycles for
++        // the 16-byte CVA6 line (clWords over accessWords, with
++        // accessWords 1 and clWords 2 in the RTL configuration), and
++        // it stalls hits as well as misses, hence the cpu-side block.
++        const Cycles readout(blkSize / 8);
++        const Tick until = clockEdge(readout);
++        if (victimReadoutClearEvent.scheduled()) {
++            reschedule(victimReadoutClearEvent, until);
++        } else {
++            setBlocked(Blocked_VictimReadout);
++            schedule(victimReadoutClearEvent, until);
++        }
++    }
++}
++
++void
++BaseCache::clearVictimReadoutBlocked()
++{
++    clearBlocked(Blocked_VictimReadout);
++}
++
+ bool
+ BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
+                                  PacketList &writebacks)
+@@ -1803,6 +2050,51 @@
+ 
+ 
+ void
++BaseCache::fenceFlush()
++{
++    // Rule F3: the walk writes back dirty lines and clears their
++    // dirty bit, leaving them valid, which is what writebackVisitor
++    // already does. A flush is not an invalidate
++    // (hpdcache_cmo.sv lines 409 to 417).
++    unsigned dirty = 0;
++    unsigned lines = 0;
++    tags->forEachBlk([this, &dirty, &lines](CacheBlk &blk) {
++        lines++;
++        if (blk.isSet(CacheBlk::DirtyBit)) {
++            dirty++;
++        }
++        writebackVisitor(blk);
++    });
++    stats.fenceFlushes++;
++    stats.fenceFlushWritebacks += dirty;
++
++    // Rules F2 and F4: two cycles for every line, counted by the
++    // visitor as it walks, and the core makes no memory progress
++    // until the walk finishes, hence the cpu-side block.
++    const Cycles walk(2 * lines);
++    if (fenceFlushClearEvent.scheduled()) {
++        // A second fence issued while a flush was still running. In
++        // the RTL this cannot overlap: the core stalls on
++        // flush_dcache_ack_i and its pipeline is flushed
++        // (controller.sv lines 43 to 45 and 124 to 128), so the
++        // second walk starts where the first one ends and the two
++        // durations add rather than the later one replacing the
++        // earlier.
++        reschedule(fenceFlushClearEvent,
++                   fenceFlushClearEvent.when() + cyclesToTicks(walk));
++    } else {
++        setBlocked(Blocked_FenceFlush);
++        schedule(fenceFlushClearEvent, clockEdge(walk));
++    }
++}
++
++void
++BaseCache::clearFenceFlushBlocked()
++{
++    clearBlocked(Blocked_FenceFlush);
++}
++
++void
+ BaseCache::memWriteback()
+ {
+     tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
+@@ -1915,6 +2207,15 @@
+ 
+     CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
+ 
++    if (blk && blk == mshr->reservedBlk) {
++        // evict-at-allocate: the reserved block holds no data yet, so
++        // the outbound request must be formed as if no block existed,
++        // otherwise the valid tag would be mistaken for an upgrade
++        // candidate (createMissPacket asserts needsWritable on any
++        // valid block).
++        blk = nullptr;
++    }
++
+     // either a prefetch that is not present upstream, or a normal
+     // MSHR request, proceed to get the packet to send downstream
+     PacketPtr pkt = createMissPacket(tgt_pkt, blk, mshr->needsWritable(),
+@@ -2286,6 +2587,19 @@
+              "average overall mshr uncacheable latency"),
+     ADD_STAT(replacements, statistics::units::Count::get(),
+              "number of replacements"),
++    ADD_STAT(earlyReservations, statistics::units::Count::get(),
++             "evict-at-allocate reservations made at miss time"),
++    ADD_STAT(reservationFallbacks, statistics::units::Count::get(),
++             "evict-at-allocate misses that fell back to fill-time "
++             "allocation"),
++    ADD_STAT(inPlaceReservations, statistics::units::Count::get(),
++             "evict-at-allocate reservations that kept the victim readable"),
++    ADD_STAT(reservationRedirties, statistics::units::Count::get(),
++             "in-place victims dirtied again before their refill landed"),
++    ADD_STAT(fenceFlushes, statistics::units::Count::get(),
++             "full cache flushes triggered by a memory fence"),
++    ADD_STAT(fenceFlushWritebacks, statistics::units::Count::get(),
++             "dirty lines written back by fence flushes"),
+     ADD_STAT(dataExpansions, statistics::units::Count::get(),
+              "number of data expansions"),
+     ADD_STAT(dataContractions, statistics::units::Count::get(),
+@@ -2409,6 +2723,8 @@
+     blockedCycles
+         .subname(Blocked_NoMSHRs, "no_mshrs")
+         .subname(Blocked_NoTargets, "no_targets")
++        .subname(Blocked_VictimReadout, "victim_readout")
++        .subname(Blocked_FenceFlush, "fence_flush")
+         ;
+ 
+ 
+@@ -2416,11 +2732,15 @@
+     blockedCauses
+         .subname(Blocked_NoMSHRs, "no_mshrs")
+         .subname(Blocked_NoTargets, "no_targets")
++        .subname(Blocked_VictimReadout, "victim_readout")
++        .subname(Blocked_FenceFlush, "fence_flush")
+         ;
+ 
+     avgBlocked
+         .subname(Blocked_NoMSHRs, "no_mshrs")
+         .subname(Blocked_NoTargets, "no_targets")
++        .subname(Blocked_VictimReadout, "victim_readout")
++        .subname(Blocked_FenceFlush, "fence_flush")
+         ;
+     avgBlocked = blockedCycles / blockedCauses;
+ 
+@@ -2601,6 +2921,16 @@
+ void
+ BaseCache::CpuSidePort::recvFunctional(PacketPtr pkt)
+ {
++    if (pkt->cmd == MemCmd::FlushReq) {
++        // The fence-flush trigger. It is always swallowed here so it
++        // never reaches memory, and it only does work when the cache
++        // is configured to flush on a fence.
++        if (cache.fenceFlushesDcache) {
++            cache.fenceFlush();
++        }
++        return;
++    }
++
+     if (cache.system->bypassCaches()) {
+         // The cache should be flushed if we are in cache bypass mode,
+         // so we don't need to check if we need to update anything.
+@@ -2634,7 +2964,15 @@
+ bool
+ BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
+ {
+-    cache->recvTimingResp(pkt);
++    if (cache->fillDelay > 0) {
++        // Hold the response for fillDelay cycles so the fill instant
++        // matches the RTL. Flow control is unaffected: the response is
++        // accepted here and the MSHR simply stays in service a little
++        // longer, which is what an outstanding miss looks like.
++        cache->scheduleDeferredFill(pkt);
++    } else {
++        cache->recvTimingResp(pkt);
++    }
+     return true;
+ }
+ 
+--- a/src/mem/cache/base.hh
++++ b/src/mem/cache/base.hh
+@@ -48,7 +48,9 @@
+ 
+ #include <cassert>
+ #include <cstdint>
++#include <deque>
+ #include <string>
++#include <utility>
+ 
+ #include "base/addr_range.hh"
+ #include "base/compiler.hh"
+@@ -117,6 +119,8 @@
+         Blocked_NoMSHRs = MSHRQueue_MSHRs,
+         Blocked_NoWBBuffers = MSHRQueue_WriteBuffer,
+         Blocked_NoTargets,
++        Blocked_VictimReadout,
++        Blocked_FenceFlush,
+         NUM_BLOCKED_CAUSES
+     };
+ 
+@@ -681,6 +685,100 @@
+     const bool writebackClean;
+ 
+     /**
++     * evict-at-allocate lab levers, both default off. The first moves
++     * victim selection and writeback issue to MSHR allocation time,
++     * matching the HPDcache (rule E1). The second charges the derived
++     * victim-readout occupancy, blkSize over the 8-byte access word,
++     * on dirty evictions (rules E3 and E6).
++     */
++    const bool evictOnAllocate;
++    const bool victimReadoutStall;
++
++    /**
++     * Keep the chosen victim readable until the refill lands instead
++     * of making it unreachable at allocation. Transcribes the
++     * observable behaviour of the HPDcache directory, whose update is
++     * pipelined: a dependent access one cycle behind the allocation
++     * still hits the victim. Requires evictOnAllocate.
++     */
++    const bool victimReadableUntilFill;
++
++    /**
++     * Extra cycles between a memory response arriving at this cache and
++     * the fill being handled. The HPDcache refill lands 7 cycles after
++     * the victim selection where the stock model fills at 5.
++     * Deferring the fill here rather than lengthening
++     * the memory latency keeps the correction on the cache that needs
++     * it, since a shared memory latency also charges every instruction
++     * refill, which has no such deficit. Reduce response_latency by the
++     * same amount to hold the cpu-visible miss latency constant.
++     */
++    const Cycles fillDelay;
++
++    /**
++     * A full memory fence flushes this cache, rule F1
++     * (controller.sv lines 123 to 136, enabled by
++     * CVA6Cfg.DcacheFlushOnFence which is set for this build). The
++     * walk costs two cycles per line, one to check the directory
++     * entry and one to update it, which the RTL states outright
++     * (hpdcache_cmo.sv lines 424 to 427). The duration is therefore
++     * derived from the cache geometry rather than configured.
++     */
++    const bool fenceFlushesDcache;
++
++    /** Clears the fence-flush blocking cause. */
++    void clearFenceFlushBlocked();
++    EventFunctionWrapper fenceFlushClearEvent;
++
++    /**
++     * Run a fence flush: write back every dirty line and hold the cpu
++     * side for the derived walk time. Called from the functional path
++     * because in the RTL the flush is a control wire from the
++     * controller, not a transaction on the request port.
++     */
++    void fenceFlush();
++
++    /** Responses waiting out fillDelay, in arrival order. */
++    std::deque<std::pair<Tick, PacketPtr>> deferredFills;
++    EventFunctionWrapper deferredFillEvent;
++
++    /** Queue a response and arm the event, see fillDelay. */
++    void scheduleDeferredFill(PacketPtr pkt);
++
++    /** Hand every matured response to recvTimingResp. */
++    void processDeferredFills();
++
++    /** Clears the victim-readout blocking cause. */
++    void clearVictimReadoutBlocked();
++    EventFunctionWrapper victimReadoutClearEvent;
++
++    /**
++     * Reserve the fill block for a freshly allocated demand miss:
++     * select the victim now, insert the incoming tag in the
++     * valid-but-not-readable transient state, and issue any dirty
++     * victim writeback immediately (rules E1 and E2).
++     */
++    void reserveOnAllocate(const PacketPtr pkt, MSHR *mshr,
++                           Tick forward_time);
++
++    /**
++     * Reserve the victim in place: select it, flush it if dirty, and
++     * leave it valid and readable until the refill consumes it.
++     * Returns the victim, or nullptr when no victim could be taken.
++     */
++    CacheBlk *reserveVictimInPlace(const PacketPtr pkt,
++                                   PacketList &writebacks,
++                                   bool &dirty_victim);
++
++    /**
++     * Consume an in-place reservation at fill time: write back the
++     * victim if it was dirtied again after its flush, then invalidate
++     * it and insert the incoming block in the same way.
++     */
++    CacheBlk *consumeReservation(const PacketPtr pkt, MSHR *mshr,
++                                 PacketList &writebacks);
++
++    /**
+      * Writebacks from the tempBlock, resulting on the response path
+      * in atomic mode, must happen after the call to recvAtomic has
+      * finished (for the right ordering of the packets). We therefore
+@@ -842,6 +940,15 @@
+     PacketPtr writebackBlk(CacheBlk *blk);
+ 
+     /**
++     * Create the clean-eviction packet for a victim, or nullptr when
++     * the cache has no clean-evict notion. Declared here so the
++     * evict-at-allocate in-place reservation can emit exactly the
++     * packet the stock eviction path emits, and overridden by the
++     * coherent cache.
++     */
++    virtual PacketPtr cleanEvictBlk(CacheBlk *blk) { return nullptr; }
++
++    /**
+      * Create a writeclean request for the given block.
+      *
+      * Creates a request that writes the block to the cache below
+@@ -1139,6 +1246,21 @@
+         /** Number of replacements of valid blocks. */
+         statistics::Scalar replacements;
+ 
++        /** evict-at-allocate: reservations made at miss time and
++         *  graceful fallbacks to the stock fill-time allocation. */
++        statistics::Scalar earlyReservations;
++        statistics::Scalar reservationFallbacks;
++
++        /** In-place reservations, and those re-dirtied before their
++         *  refill landed and so written back a second time. */
++        statistics::Scalar inPlaceReservations;
++        statistics::Scalar reservationRedirties;
++
++        /** Fence flushes performed, and the lines written back by
++         *  them. */
++        statistics::Scalar fenceFlushes;
++        statistics::Scalar fenceFlushWritebacks;
++
+         /** Number of data expansions. */
+         statistics::Scalar dataExpansions;
+ 
+--- a/src/mem/cache/cache.hh
++++ b/src/mem/cache/cache.hh
+@@ -145,7 +145,7 @@
+      * @param blk The block to evict.
+      * @return The CleanEvict request for the block.
+      */
+-    PacketPtr cleanEvictBlk(CacheBlk *blk);
++    PacketPtr cleanEvictBlk(CacheBlk *blk) override;
+ 
+     PacketPtr createMissPacket(PacketPtr cpu_pkt, CacheBlk *blk,
+                                bool needs_writable,
+--- a/src/mem/cache/cache_blk.hh
++++ b/src/mem/cache/cache_blk.hh
+@@ -204,6 +204,7 @@
+         TaggedEntry::invalidate();
+ 
+         clearPrefetched();
++        clearReservedVictim();
+         clearCoherenceBits(AllBits);
+ 
+         setTaskId(context_switch_task_id::Unknown);
+@@ -252,6 +253,19 @@
+     bool wasPrefetched() const { return _prefetched; }
+ 
+     /**
++     * evict-at-allocate, victim-readable-until-fill lever: this block
++     * is the chosen victim of a miss whose refill has not landed yet.
++     * It still holds the previous line and stays readable, mirroring
++     * the HPDcache data array, which keeps the victim's data until the
++     * refill overwrites it. The marker exists because two predicates
++     * differ under that lever: the block is readable to the CPU but
++     * must not be offered to victim selection again.
++     */
++    bool isReservedVictim() const { return _reservedVictim; }
++    void setReservedVictim() { _reservedVictim = true; }
++    void clearReservedVictim() { _reservedVictim = false; }
++
++    /**
+      * Clear the prefetching bit. Either because it was recently used, or due
+      * to the block being invalidated.
+      */
+@@ -506,6 +520,9 @@
+ 
+     /** Whether this block is an unaccessed hardware prefetch. */
+     bool _prefetched = 0;
++
++    /** Reserved as a pending miss's victim, see isReservedVictim(). */
++    bool _reservedVictim = false;
+ };
+ 
+ /**
+--- a/src/mem/cache/mshr.cc
++++ b/src/mem/cache/mshr.cc
+@@ -315,6 +315,7 @@
+     _isUncacheable = target->req->isUncacheable();
+     inService = false;
+     downstreamPending = false;
++    reservedBlk = nullptr;
+ 
+     targets.init(blkAddr, blkSize);
+     deferredTargets.init(blkAddr, blkSize);
+--- a/src/mem/cache/mshr.hh
++++ b/src/mem/cache/mshr.hh
+@@ -64,6 +64,8 @@
+ namespace gem5
+ {
+ 
++class CacheBlk;
++
+ class BaseCache;
+ 
+ /**
+@@ -126,6 +128,13 @@
+     /** True if the entry is just a simple forward from an upper level */
+     bool isForward;
+ 
++    /**
++     * evict-at-allocate: block reserved for this miss at MSHR
++     * allocation time (rule E1). Null when no reservation is live. Reset in
++     * allocate() because MSHR objects are recycled from a free list.
++     */
++    CacheBlk *reservedBlk = nullptr;
++
+     class Target : public QueueEntry::Target
+     {
+       public:
+--- a/src/mem/cache/replacement_policies/ReplacementPolicies.py
++++ b/src/mem/cache/replacement_policies/ReplacementPolicies.py
+@@ -175,3 +175,20 @@
+     type = "WeightedLRURP"
+     cxx_class = "gem5::replacement_policy::WeightedLRU"
+     cxx_header = "mem/cache/replacement_policies/weighted_lru_rp.hh"
++
++class HPDcachePLRURP(BaseReplacementPolicy):
++    type = "HPDcachePLRURP"
++    cxx_class = "gem5::replacement_policy::HPDcachePLRU"
++    cxx_header = "mem/cache/replacement_policies/hpdcache_plru_rp.hh"
++    num_ways = Param.Unsigned(Parent.assoc, "Ways per set (proxies assoc)")
++
++class HPDcacheRandomRP(BaseReplacementPolicy):
++    type = "HPDcacheRandomRP"
++    cxx_class = "gem5::replacement_policy::HPDcacheRandom"
++    cxx_header = "mem/cache/replacement_policies/hpdcache_random_rp.hh"
++
++class CVA6IcacheRandomRP(BaseReplacementPolicy):
++    type = "CVA6IcacheRandomRP"
++    cxx_class = "gem5::replacement_policy::CVA6IcacheRandom"
++    cxx_header = ("mem/cache/replacement_policies/"
++                  "cva6_icache_random_rp.hh")
+--- a/src/mem/cache/replacement_policies/SConscript
++++ b/src/mem/cache/replacement_policies/SConscript
+@@ -31,12 +31,16 @@
+ SimObject('ReplacementPolicies.py', sim_objects=[
+     'BaseReplacementPolicy', 'DuelingRP', 'FIFORP', 'SecondChanceRP',
+     'LFURP', 'LRURP', 'BIPRP', 'MRURP', 'RandomRP', 'BRRIPRP', 'SHiPRP',
+-    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP'])
++    'SHiPMemRP', 'SHiPPCRP', 'TreePLRURP', 'WeightedLRURP',
++    'HPDcachePLRURP', 'HPDcacheRandomRP', 'CVA6IcacheRandomRP'])
+ 
+ Source('bip_rp.cc')
+ Source('brrip_rp.cc')
+ Source('dueling_rp.cc')
+ Source('fifo_rp.cc')
++Source('hpdcache_plru_rp.cc')
++Source('cva6_icache_random_rp.cc')
++Source('hpdcache_random_rp.cc')
+ Source('lfu_rp.cc')
+ Source('lru_rp.cc')
+ Source('mru_rp.cc')
+--- a/src/mem/cache/tags/base.hh
++++ b/src/mem/cache/tags/base.hh
+@@ -323,6 +323,15 @@
+      * @param src_blk The source block.
+      * @param dest_blk The destination block. Must be invalid.
+      */
++    /**
++     * Touch the replacement state of a block from the fill path.
++     * Used under evict-at-allocate to transcribe the HPDcache refill
++     * update (rule V4): the victim state advances when the line lands, not when the miss
++     * allocates. Default is a no-op for tag classes without a
++     * replacement policy.
++     */
++    virtual void replTouch(CacheBlk *blk) {}
++
+     virtual void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk);
+ 
+     /**
+--- a/src/mem/cache/tags/base_set_assoc.hh
++++ b/src/mem/cache/tags/base_set_assoc.hh
+@@ -214,6 +214,12 @@
+         replacementPolicy->reset(blk->replacementData, pkt);
+     }
+ 
++    void
++    replTouch(CacheBlk *blk) override
++    {
++        replacementPolicy->touch(blk->replacementData);
++    }
++
+     void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk) override;
+ 
+     /**
+--- /dev/null
++++ b/src/mem/Axi2MemPort.py
+@@ -0,0 +1,49 @@
++# Copyright (c) 2026 Manuel Nieto
++# All rights reserved.
++#
++# Redistribution and use in source and binary forms, with or without
++# modification, are permitted provided that the following conditions are
++# met: redistributions of source code must retain the above copyright
++# notice, this list of conditions and the following disclaimer;
++# redistributions in binary form must reproduce the above copyright
++# notice, this list of conditions and the following disclaimer in the
++# documentation and/or other materials provided with the distribution;
++# neither the name of the copyright holders nor the names of its
++# contributors may be used to endorse or promote products derived from
++# this software without specific prior written permission.
++#
++# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++
++# Axi2MemPort: a transaction-level transcription of the CVA6 testbench
++# memory adapter (axi2mem.sv) for gem5. The object sits between the
++# system crossbar and the memory controller and reproduces the
++# single-ported, one-transaction-at-a-time behaviour of the AXI-to-SRAM
++# adapter, with fixed read priority and an occupancy of 1 + N cycles for
++# N beats of 8 bytes. Every behaviour is a transcription of an RTL
++# rule. There are deliberately no tunable parameters. The clock is inherited from the parent clock domain.
++
++from m5.objects.ClockedObject import ClockedObject
++from m5.params import *
++
++
++class Axi2MemPort(ClockedObject):
++    type = "Axi2MemPort"
++    cxx_header = "mem/axi2mem_port.hh"
++    cxx_class = "gem5::Axi2MemPort"
++
++    cpu_side = ResponsePort(
++        "Receives requests from the system crossbar and sends responses"
++    )
++    mem_side = RequestPort(
++        "Sends requests to the memory controller and receives responses"
++    )
+--- /dev/null
++++ b/src/mem/axi2mem_port.cc
+@@ -0,0 +1,328 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * Axi2MemPort implementation. See axi2mem_port.hh for the rule
++ * summary. The retry machinery follows Bridge (src/mem/bridge.cc) and
++ * the transparent relay follows CommMonitor (src/mem/comm_monitor.cc),
++ * both read from gem5 v25.0.0.1.
++ */
++
++#include "mem/axi2mem_port.hh"
++
++#include <algorithm>
++
++#include "base/intmath.hh"
++#include "base/logging.hh"
++#include "base/trace.hh"
++#include "debug/Axi2MemPort.hh"
++#include "sim/cur_tick.hh"
++
++namespace gem5
++{
++
++/**
++ * Beat width in bytes, rule R6. AXI_DATA_WIDTH is 64 at the axi2mem
++ * instantiation (ariane_testharness.sv lines 32 and 456), so a 16-byte
++ * cache line moves as 2 beats and an 8-byte uncached access as 1 beat.
++ * This is a transcription constant, not a parameter.
++ */
++static constexpr unsigned beatBytes = 8;
++
++Axi2MemPort::Axi2MemPort(const Params &params)
++    : ClockedObject(params),
++      memSidePort(name() + ".mem_side", *this),
++      cpuSidePort(name() + ".cpu_side", *this),
++      pendingRead(nullptr),
++      pendingReadArrival(0),
++      pendingWrite(nullptr),
++      pendingWriteArrival(0),
++      portBusy(false),
++      retryReq(false),
++      waitingForDownstreamRetry(false),
++      releaseEvent([this]{ release(); }, name()),
++      stats(this)
++{
++}
++
++void
++Axi2MemPort::init()
++{
++    if (!cpuSidePort.isConnected() || !memSidePort.isConnected())
++        fatal("Axi2MemPort %s must be connected on both sides\n", name());
++
++    // Announce the downstream ranges upstream, as Bridge does at init.
++    cpuSidePort.sendRangeChange();
++}
++
++Port &
++Axi2MemPort::getPort(const std::string &if_name, PortID idx)
++{
++    if (if_name == "mem_side") {
++        return memSidePort;
++    } else if (if_name == "cpu_side") {
++        return cpuSidePort;
++    } else {
++        return ClockedObject::getPort(if_name, idx);
++    }
++}
++
++Axi2MemPort::TxnClass
++Axi2MemPort::classify(const PacketPtr pkt)
++{
++    // An AR transaction: a read that expects data back on R.
++    if (pkt->isRead() && pkt->needsResponse())
++        return TxnClass::Read;
++
++    // An AW plus W transaction: a write that carries a payload. This
++    // covers WritebackDirty, which needs no gem5 response and ends at
++    // the port, as well as uncached WriteReq, whose response passes
++    // back through transparently.
++    if (pkt->isWrite() && pkt->hasData())
++        return TxnClass::Write;
++
++    // No AXI equivalent. CleanEvict carries no data and no response,
++    // and the HPDcache write-back configuration drops clean victims
++    // silently, so charging occupancy here would invent traffic the
++    // RTL never issues.
++    return TxnClass::None;
++}
++
++Cycles
++Axi2MemPort::occupancy(const PacketPtr pkt) const
++{
++    // Rules R3 and R4: the read spends its extra cycle on the IDLE
++    // accept plus the synchronous SRAM round trip, the write spends
++    // its extra cycle on SEND_B, and both land on 1 + N. Rule R5
++    // covers the streaming-beat assumption.
++    const unsigned beats =
++        std::max<unsigned>(1, divCeil(pkt->getSize(), beatBytes));
++    return Cycles(1 + beats);
++}
++
++bool
++Axi2MemPort::recvTimingReq(PacketPtr pkt)
++{
++    assert(pkt->isRequest());
++    panic_if(pkt->cacheResponding(),
++             "Axi2MemPort should not see packets where a cache is "
++             "responding\n");
++
++    const TxnClass cls = classify(pkt);
++
++    if (cls == TxnClass::None) {
++        DPRINTF(Axi2MemPort, "Forwarding %s addr %#x with no occupancy\n",
++                pkt->cmdString(), pkt->getAddr());
++        stats.passThrough++;
++        xmitList.push_back(pkt);
++        trySendDownstream();
++        return true;
++    }
++
++    if (cls == TxnClass::Read) {
++        if (pendingRead) {
++            DPRINTF(Axi2MemPort, "Refusing %s addr %#x, read slot full\n",
++                    pkt->cmdString(), pkt->getAddr());
++            retryReq = true;
++            return false;
++        }
++        pendingRead = pkt;
++        pendingReadArrival = curTick();
++    } else {
++        if (pendingWrite) {
++            DPRINTF(Axi2MemPort, "Refusing %s addr %#x, write slot full\n",
++                    pkt->cmdString(), pkt->getAddr());
++            retryReq = true;
++            return false;
++        }
++        pendingWrite = pkt;
++        pendingWriteArrival = curTick();
++    }
++
++    arbitrate();
++    return true;
++}
++
++void
++Axi2MemPort::arbitrate()
++{
++    // Rule R1: an occupied port admits nothing. The release event
++    // re-arbitrates the moment the occupancy window ends.
++    if (portBusy)
++        return;
++
++    // Rule R2: the RTL IDLE state tests ar_valid (axi2mem.sv line 129)
++    // before aw_valid (line 144), a fixed read priority.
++    if (pendingRead) {
++        PacketPtr pkt = pendingRead;
++        pendingRead = nullptr;
++        const Cycles waited = ticksToCycles(curTick() - pendingReadArrival);
++        stats.readsAdmitted++;
++        stats.readWaitCycles.sample(waited);
++        DPRINTF(Axi2MemPort,
++                "Admitting %s addr %#x size %u, occupancy %u cycles, "
++                "waited %u cycles\n", pkt->cmdString(), pkt->getAddr(),
++                pkt->getSize(), (unsigned)occupancy(pkt), (unsigned)waited);
++        admit(pkt);
++    } else if (pendingWrite) {
++        PacketPtr pkt = pendingWrite;
++        pendingWrite = nullptr;
++        const Cycles waited = ticksToCycles(curTick() - pendingWriteArrival);
++        stats.writesAdmitted++;
++        stats.writeWaitCycles.sample(waited);
++        DPRINTF(Axi2MemPort,
++                "Admitting %s addr %#x size %u, occupancy %u cycles, "
++                "waited %u cycles\n", pkt->cmdString(), pkt->getAddr(),
++                pkt->getSize(), (unsigned)occupancy(pkt), (unsigned)waited);
++        admit(pkt);
++    } else {
++        return;
++    }
++
++    // Admission freed a slot, so a refused sender can try again. If the
++    // retried packet belongs to the still-occupied class it is refused
++    // once more and the flag is simply raised again, which makes
++    // progress on every release and cannot deadlock.
++    if (retryReq) {
++        retryReq = false;
++        cpuSidePort.sendRetryReq();
++    }
++}
++
++void
++Axi2MemPort::admit(PacketPtr pkt)
++{
++    portBusy = true;
++
++    // Rule R7: the occupancy window ends exactly at the next accept
++    // opportunity, so a 2-beat transaction can be admitted every 3
++    // cycles at most. clockEdge quantises to the inherited 50 MHz
++    // domain, and arrivals from the same domain are already aligned.
++    schedule(releaseEvent, clockEdge(occupancy(pkt)));
++
++    // Forward in the same tick as admission. The uncontended path adds
++    // zero latency by construction, so response timing stays on the
++    // calibrated route through the crossbar and the memory controller.
++    xmitList.push_back(pkt);
++    trySendDownstream();
++}
++
++void
++Axi2MemPort::release()
++{
++    assert(portBusy);
++    portBusy = false;
++    arbitrate();
++}
++
++void
++Axi2MemPort::trySendDownstream()
++{
++    if (waitingForDownstreamRetry)
++        return;
++
++    while (!xmitList.empty()) {
++        PacketPtr pkt = xmitList.front();
++        if (!memSidePort.sendTimingReq(pkt)) {
++            waitingForDownstreamRetry = true;
++            return;
++        }
++        xmitList.pop_front();
++    }
++}
++
++void
++Axi2MemPort::recvReqRetry()
++{
++    waitingForDownstreamRetry = false;
++    trySendDownstream();
++}
++
++bool
++Axi2MemPort::recvTimingResp(PacketPtr pkt)
++{
++    // The response path is fully transparent, including flow control.
++    // In the RTL the R beats and the B handshake already live inside
++    // the occupancy of rules R3 and R4, so the return trip carries no
++    // additional port semantics.
++    return cpuSidePort.sendTimingResp(pkt);
++}
++
++void
++Axi2MemPort::recvRespRetry()
++{
++    memSidePort.sendRetryResp();
++}
++
++Tick
++Axi2MemPort::recvAtomic(PacketPtr pkt)
++{
++    return memSidePort.sendAtomic(pkt);
++}
++
++void
++Axi2MemPort::recvFunctional(PacketPtr pkt)
++{
++    memSidePort.sendFunctional(pkt);
++}
++
++AddrRangeList
++Axi2MemPort::getAddrRanges() const
++{
++    return memSidePort.getAddrRanges();
++}
++
++void
++Axi2MemPort::recvRangeChange()
++{
++    cpuSidePort.sendRangeChange();
++}
++
++Axi2MemPort::Axi2MemPortStats::Axi2MemPortStats(statistics::Group *parent)
++    : statistics::Group(parent),
++      ADD_STAT(readsAdmitted, statistics::units::Count::get(),
++               "Read transactions admitted to the single port"),
++      ADD_STAT(writesAdmitted, statistics::units::Count::get(),
++               "Write transactions admitted to the single port"),
++      ADD_STAT(passThrough, statistics::units::Count::get(),
++               "Packets with no AXI equivalent forwarded without occupancy"),
++      ADD_STAT(readWaitCycles, statistics::units::Cycle::get(),
++               "Admission wait of read transactions"),
++      ADD_STAT(writeWaitCycles, statistics::units::Cycle::get(),
++               "Admission wait of write transactions")
++{
++    readWaitCycles
++        .init(8)
++        .flags(statistics::pdf);
++
++    writeWaitCycles
++        .init(8)
++        .flags(statistics::pdf);
++}
++
++} // namespace gem5
+--- /dev/null
++++ b/src/mem/axi2mem_port.hh
+@@ -0,0 +1,255 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * Axi2MemPort: a transaction-level transcription of the CVA6 testbench
++ * memory adapter (axi2mem.sv) for gem5.
++ *
++ * The object sits between the system crossbar and the memory controller
++ * and reproduces the single-ported, one-transaction-at-a-time behaviour
++ * of the AXI-to-SRAM adapter in ariane_testharness.sv. Every behaviour
++ * is a transcription of an RTL rule, cited at the point of use with
++ * rule numbers R1 to R8. There are no tunable parameters. The
++ * clock is inherited from the parent clock domain, which in the CVA6
++ * configuration is the 50 MHz board domain.
++ *
++ * Summary of the transcribed rules:
++ *   R1  one transaction holds the port end to end (axi2mem.sv line 56,
++ *       FSM {IDLE, READ, WRITE, SEND_B, WAIT_WVALID})
++ *   R2  fixed read priority in IDLE (line 129 tested before line 144)
++ *   R3  read occupancy is 1 + N cycles for N beats (lines 124 to 220)
++ *   R4  write occupancy is 1 + N cycles for N beats (lines 144 to 265)
++ *   R6  N is payload bytes over 8, AXI_DATA_WIDTH = 64
++ *       (ariane_testharness.sv lines 32 and 456)
++ *   R7  the IDLE cycle is itself the next accept cycle, no dead cycle
++ *
++ * Uncontended latency added by this object is exactly zero. A packet
++ * that finds its class slot free and the port idle is forwarded
++ * downstream in the same tick it arrives. Contention appears only as
++ * admission wait, so runs without overlapping memory traffic are
++ * bit-identical to runs without the object.
++ */
++
++#ifndef __MEM_AXI2MEM_PORT_HH__
++#define __MEM_AXI2MEM_PORT_HH__
++
++#include <deque>
++
++#include "base/statistics.hh"
++#include "base/types.hh"
++#include "mem/port.hh"
++#include "params/Axi2MemPort.hh"
++#include "sim/clocked_object.hh"
++
++namespace gem5
++{
++
++class Axi2MemPort : public ClockedObject
++{
++  public:
++    using Params = Axi2MemPortParams;
++
++    Axi2MemPort(const Params &params);
++
++    void init() override;
++
++    Port &getPort(const std::string &if_name,
++                  PortID idx = InvalidPortID) override;
++
++  private:
++    /**
++     * Packet classification against the AXI transactions the RTL
++     * adapter would see. Read maps to an AR transaction, Write maps to
++     * an AW plus W transaction, and None covers packets with no AXI
++     * equivalent, such as CleanEvict, which the HPDcache write-back
++     * configuration drops silently.
++     */
++    enum class TxnClass { Read, Write, None };
++
++    /** The port facing the memory controller. */
++    class ModelRequestPort : public RequestPort
++    {
++      public:
++        ModelRequestPort(const std::string &_name, Axi2MemPort &_adapter)
++            : RequestPort(_name), adapter(_adapter)
++        { }
++
++      protected:
++        bool
++        recvTimingResp(PacketPtr pkt)
++        {
++            return adapter.recvTimingResp(pkt);
++        }
++
++        void
++        recvReqRetry()
++        {
++            adapter.recvReqRetry();
++        }
++
++        void
++        recvRangeChange()
++        {
++            adapter.recvRangeChange();
++        }
++
++      private:
++        Axi2MemPort &adapter;
++    };
++
++    /** The port facing the system crossbar. */
++    class ModelResponsePort : public ResponsePort
++    {
++      public:
++        ModelResponsePort(const std::string &_name, Axi2MemPort &_adapter)
++            : ResponsePort(_name), adapter(_adapter)
++        { }
++
++      protected:
++        void
++        recvFunctional(PacketPtr pkt)
++        {
++            adapter.recvFunctional(pkt);
++        }
++
++        Tick
++        recvAtomic(PacketPtr pkt)
++        {
++            return adapter.recvAtomic(pkt);
++        }
++
++        bool
++        recvTimingReq(PacketPtr pkt)
++        {
++            return adapter.recvTimingReq(pkt);
++        }
++
++        AddrRangeList
++        getAddrRanges() const
++        {
++            return adapter.getAddrRanges();
++        }
++
++        void
++        recvRespRetry()
++        {
++            adapter.recvRespRetry();
++        }
++
++      private:
++        Axi2MemPort &adapter;
++    };
++
++    ModelRequestPort memSidePort;
++    ModelResponsePort cpuSidePort;
++
++    /** Relay targets called by the two ports. */
++    void recvFunctional(PacketPtr pkt);
++    Tick recvAtomic(PacketPtr pkt);
++    bool recvTimingReq(PacketPtr pkt);
++    bool recvTimingResp(PacketPtr pkt);
++    void recvReqRetry();
++    void recvRespRetry();
++    void recvRangeChange();
++    AddrRangeList getAddrRanges() const;
++
++    /** Classify a packet against the RTL transaction classes. */
++    static TxnClass classify(const PacketPtr pkt);
++
++    /**
++     * Port occupancy of an admitted transaction, rules R3, R4 and R6.
++     * Both classes occupy 1 + N cycles for N beats of 8 bytes.
++     */
++    Cycles occupancy(const PacketPtr pkt) const;
++
++    /**
++     * Admission arbitration, rule R2. Called whenever the port frees or
++     * a request arrives. Admits the pending read before the pending
++     * write, exactly as the RTL IDLE state tests ar_valid before
++     * aw_valid.
++     */
++    void arbitrate();
++
++    /** Admit one transaction: occupy the port and forward downstream. */
++    void admit(PacketPtr pkt);
++
++    /** The port becomes free, rule R7: this tick can admit again. */
++    void release();
++
++    /** Drain the downstream transmit list, honouring peer flow control. */
++    void trySendDownstream();
++
++    /**
++     * One pending slot per transaction class, mirroring the separate AR
++     * and AW channels of the AXI fabric. A flat single-slot refusal
++     * would head-block a read behind a refused write inside the
++     * crossbar layer, and rule R2 would become untranscribable.
++     */
++    PacketPtr pendingRead;
++    Tick pendingReadArrival;
++    PacketPtr pendingWrite;
++    Tick pendingWriteArrival;
++
++    /** The single port is occupied, rule R1. */
++    bool portBusy;
++
++    /** An upstream sender was refused and is owed a retry. */
++    bool retryReq;
++
++    /** The downstream peer refused and owes this object a retry. */
++    bool waitingForDownstreamRetry;
++
++    /** Admitted packets awaiting the downstream handshake, in order. */
++    std::deque<PacketPtr> xmitList;
++
++    /** Fires when the occupancy window of the transaction ends. */
++    EventFunctionWrapper releaseEvent;
++
++    struct Axi2MemPortStats : public statistics::Group
++    {
++        Axi2MemPortStats(statistics::Group *parent);
++
++        /** Transactions admitted per class. */
++        statistics::Scalar readsAdmitted;
++        statistics::Scalar writesAdmitted;
++
++        /** Packets forwarded with no AXI equivalent and no occupancy. */
++        statistics::Scalar passThrough;
++
++        /**
++         * Admission wait per class in cycles. The write histogram is
++         * the gem5 twin of the CVA6 baseline writeback latency tail.
++         */
++        statistics::Histogram readWaitCycles;
++        statistics::Histogram writeWaitCycles;
++    } stats;
++};
++
++} // namespace gem5
++
++#endif // __MEM_AXI2MEM_PORT_HH__
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.cc
+@@ -0,0 +1,125 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * CVA6IcacheRandom implementation. See cva6_icache_random_rp.hh for
++ * the rule set. The
++ * candidate downcast mirrors the one BaseSetAssoc performs on its own
++ * victim (base_set_assoc.hh line 186).
++ */
++
++#include "mem/cache/replacement_policies/cva6_icache_random_rp.hh"
++
++#include <cassert>
++
++#include "base/intmath.hh"
++#include "base/logging.hh"
++
++#include "mem/cache/cache_blk.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++CVA6IcacheRandom::CVA6IcacheRandom(const Params &p)
++    : Base(p),
++      // Rule I5: lfsr.sv defaults RstVal to all ones and the icache
++      // does not override it (cva6_icache.sv lines 409 to 417).
++      lfsr(0xFF)
++{
++}
++
++void
++CVA6IcacheRandom::invalidate(
++    const std::shared_ptr<ReplacementData>& replacement_data)
++{
++}
++
++void
++CVA6IcacheRandom::touch(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++}
++
++void
++CVA6IcacheRandom::reset(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++}
++
++ReplaceableEntry*
++CVA6IcacheRandom::getVictim(const ReplacementCandidates& candidates) const
++{
++    assert(candidates.size() > 0);
++    const int ways = candidates.size();
++
++    // Rule I4: the way index is the low ICACHE_SET_ASSOC_WIDTH bits of
++    // the register, so the associativity must be a power of two, as it
++    // is on the D side for the same reason.
++    fatal_if(!isPowerOf2(ways),
++             "CVA6IcacheRandom needs a power-of-two associativity, got "
++             "%d. The transcribed policy takes LFSR bits directly as a "
++             "way index, as the RTL does.", ways);
++
++    // Rule I2: the lowest-index invalid way, which is what the
++    // leading-zero count over the inverted valid vector produces, and
++    // whose empty flag is all_ways_valid.
++    for (int w = 0; w < ways; w++) {
++        CacheBlk *blk = static_cast<CacheBlk*>(candidates[w]);
++        if (!blk->isValid()) {
++            // Rule I3: all_ways_valid is false here, so the register
++            // does not advance.
++            return candidates[w];
++        }
++    }
++
++    // Rule I1: every way is valid, so the register names the victim,
++    // and rule I3 advances it because this selection will be followed
++    // by a fill into a full set.
++    const int victim = lfsr & (ways - 1);
++
++    // Rule I5, lfsr.sv line 237: Galois right shift with Masks[8].
++    const uint8_t lsb = lfsr & 0x1;
++    lfsr = lfsr >> 1;
++    if (lsb) {
++        lfsr ^= 0xFA;
++    }
++
++    return candidates[victim];
++}
++
++std::shared_ptr<ReplacementData>
++CVA6IcacheRandom::instantiateEntry()
++{
++    return std::shared_ptr<ReplacementData>(new CVA6IcacheRandomReplData());
++}
++
++} // namespace replacement_policy
++} // namespace gem5
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.hh
+@@ -0,0 +1,121 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * CVA6IcacheRandom: a transcription of the CVA6 instruction cache
++ * replacement policy (cva6_icache.sv) for gem5.
++ *
++ * The instruction cache is a different module from the HPDcache and
++ * carries its own policy, so this is not the D-side random policy with
++ * a parameter changed. Two tiers rather than four, because the cache
++ * is read only and has no dirty state, and a different LFSR: the
++ * icache instantiates PULP's common-cells lfsr, not hpdcache_lfsr, and
++ * the two use different polynomials.
++ *
++ * Transcribed rules, with their citations:
++ *
++ *   I1  repl_way = all_ways_valid ? rnd_way : inv_way
++ *       (cva6_icache.sv line 391)
++ *   I2  inv_way is the lowest-index invalid way, from a leading-zero
++ *       count over the inverted valid vector, whose empty flag is
++ *       all_ways_valid (lines 399 to 406)
++ *   I3  update_lfsr = cache_wren & all_ways_valid (line 390), so the
++ *       register advances only on a fill into a set that was already
++ *       full. Never on a hit, and never while the set still has an
++ *       invalid way, so it does not move at all during warmup
++ *   I4  the LFSR is 8 bits wide with an output width of
++ *       ICACHE_SET_ASSOC_WIDTH (lines 409 to 417)
++ *   I5  lfsr.sv line 237: Galois right shift, next = (v >> 1) xor
++ *       (mask if the low bit is set), with Masks[8] = 0xFA and the
++ *       default reset value of all ones, and out_o = lfsr_q[OutWidth-1:0]
++ *       since CipherLayers is 0 (lines 40 to 44, 236 to 237, 286)
++ *
++ * The polynomial gives a maximal 255-state period and a way
++ * distribution of 63, 64, 64, 64 over that period for a 4-way cache.
++ * There are no tunable parameters: the polynomial, the reset value and
++ * the output width are all transcription constants.
++ */
++
++#ifndef __MEM_CACHE_REPLACEMENT_POLICIES_CVA6_ICACHE_RANDOM_RP_HH__
++#define __MEM_CACHE_REPLACEMENT_POLICIES_CVA6_ICACHE_RANDOM_RP_HH__
++
++#include <cstdint>
++
++#include "mem/cache/replacement_policies/base.hh"
++#include "params/CVA6IcacheRandomRP.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++class CVA6IcacheRandom : public Base
++{
++  protected:
++    /** Per-entry data is empty: the RTL keeps no per-way state. */
++    struct CVA6IcacheRandomReplData : ReplacementData
++    {
++    };
++
++    /**
++     * The single LFSR, rule I5. Mutable because getVictim is const in
++     * the base interface while a selection can advance the register,
++     * exactly as in hardware.
++     */
++    mutable uint8_t lfsr;
++
++  public:
++    typedef CVA6IcacheRandomRPParams Params;
++    CVA6IcacheRandom(const Params &p);
++    ~CVA6IcacheRandom() = default;
++
++    /** No-op: the RTL keeps no replacement state per way. */
++    void invalidate(const std::shared_ptr<ReplacementData>&
++        replacement_data) override;
++
++    /** No-op, rule I3: a hit never advances the register. */
++    void touch(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /** No-op: the register advances in getVictim, where the RTL
++     *  decides between the two tiers. */
++    void reset(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /** Rules I1 to I3. */
++    ReplaceableEntry* getVictim(
++        const ReplacementCandidates& candidates) const override;
++
++    std::shared_ptr<ReplacementData> instantiateEntry() override;
++};
++
++} // namespace replacement_policy
++} // namespace gem5
++
++#endif // __MEM_CACHE_REPLACEMENT_POLICIES_CVA6_ICACHE_RANDOM_RP_HH__
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.cc
+@@ -0,0 +1,181 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * HPDcachePLRU implementation. See hpdcache_plru_rp.hh for the V-rule
++ * summary. The
++ * shared-state pattern follows TreePLRU (tree_plru_rp.cc, gem5
++ * v25.0.0.1), the candidate downcast mirrors the one BaseSetAssoc
++ * itself performs on the victim (base_set_assoc.hh line 186).
++ */
++
++#include "mem/cache/replacement_policies/hpdcache_plru_rp.hh"
++
++#include <cassert>
++
++#include "mem/cache/cache_blk.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++HPDcachePLRU::HPDcachePLRU(const Params &p)
++    : Base(p), numWays(p.num_ways), count(0), sharedBits(nullptr)
++{
++}
++
++void
++HPDcachePLRU::invalidate(
++    const std::shared_ptr<ReplacementData>& replacement_data)
++{
++    // Transcription no-op: V2 is the only writer of the use bits and
++    // tier 1 of V3 catches invalid ways before the bits are consulted.
++}
++
++void
++HPDcachePLRU::touch(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++    // Rule V2 (hpdcache_victim_plru.sv lines 120 to 129): set the
++    // accessed way's bit, and if the set would saturate to all ones,
++    // reset to only the accessed way's bit.
++    const auto data =
++        std::static_pointer_cast<HPDcacheReplData>(replacement_data);
++    std::vector<bool> &bits = data->bits->bits;
++
++    bits[data->index] = true;
++
++    bool all_set = true;
++    for (const bool b : bits) {
++        all_set = all_set && b;
++    }
++    if (all_set) {
++        for (uint64_t i = 0; i < bits.size(); i++) {
++            bits[i] = (i == data->index);
++        }
++    }
++}
++
++void
++HPDcachePLRU::reset(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++    // Transcription no-op, rule V4: no update at miss allocation. The
++    // refill update arrives through the fill-path replTouch hook.
++}
++
++ReplaceableEntry*
++HPDcachePLRU::getVictim(const ReplacementCandidates& candidates) const
++{
++    assert(candidates.size() > 0);
++
++    // Rule V3 (hpdcache_victim_plru.sv lines 72 to 115). Candidates
++    // arrive from the set-associative indexing policy in way order,
++    // so keeping the first match per tier is the priority one-hot
++    // encoder. This policy requires cache blocks as candidates, the
++    // same guarantee BaseSetAssoc relies on in the other direction.
++    ReplaceableEntry *unused_way = nullptr;
++    ReplaceableEntry *plru_way = nullptr;
++    ReplaceableEntry *clean_way = nullptr;
++    ReplaceableEntry *dirty_way = nullptr;
++
++    for (const auto& candidate : candidates) {
++        CacheBlk *blk = static_cast<CacheBlk*>(candidate);
++
++        // sel_dir_fetch exclusion: a way with a fill in flight is the
++        // valid-but-not-readable transient of evict-at-allocate.
++        // See the random policy: a reserved victim stays readable
++        // under the victim-readable-until-fill lever, so it carries an
++        // explicit marker rather than the not-readable transient.
++        const bool fetching =
++            (blk->isValid() && !blk->isSet(CacheBlk::ReadableBit)) ||
++            blk->isReservedVictim();
++        if (fetching) {
++            continue;
++        }
++
++        if (!blk->isValid()) {
++            if (!unused_way) {
++                unused_way = candidate;
++            }
++            continue;
++        }
++
++        const auto data = std::static_pointer_cast<HPDcacheReplData>(
++            candidate->replacementData);
++        if (!data->bits->bits[data->index] && !plru_way) {
++            plru_way = candidate;
++        }
++        if (!blk->isSet(CacheBlk::DirtyBit)) {
++            if (!clean_way) {
++                clean_way = candidate;
++            }
++        } else if (!dirty_way) {
++            dirty_way = candidate;
++        }
++    }
++
++    if (unused_way) {
++        return unused_way;
++    }
++    if (plru_way) {
++        return plru_way;
++    }
++    if (clean_way) {
++        return clean_way;
++    }
++    if (dirty_way) {
++        return dirty_way;
++    }
++
++    // Every way has a fill in flight. The RTL outputs no victim and
++    // replays (line 113). Nominating way 0 lets the evict-at-allocate
++    // reservation guard refuse it, which drives the caller into the
++    // counted graceful fallback, the gem5 twin of the replay.
++    return candidates[0];
++}
++
++std::shared_ptr<ReplacementData>
++HPDcachePLRU::instantiateEntry()
++{
++    // A bit vector is shared by numWays consecutive entries, the
++    // TreePLRU sharing pattern (tree_plru_rp.cc lines 199 to 213).
++    if (count % numWays == 0) {
++        sharedBits = std::make_shared<PLRUBits>(numWays);
++    }
++
++    auto data = std::shared_ptr<HPDcacheReplData>(
++        new HPDcacheReplData(count % numWays, sharedBits));
++    count++;
++    return data;
++}
++
++} // namespace replacement_policy
++} // namespace gem5
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.hh
+@@ -0,0 +1,137 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * HPDcachePLRU: a transcription of the CVA6 HPDcache victim policy
++ * (hpdcache_victim_plru.sv, read in full) as a gem5 replacement
++ * policy. The policy is bit-PLRU with a four-tier prioritised victim
++ * cascade, and every behaviour below carries a V-rule number plus its
++ * RTL line citation. There are no tunable parameters: num_ways proxies
++ * the cache associativity.
++ *
++ *   V1  one use bit per way per set, reset all zero
++ *       (hpdcache_victim_plru.sv lines 62, 137 to 138)
++ *   V2  update sets the accessed way's bit, saturating to only that
++ *       bit when all would be one (lines 120 to 129)
++ *   V3  victim cascade, lowest way first per tier: invalid, then
++ *       zero-bit, then clean, then dirty, fetching ways excluded
++ *       from every tier (lines 72 to 115)
++ *   V4  updates pulse on stage-1 hits (hpdcache_ctrl_pe.sv lines 883
++ *       and 947) and on refill (hpdcache_miss_handler.sv lines 431
++ *       to 436 and 461 to 466), never at miss allocation, which is
++ *       why reset() below is a no-op
++ *
++ * Designed for the CVA6 lab configuration: it requires cache blocks
++ * as candidates and the evict-at-allocate discipline, where insertion
++ * happens at miss time (reset, silent) and the refill update arrives
++ * through the BaseTags::replTouch hook.
++ */
++
++#ifndef __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
++#define __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
++
++#include <memory>
++#include <vector>
++
++#include "mem/cache/replacement_policies/base.hh"
++#include "params/HPDcachePLRURP.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++class HPDcachePLRU : public Base
++{
++  protected:
++    /** Shared per-set use-bit vector, rule V1. */
++    struct PLRUBits
++    {
++        std::vector<bool> bits;
++        PLRUBits(uint64_t num_ways) : bits(num_ways, false) {}
++    };
++
++    /** Per-entry data: the way index and the set's shared bits. */
++    struct HPDcacheReplData : ReplacementData
++    {
++        const uint64_t index;
++        std::shared_ptr<PLRUBits> bits;
++
++        HPDcacheReplData(uint64_t index, std::shared_ptr<PLRUBits> bits)
++            : index(index), bits(bits)
++        {
++        }
++    };
++
++    /** Ways per set, proxied from the cache associativity. */
++    const uint64_t numWays;
++
++    /** Entries handed out so far, drives the per-set sharing. */
++    uint64_t count;
++
++    /** The bit vector currently being shared out. */
++    std::shared_ptr<PLRUBits> sharedBits;
++
++  public:
++    typedef HPDcachePLRURPParams Params;
++    HPDcachePLRU(const Params &p);
++    ~HPDcachePLRU() = default;
++
++    /**
++     * No-op by transcription: the RTL never clears a use bit on
++     * invalidation (V2 is the only writer), and tier 1 of V3 makes
++     * any stale bit on an invalid way unreachable.
++     */
++    void invalidate(const std::shared_ptr<ReplacementData>&
++        replacement_data) override;
++
++    /** Rule V2: set the way's bit, saturating to only this way. */
++    void touch(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /**
++     * No-op by transcription of rule V4: gem5 calls reset at
++     * insertion, which under evict-at-allocate is miss time, where
++     * the RTL performs no update. The refill update arrives later
++     * through the fill-path replTouch hook.
++     */
++    void reset(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /** Rule V3: the four-tier prioritised cascade. */
++    ReplaceableEntry* getVictim(
++        const ReplacementCandidates& candidates) const override;
++
++    std::shared_ptr<ReplacementData> instantiateEntry() override;
++};
++
++} // namespace replacement_policy
++} // namespace gem5
++
++#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
+@@ -0,0 +1,174 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * HPDcacheRandom implementation. See hpdcache_random_rp.hh for the
++ * rule set. The candidate downcast mirrors BaseSetAssoc's own
++ * (base_set_assoc.hh line 186), as in the PLRU sibling.
++ */
++
++#include "mem/cache/replacement_policies/hpdcache_random_rp.hh"
++
++#include <cassert>
++
++#include "base/intmath.hh"
++#include "base/logging.hh"
++
++#include "mem/cache/cache_blk.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++HPDcacheRandom::HPDcacheRandom(const Params &p)
++    : Base(p),
++      // R5: reset value all ones (hpdcache_lfsr.sv line 79)
++      lfsr(0xFF)
++{
++}
++
++void
++HPDcacheRandom::invalidate(
++    const std::shared_ptr<ReplacementData>& replacement_data)
++{
++}
++
++void
++HPDcacheRandom::touch(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++}
++
++void
++HPDcacheRandom::reset(
++    const std::shared_ptr<ReplacementData>& replacement_data) const
++{
++}
++
++ReplaceableEntry*
++HPDcacheRandom::getVictim(const ReplacementCandidates& candidates) const
++{
++    assert(candidates.size() > 0);
++    const int ways = candidates.size();
++
++    // The RTL derives the random way by decoding the low
++    // wayIndexWidth bits of the LFSR into a one-hot vector of width
++    // 2 to the wayIndexWidth (hpdcache_victim_random.sv lines 83 to
++    // 88, hpdcache_decoder.sv line 31), so the hardware supports
++    // powers of two only. The masking below matches that exactly and
++    // would silently pick the wrong way otherwise, hence the check
++    // rather than a modulo, which would be a fabrication.
++    fatal_if(!isPowerOf2(ways),
++             "HPDcacheRandom needs a power-of-two associativity, got %d. "
++             "The transcribed policy decodes LFSR bits directly onto "
++             "ways, as the RTL does.", ways);
++
++    // Candidates arrive in way order, so first-match scans are the
++    // priority encoders. Tier masks per hpdcache_victim_random.sv
++    // lines 68 to 71, with fetching mapped to the reserved
++    // valid-but-not-readable transient.
++    ReplaceableEntry *unused_way = nullptr;
++    ReplaceableEntry *clean_way = nullptr;
++    ReplaceableEntry *dirty_way = nullptr;
++    ReplaceableEntry *rand_way = nullptr;
++
++    const int rand_index = lfsr & (ways - 1);
++
++    for (int w = 0; w < ways; w++) {
++        CacheBlk *blk = static_cast<CacheBlk*>(candidates[w]);
++        // A way is out of the running while its line is in flight.
++        // Under the victim-readable-until-fill lever the reserved
++        // victim is still readable, so it carries an explicit marker
++        // instead, which is why both predicates appear here.
++        const bool fetching =
++            (blk->isValid() && !blk->isSet(CacheBlk::ReadableBit)) ||
++            blk->isReservedVictim();
++        if (fetching) {
++            continue;
++        }
++        if (!blk->isValid()) {
++            if (!unused_way) {
++                unused_way = candidates[w];
++            }
++            continue;
++        }
++        if (w == rand_index) {
++            rand_way = candidates[w];
++        }
++        if (!blk->isSet(CacheBlk::DirtyBit)) {
++            if (!clean_way) {
++                clean_way = candidates[w];
++            }
++        } else if (!dirty_way) {
++            dirty_way = candidates[w];
++        }
++    }
++
++    // R1: unused first. The LFSR does not shift in this case
++    // (shift_i carries ~unused_available).
++    if (unused_way) {
++        return unused_way;
++    }
++
++    // R2 and R5: the LFSR-named way if eligible, and the register
++    // shifts exactly on this firing (Galois right, polynomial 0xE1,
++    // hpdcache_lfsr.sv lines 50 and 63 to 71).
++    if (rand_way) {
++        const uint8_t lsb = lfsr & 0x1;
++        lfsr = lfsr >> 1;
++        if (lsb) {
++            lfsr ^= 0xE1;
++        }
++        return rand_way;
++    }
++
++    // R3 then R4.
++    if (clean_way) {
++        return clean_way;
++    }
++    if (dirty_way) {
++        return dirty_way;
++    }
++
++    // Every way has a fill in flight. The RTL outputs no victim and
++    // replays (default arm, line 123). Nominating way 0 lets the
++    // evict-at-allocate guard refuse it, driving the counted
++    // graceful fallback, as in the PLRU sibling.
++    return candidates[0];
++}
++
++std::shared_ptr<ReplacementData>
++HPDcacheRandom::instantiateEntry()
++{
++    return std::shared_ptr<ReplacementData>(new HPDcacheRandomReplData());
++}
++
++} // namespace replacement_policy
++} // namespace gem5
+--- /dev/null
++++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
+@@ -0,0 +1,115 @@
++/*
++ * Copyright (c) 2026 Manuel Nieto
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions are
++ * met: redistributions of source code must retain the above copyright
++ * notice, this list of conditions and the following disclaimer;
++ * redistributions in binary form must reproduce the above copyright
++ * notice, this list of conditions and the following disclaimer in the
++ * documentation and/or other materials provided with the distribution;
++ * neither the name of the copyright holders nor the names of its
++ * contributors may be used to endorse or promote products derived from
++ * this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++/*
++ * HPDcacheRandom: transcription of the CVA6 HPDcache victim policy
++ * that the build actually configures, hpdcache_victim_random.sv
++ * (HPDCACHE_VICTIM_RANDOM, the generate branch selected by the
++ * running configuration).
++ *
++ * The policy keeps no per-way state at all: the RTL marks every
++ * update port unused. Victim selection is a four-tier prioritised
++ * cascade (hpdcache_victim_random.sv lines 68 to 125):
++ *
++ *   R1  first invalid, non-fetching way (priority encoder, lowest
++ *       way first)
++ *   R2  the way named by a global 8-bit LFSR, if that way is valid
++ *       and not fetching
++ *   R3  else the first clean way
++ *   R4  else the first dirty way
++ *
++ *   R5  one LFSR for the whole cache, Galois right-shift, polynomial
++ *       0xE1, reset value all ones (hpdcache_lfsr.sv lines 50 and
++ *       63 to 82), shifting exactly when a selection occurs, the
++ *       unused tier did not fire, and the LFSR-named way was
++ *       eligible (shift_i gating, hpdcache_victim_random.sv line 79)
++ *
++ * There are no tunable parameters: the polynomial and seed are
++ * transcription constants. Designed for the CVA6 lab configuration
++ * under evict-at-allocate, where fetching maps to the reserved
++ * valid-but-not-readable transient and selection happens at miss
++ * time as in the RTL.
++ */
++
++#ifndef __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_RANDOM_RP_HH__
++#define __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_RANDOM_RP_HH__
++
++#include <cstdint>
++
++#include "mem/cache/replacement_policies/base.hh"
++#include "params/HPDcacheRandomRP.hh"
++
++namespace gem5
++{
++
++namespace replacement_policy
++{
++
++class HPDcacheRandom : public Base
++{
++  protected:
++    /** Per-entry data is empty: the RTL keeps no per-way state. */
++    struct HPDcacheRandomReplData : ReplacementData
++    {
++    };
++
++    /**
++     * The single global LFSR (rule R5). Mutable because getVictim is
++     * const in the base interface while a selection can shift the
++     * register, exactly as in hardware.
++     */
++    mutable uint8_t lfsr;
++
++  public:
++    typedef HPDcacheRandomRPParams Params;
++    HPDcacheRandom(const Params &p);
++    ~HPDcacheRandom() = default;
++
++    /** No-op: the RTL update ports are unused. */
++    void invalidate(const std::shared_ptr<ReplacementData>&
++        replacement_data) override;
++
++    /** No-op: the RTL update ports are unused. */
++    void touch(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /** No-op: the RTL update ports are unused. */
++    void reset(const std::shared_ptr<ReplacementData>&
++        replacement_data) const override;
++
++    /** Rules R1 to R5. */
++    ReplaceableEntry* getVictim(
++        const ReplacementCandidates& candidates) const override;
++
++    std::shared_ptr<ReplacementData> instantiateEntry() override;
++};
++
++} // namespace replacement_policy
++} // namespace gem5
++
++#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_RANDOM_RP_HH__

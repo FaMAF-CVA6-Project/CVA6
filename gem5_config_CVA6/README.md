@@ -11,19 +11,23 @@ The gem5 MinorCPU configuration matched to CVA6, and the paired runs that show h
 | `gem5/gem5_config_CVA6_testing.py` | The calibration harness: the stock core as a table of single-knob perturbations |
 | `gem5/gem5_config_CVA6_Patch_testing.py` | The same table for the patched core. This is the sweep's `DEFAULT_CONFIG` |
 | `gem5/run_CVA6_testing_sweep.py` | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep) |
-| the gem5 patch | Every gem5 change the patched configuration depends on, CPU and caches. Being reworked into a single file, so it is not in the tree at the moment |
-| `gem5/tests/` | The gem5 side: debug trace, measured region and MinorFlow JSON per benchmark |
-| `verilator/tests/` | The CVA6 side: VCD, listing, measured region and CVA6Flow JSON per benchmark |
+| `gem5/MinorCPU_CVA6.patch` | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file |
+| `gem5/tests/` | The gem5 side: measured region and MinorFlow JSON per benchmark |
+| `verilator/tests/` | The CVA6 side: measured region and CVA6Flow JSON per benchmark |
 
-Both `tests/` folders carry the same ten benchmarks, `atomic_fence`, `basic_test`, `branch_full_test`, `daxpy`, `fp_addmul`, `fp_divsqrt`, `full_test`, `int_div`, `matmul_small` and `store_fwd`, which is the set `DEFAULT_ALL_TESTS` names in the sweep. Each side also has a `*_create_all_jsons.py` that runs its tracer over every trace in the folder, so the JSONs can be regenerated in one go.
+Both `tests/` folders carry the same fourteen benchmarks, `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`, which is the set `DEFAULT_ALL_TESTS` names in the sweep. Each side also has a `*_create_all_jsons.py` that runs its tracer over every trace in the folder, so the JSONs can be regenerated in one go.
 
-The measured region and the metrics table live in `<test>_report.txt` on both sides, each in its own banner-delimited section, and the tables have the same columns. That file is the quickest way to compare a benchmark: open the two and read down. Each table's title names the simulator, the program and the L1 geometry the run used, so two tables can be compared without having to remember which cache configuration produced them.
+The measured region and the metrics table live in `<test>_report.txt` on both sides, each in its own banner-delimited section, and the tables have the same columns.
+
+## Results
+
+Across the fourteen pairs the patched configuration lands at a mean absolute cycle error of 9.4 percent, and 3.8 excluding the two smallest programs, whose absolute gaps are a scaffold-dominated 131 and 467 cycles. The two blind composite tests, never used for calibration, read −0.35 and +0.24 percent. The stock-gem5 version, which keeps every calibrated value but none of the transcribed mechanisms, reads 21.4 percent on the same pairs, which is the argument for the patch in one number.
 
 ## The matched configuration
 
 It comes in two versions. `gem5_config_CVA6.py` runs on a **stock gem5**, using only what upstream already provides, so it works against an unmodified build. `gem5_config_CVA6_Patch.py` runs on a **patched gem5** and adds the mechanisms the patch makes available. Each has a `_testing` twin carrying the calibration table.
 
-Both target `cv64a6_imafdc_sv39_hpdcache_wb` at 50 MHz, with a 16 KiB L1I and a 32 KiB L1D. Every value is either derived from a CVA6 RTL localparam or is a gem5-side estimate where CVA6 has no clean counterpart. Two functional-unit latencies, `int_div` and `fp_divsqrt`, are representative stand-ins for iterative units that are data-dependent in the RTL and off every calibrated kernel's hot path.
+Both target `cv64a6_imafdc_sv39_hpdcache_wb` at 50 MHz, with a 16 KiB L1I and a 32 KiB L1D. Every value is either derived from a CVA6 RTL localparam or is a gem5-side estimate where CVA6 has no clean counterpart.
 
 Run it like any other gem5 config:
 
@@ -43,10 +47,11 @@ Every transcribed mechanism is on by default and each has a `--no-` switch that 
 | `--no-fill-phase` | The L1D fill-instant correction |
 | `--no-fence-flush` | A fence flushing the L1D |
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
+| `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
 
 ## The patch
 
-`MinorCPU_CVA6.patch` is the whole gem5 side in one file. Every behaviour it adds is a transcription of a specific RTL rule, every one is behind a parameter that defaults to the stock behaviour, and every one carries its citation in the source comments. A patched gem5 runs unpatched configurations unchanged.
+`MinorCPU_CVA6.patch` is the whole gem5 side in one file, verified to apply cleanly on pristine v25.0.0.1 and to reproduce the reference tree byte for byte. Every behaviour it adds is a transcription of a specific RTL rule, every one is behind a parameter that defaults to the stock behaviour, and every one carries its citation in the source comments. A patched gem5 runs unpatched configurations unchanged.
 
 ```bash
 git apply MinorCPU_CVA6.patch
@@ -61,6 +66,7 @@ The `manuel313/gem5_v25` image ships with the patch already applied.
 | --- | --- | --- | --- |
 | `executeLSQNoStoreForwarding` | MinorCPU | `False` | Disables store-to-load forwarding from the store buffer |
 | `executeLSQStoreCollisionReplayDelay` | MinorCPU | `0` | Cycles a load waits after a store collision clears |
+| `directTargetsFromDecode` | BranchPredictor | `False` | Taken direct control takes its target from the decoded instruction and never installs in the BTB |
 | `evict_on_allocate` | Cache | `False` | Selects the victim and issues its writeback at MSHR allocation |
 | `victim_readout_stall` | Cache | `False` | Charges the dirty-victim data-array readout, `blkSize / 8` cycles |
 | `victim_readable_until_fill` | Cache | `False` | Keeps the victim answering hits until its refill lands |
@@ -73,10 +79,12 @@ The `manuel313/gem5_v25` image ships with the patch already applied.
 | --- | --- |
 | `Axi2MemPort` | The CVA6 testbench memory adapter: one transaction at a time, fixed read priority, `1 + N` cycle occupancy for `N` eight-byte beats |
 | `HPDcacheRandomRP` | The L1D victim policy the build configures: four tiers, with an 8-bit Galois LFSR, polynomial `0xE1` |
-| `HPDcachePLRURP` | The L1D bit-PLRU branch the build does **not** configure, kept as the lab's counterfactual |
+| `HPDcachePLRURP` | The L1D bit-PLRU branch the build does **not** configure |
 | `CVA6IcacheRandomRP` | The L1I policy: lowest-index invalid way, else an 8-bit Galois LFSR, polynomial `0xFA` |
 
 ### What each change models, briefly
+
+**Front end.** CVA6 computes direct-branch and jump targets in the fetch path and consults its BTB only for JALR, whose entries are tagless and written on a mispredict (`frontend.sv`, `btb.sv`). The patch adds the decode-target model, and the configuration then removes the indirect predictor, drops the BTB tag, and signals fetch2 predictions to fetch1 in the same cycle, matching CVA6's measured one-bubble re-steer against Minor's stock two.
 
 **Store forwarding.** CVA6 has no store-to-load forwarding path. Its load unit parks a load in `WAIT_PAGE_OFFSET` until the store buffer drains whenever the address collides with a pending store (`load_unit.sv`, and `page_offset_matches_o` in `store_buffer.sv`, which compares `page_offset[11:3]`, an eight-byte granule). Restarting that load costs two more cycles, since neither `IDLE` nor `WAIT_PAGE_OFFSET` asserts `data_req`.
 
@@ -96,14 +104,14 @@ The `manuel313/gem5_v25` image ships with the patch already applied.
 
 ### Files changed
 
-`src/cpu/minor/` for `BaseMinorCPU.py`, `execute.cc`, `lsq.cc` and `lsq.hh`. `src/mem/` for the adapter and its `SConscript` entry. `src/mem/cache/` for `Cache.py`, `base.hh`, `base.cc`, `cache.hh`, `cache_blk.hh`, `mshr.hh` and `mshr.cc`. `src/mem/cache/tags/` for the fill-time replacement hook. `src/mem/cache/replacement_policies/` for the three policies and their registrations.
+`src/cpu/minor/` for `BaseMinorCPU.py`, `execute.cc`, `lsq.cc` and `lsq.hh`. `src/cpu/pred/` for `BranchPredictor.py`, `bpred_unit.hh` and `bpred_unit.cc`. `src/mem/` for the adapter and its `SConscript` entry. `src/mem/cache/` for `Cache.py`, `base.hh`, `base.cc`, `cache.hh`, `cache_blk.hh`, `mshr.hh` and `mshr.cc`. `src/mem/cache/tags/` for the fill-time replacement hook. `src/mem/cache/replacement_policies/` for the three policies and their registrations.
 
 ## Known limitations
 
-Three divergences remain, each with a named mechanism rather than an open question.
+Three divergences remain, each with a named mechanism.
 
 **Store-buffer residency.** gem5's store buffer drains faster than CVA6's two-queue structure, so the collision stall fires on 3 loads where CVA6 stalls on 128. Its dependent chain also costs about 2 cycles more per iteration, and the two errors partly cancel, so correcting either alone makes the agreement worse.
 
-**Front-end prediction.** gem5 mispredicts more than CVA6 on branch-heavy and dispatch-heavy code, which also inflates its instruction-cache misses through wrong-path fetches. This is the largest single error in the suite and it is a BTB and indirect-branch issue, not a cache one.
+**Miss-path parallelism.** Minor serializes demand misses where the HPDcache overlaps them, and no queue or MSHR parameter lifts it. The miss-chasing stress test carries the cost at about 2 cycles per miss.
 
 **Eviction cost accounting.** CVA6 charges 2 and 6 extra cycles when a dirty eviction is triggered by the second load or the store, against gem5's zero, while gem5's baseline window is 2 cycles longer than CVA6's. The terms have opposite signs and nearly cancel, and the residual is predictable from cache geometry alone to within a quarter of a percent.
