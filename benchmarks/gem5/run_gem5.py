@@ -64,26 +64,26 @@ ERROR_TAIL_LINES = 40
 # ==============================================================================
 OVERHEAD_PROFILES = {
     "c": {
-        "numCycles":        0,
-        "numInsts":         0,
-        "icache_miss":      0,
+        "numCycles":        27,
+        "numInsts":         6,
+        "icache_miss":      1,
         "dcache_miss":      0,
-        "icache_access":    0,
+        "icache_access":    15,
         "dcache_access":    0,
-        "branch_pred":      0,
-        "branch_miss":      0,
-        "simSeconds":       0.0,   # in seconds
+        "branch_pred":      5,
+        "branch_miss":      1,
+        "simSeconds":       1.0,   # in seconds
     },
     "asm": {
-        "numCycles":        0,
-        "numInsts":         0,
-        "icache_miss":      0,
+        "numCycles":        27,
+        "numInsts":         6,
+        "icache_miss":      1,
         "dcache_miss":      0,
-        "icache_access":    0,
+        "icache_access":    15,
         "dcache_access":    0,
-        "branch_pred":      0,
-        "branch_miss":      0,
-        "simSeconds":       0.0,   # in seconds
+        "branch_pred":      5,
+        "branch_miss":      1,
+        "simSeconds":       1.0,   # in seconds
     },
 }
 
