@@ -367,6 +367,7 @@ class CVA6CPU(RiscvMinorCPU):
         if direct_targets:
             self.branchPred.directTargetsFromDecode = True
             self.branchPred.indirectBranchPred = NULL
+            self.branchPred.btb.tagBits = 0
 
 
 class CVA6Processor(BaseCPUProcessor):

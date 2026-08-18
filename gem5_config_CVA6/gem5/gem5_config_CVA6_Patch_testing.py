@@ -134,6 +134,7 @@ from m5.objects import (  # type: ignore
 #   --- grounded frontend candidates, bilateral bubble measurement ---
 #  59   same-cycle fetch2 redirect (adopted)      workload: all
 #  60   BTB as the JALR store                     workload: all
+#  62   tagless BTB                               workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -304,6 +305,17 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
+    62: ("tagless BTB",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -313,7 +325,8 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
-         {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
 }
 
 
@@ -715,6 +728,8 @@ class CVA6CPU(RiscvMinorCPU):
             self.branchPred.directTargetsFromDecode = True
         if "indirectBranchPred" in bp:
             self.branchPred.indirectBranchPred = bp["indirectBranchPred"]
+        if "btbTagBits" in bp:
+            self.branchPred.btb.tagBits = bp["btbTagBits"]
 
 
 class MorillasCPU(RiscvMinorCPU):
