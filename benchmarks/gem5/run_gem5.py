@@ -72,7 +72,7 @@ OVERHEAD_PROFILES = {
         "dcache_access":    0,
         "branch_pred":      5,
         "branch_miss":      1,
-        "simSeconds":       1.0,   # in seconds
+        "simSeconds":       0.000001,   # in seconds
     },
     "asm": {
         "numCycles":        27,
@@ -83,7 +83,7 @@ OVERHEAD_PROFILES = {
         "dcache_access":    0,
         "branch_pred":      5,
         "branch_miss":      1,
-        "simSeconds":       1.0,   # in seconds
+        "simSeconds":       0.000001,   # in seconds
     },
 }
 
