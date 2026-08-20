@@ -51,44 +51,9 @@ Bender.lock
 # Both following lines are needed to list contents of ISA manual build dir.
 !/vendor/riscv/riscv-isa-manual/build/
 !/vendor/riscv/riscv-isa-manual/build/*
-# Our files
+# Our untracked files
 cva6_files
 verilator_changes/memory_latency
-# To big to be tracked
-gem5_config_CVA6/verilator/tests/*.vcd*
-gem5_config_CVA6/verilator/tests/*.list*
-gem5_config_CVA6/verilator/tests/branch_full_test.json
-gem5_config_CVA6/verilator/tests/branch_full_test_clean.txt
-gem5_config_CVA6/verilator/tests/full_test.json
-gem5_config_CVA6/verilator/tests/full_test_clean.txt
-gem5_config_CVA6/verilator/tests/matmul_small.json
-gem5_config_CVA6/verilator/tests/matmul_small_clean.txt
-gem5_config_CVA6/gem5/tests/*_trace*
-gem5_config_CVA6/gem5/tests/branch_full_test.config1.json
-gem5_config_CVA6/gem5/tests/branch_full_test_clean.config1.txt
-gem5_config_CVA6/gem5/tests/branch_stress.config8.json
-gem5_config_CVA6/gem5/tests/branch_stress_clean.config8.txt
-gem5_config_CVA6/gem5/tests/full_test.config1.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config1.txt
-gem5_config_CVA6/gem5/tests/full_test.config4.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config4.txt
-gem5_config_CVA6/gem5/tests/full_test.config5.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config5.txt
-gem5_config_CVA6/gem5/tests/full_test.config8.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config8.txt
-gem5_config_CVA6/gem5/tests/full_test.config9.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config9.txt
-gem5_config_CVA6/gem5/tests/full_test.config10.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config10.txt
-gem5_config_CVA6/gem5/tests/full_test.config15.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config15.txt
-gem5_config_CVA6/gem5/tests/full_test.config16.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config16.txt
-gem5_config_CVA6/gem5/tests/full_test.config17.json
-gem5_config_CVA6/gem5/tests/full_test_clean.config17.txt
-gem5_config_CVA6/gem5/tests/matmul_small.config1.json
-gem5_config_CVA6/gem5/tests/matmul_small_clean.config1.txt
-gem5_config_CVA6/gem5/tests/matmul_small.config6.json
-gem5_config_CVA6/gem5/tests/matmul_small_clean.config6.txt
-gem5_config_CVA6/gem5/tests/matmul_small.config7.json
-gem5_config_CVA6/gem5/tests/matmul_small_clean.config7.txt
+*.vcd*
+*.list*
+*_trace*
