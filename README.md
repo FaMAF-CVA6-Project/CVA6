@@ -54,6 +54,7 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `gem5_config_CVA6/`                             | The gem5 configuration matched to CVA6, and the gem5 patch it depends on.                          |
 | `verilator_changes/`                            | Local changes to the Verilator harness. The memory-latency experiment under it is set aside for now and is untracked. |
 | `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
+| `clean_repo.py`                                 | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this project's folders.       |
 | `LICENSE.FaMAF`                                 | MIT licence covering this project's own work.                                                      |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                      |
 
@@ -143,6 +144,14 @@ python3 clean_CVA6.py [folders...] [-y] [--dry-run] [--keep-build]
 `clean_gem5.py` takes `m5out/`, `batch_results/`, the sweep result folders, the `run_results/` beside each runner, and `__pycache__/`. `clean_CVA6.py` takes `verif/sim/out_<date>/`, `work-ver/`, `batch_results/`, `CVA6Flow_sweep_results`, `run_results/`, and `__pycache__/`. Extra folders can be named on the command line, for a run made with a custom `--gem5-out-dir` or `--out-dir`.
 
 Both list what they found with its size and ask before deleting. `-y` skips the question, `--dry-run` only lists, and `--keep-build` spares `work-ver/`. Only those fixed names are matched, so nothing tracked in git is ever caught, and cleaning one side never touches the other's results.
+
+Those two clear a run tree. `clean_repo.py`, in the repository root, clears what piles up in the project's own folders afterwards: every `.list`, `.vcd`, `.fst` and debug trace, and every `__pycache__`. A trace is matched on `_trace`, so a sweep's `<test>_trace.config<N>.txt` goes with the plain `<test>_trace.txt`. The `_report.txt` and `_stats.txt` beside them are the summaries and stay.
+
+```bash
+python3 clean_repo.py [-y] [--dry-run] [-v]
+```
+
+It only ever opens `gem5_config_CVA6/`, `verilator_changes/` and `viewers/`, and keeps each viewer's `docs/` whole.
 
 The benchmark scripts are kept here for version control, but each one is run inside its own Docker image, from the "Run a test" sections below.
 
@@ -245,6 +254,24 @@ docker images
 ```
 
 ---
+
+## Moving files in and out
+
+The images carry their own copy of the repository, `/cva6` in the CVA6 image and `/gem5` in the gem5 one, so a benchmark you edit on the host is not the one the container runs. `docker cp` moves it either way, with the container stopped or running:
+
+```bash
+# host -> container: a test and the scripts that run it
+docker cp benchmarks/CVA6/daxpy.S            <container_name>:/cva6/benchmarks/CVA6/
+docker cp benchmarks/gem5/run_gem5.py        <container_name>:/gem5/
+docker cp gem5_config_CVA6/gem5/.            <container_name>:/gem5/
+
+# container -> host: what a run produced
+docker cp <container_name>:/cva6/benchmarks/CVA6/run_results/  ./run_results/
+docker cp <container_name>:/gem5/batch_results/               ./batch_results/
+docker cp <container_name>:/gem5/CVA6_testing_sweep_results/  ./
+```
+
+A trailing `/.` on the source copies the contents of a folder rather than the folder itself.
 
 ## Working with the CVA6 image
 
