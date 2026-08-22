@@ -48,16 +48,116 @@ In the patched version every transcribed mechanism is on by default and each has
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
 | `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
 
+### The calibration table
+
+`gem5_config_CVA6_Patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, `TEST 99` is the full production configuration, and every other entry is a single-knob perturbation. `gem5_config_CVA6_testing.py` carries the same table minus the entries that need the patch.
+
+| # | What it changes | Workload | Stock too |
+| --- | --- | --- | --- |
+| 1 | adopted baseline | all | yes |
+| | **replacement policies** | | |
+| 2 | L1D PLRU -> true LRU | full_test |  |
+| 3 | L1I random -> LRU | full_test | yes |
+| | **fetch geometry (the two-sided bound)** | | |
+| 4 | fetch1FetchLimit 2 -> 1 | matmul_small | yes |
+| 5 | fetch1FetchLimit 2 -> 3 | matmul_small | yes |
+| 6 | fetch 8B/8B, fetch2 buffer 8 | all | yes |
+| 7 | fetch2InputBufferSize 2 -> 4 | fetch2_probe | yes |
+| 8 | L1I response_latency 0 -> 1 | daxpy | yes |
+| | **decode buffer (structural hypothesis refuted)** | | |
+| 9 | decodeInputBufferSize 1 -> 4 | daxpy, full_test | yes |
+| 10 | decodeInputBufferSize 1 -> 8 | daxpy, full_test | yes |
+| | **LSQ queue geometry (mechanism A exclusion set)** | | |
+| 11 | requests queue 2 -> 4 | store_fwd | yes |
+| 12 | requests queue 2 -> 8 | store_fwd | yes |
+| 13 | store buffer 4 -> 8 | store_fwd | yes |
+| 14 | requests 8, store buffer 8 | store_fwd | yes |
+| | **branch prediction** | | |
+| 15 | Morillas 2025 predictor sizing | branch_full_test, btb_pressure, full_test | yes |
+| 16 | BTB 32 -> 512 | branch_full_test, btb_pressure, full_test | yes |
+| 17 | BTB 32 -> 4096 | branch_full_test, btb_pressure, full_test | yes |
+| | **functional units** | | |
+| 18 | int_mul opLat 2 -> 1 | daxpy, full_test | yes |
+| 19 | fp_divsqrt legacy (2, flat +2) | fp_divsqrt | yes |
+| 20 | serdiv base 1 -> 0 | int_div | yes |
+| 21 | fp_addmul without the double mask | fp_addmul | yes |
+| 22 | FP mem classes back on vec_mem_fast | daxpy | yes |
+| 23 | atomic occupancy entries removed | atomic_fence | yes |
+| | **memory path** | | |
+| 24 | response_latency 4 -> 5 | daxpy | yes |
+| 25 | response_latency 4 -> 6 | daxpy | yes |
+| 26 | response_latency 4 -> 3 | daxpy | yes |
+| 27 | membus width 8 -> 16 | daxpy | yes |
+| 28 | membus width 8 -> 4 | daxpy | yes |
+| 29 | write_buffers 8 -> 2 | daxpy | yes |
+| 30 | memory bandwidth 12.8G -> 0.4GB/s | daxpy | yes |
+| 31 | threadPolicy -> RoundRobin | daxpy | yes |
+| 32 | mem latency 0 -> 60ns | daxpy | yes |
+| 33 | L1D 16KiB | daxpy | yes |
+| 34 | L1D 64KiB | daxpy | yes |
+| 35 | L1D assoc 8 -> 2 | daxpy | yes |
+| 36 | L1I 4KiB | daxpy | yes |
+| 37 | L1D mshrs 8 -> 1 | daxpy | yes |
+| 38 | L1D hit lat +1 | daxpy | yes |
+| 39 | L1I resp 0 -> 2 | daxpy | yes |
+| | **memory-mechanism campaigns** | | |
+| 40 | store forwarding re-enabled | store_fwd |  |
+| 41 | replay delay 2 -> 0 | store_fwd |  |
+| 42 | port model alone | daxpy |  |
+| 43 | port model + evict-on-allocate | daxpy |  |
+| 44 | + victim readout stall | daxpy |  |
+| 45 | + HPDcache bit-PLRU (counterfactual) | daxpy |  |
+| 46 | + HPDcache random (configured branch) | daxpy |  |
+| 47 | + victim readable until fill | daxpy |  |
+| 48 | + fill phase, the production stack | daxpy |  |
+| 49 | production stack, L1D 16 KiB | daxpy |  |
+| 50 | production stack, L1D 64 KiB | daxpy |  |
+| 51 | production minus the port model | daxpy |  |
+| 52 | production minus the readout stall | daxpy |  |
+| 53 | production with bit-PLRU instead | daxpy |  |
+| 54 | production minus the fill phase | daxpy |  |
+| 55 | fill delay without the random policy | daxpy |  |
+| | **fence, instruction-cache policy, front end** | | |
+| 56 | + fence flushes the L1D | atomic_fence |  |
+| 57 | + transcribed L1I policy (IG1) | all |  |
+| 58 | production minus direct targets (BG) | btb_pressure |  |
+| | **grounded frontend candidates, bilateral bubble measurement** | | |
+| 59 | same-cycle fetch2 redirect (adopted) | all |  |
+| 60 | BTB as the JALR store | all |  |
+| 62 | tagless BTB | all |  |
+| | **full patch baseline** | | |
+| 99 | full production | all |  |
+
 ## The patch
 
-`MinorCPU_CVA6.patch` is the whole gem5 side in one file, verified to apply cleanly on pristine v25.0.0.1 and to reproduce the reference tree byte for byte. Every behaviour it adds is a transcription of a specific RTL rule, every one is behind a parameter that defaults to the stock behaviour, and every one carries its citation in the source comments. A patched gem5 runs unpatched configurations unchanged.
+`MinorCPU_CVA6.patch` is the whole gem5 side in one file, verified to apply cleanly on pristine v25.0.0.1 with both `git apply` and `patch`, and to revert to a byte-identical tree. Every behaviour it adds is a transcription of a specific RTL rule, every one is behind a parameter that defaults to the stock behaviour, and every one carries its citation in the source comments. A patched gem5 runs unpatched configurations unchanged.
+
+It touches 28 files under `src/`: 19 edited in place and 9 created.
+
+### Applying it
+
+Run from the gem5 source root. The paths carry `a/` and `b/` prefixes, so the default strip level is right and no `-p` flag is needed.
 
 ```bash
+cd /gem5
+git apply --check MinorCPU_CVA6.patch    # dry run, silent on success
 git apply MinorCPU_CVA6.patch
 scons build/RISCV/gem5.opt -j$(nproc)
 ```
 
-The `manuel313/gem5_v25` image ships with the patch already applied.
+The rebuild is not optional. The patch adds SimObjects and `SConscript` entries, so the generated Python parameter set changes and an existing `build/` will not pick the new parameters up on its own.
+
+`patch -p1 < MinorCPU_CVA6.patch` works the same way outside a git checkout and produces a byte-identical tree.
+
+### Reverting it
+
+Feed the same file back with `-R`. Both tools restore the 19 edited files and delete the 9 created ones, leaving a tree that `git status` reports as clean.
+
+```bash
+cd /gem5
+git apply -R MinorCPU_CVA6.patch          # or: patch -R -p1 < MinorCPU_CVA6.patch
+scons build/RISCV/gem5.opt -j$(nproc)
+```
 
 ### New parameters
 
@@ -65,6 +165,7 @@ The `manuel313/gem5_v25` image ships with the patch already applied.
 | --- | --- | --- | --- |
 | `executeLSQNoStoreForwarding` | MinorCPU | `False` | Disables store-to-load forwarding from the store buffer |
 | `executeLSQStoreCollisionReplayDelay` | MinorCPU | `0` | Cycles a load waits after a store collision clears |
+| `executeLSQFenceSignalsDcache` | MinorCPU | `False` | A fence signals the data cache, modelling the core's flush wire |
 | `directTargetsFromDecode` | BranchPredictor | `False` | Taken direct control takes its target from the decoded instruction and never installs in the BTB |
 | `evict_on_allocate` | Cache | `False` | Selects the victim and issues its writeback at MSHR allocation |
 | `victim_readout_stall` | Cache | `False` | Charges the dirty-victim data-array readout, `blkSize / 8` cycles |
@@ -97,7 +198,7 @@ The `manuel313/gem5_v25` image ships with the patch already applied.
 
 **Fill instant.** CVA6's refill lands 7 cycles after the victim selection where the stock model fills at 5. Those 2 cycles are moved into `fill_delay` on the L1D alone and taken back out of its response latency, so the CPU-visible miss latency is unchanged and the L1I is untouched.
 
-**Fence flush.** A fence flushes the D-cache when `DcacheFlushOnFence` is set, which it is for this build (`controller.sv`). The walk costs 2 cycles per line, one to check the directory entry and one to update it, which `hpdcache_cmo.sv` states outright. The duration is counted during the walk, so it scales with cache geometry automatically.
+**Fence flush.** A fence flushes the D-cache when `DcacheFlushOnFence` is set, which it is for this build (`controller.sv`). The core drives that as a dedicated wire rather than a bus transaction, so `executeLSQFenceSignalsDcache` sends it functionally, at no port bandwidth, and `fence_flushes_dcache` decides whether the cache acts on it. The walk costs 2 cycles per line, one to check the directory entry and one to update it, which `hpdcache_cmo.sv` states outright. The duration is counted during the walk, so it scales with cache geometry automatically.
 
 **Instruction cache policy.** A separate module from the HPDcache with its own two-tier policy and its own LFSR (`cva6_icache.sv` plus PULP's `lfsr.sv`), advancing only on a fill into an already full set. This one buys exactness rather than accuracy, since gem5's stock `RandomRP` is already in the same class.
 

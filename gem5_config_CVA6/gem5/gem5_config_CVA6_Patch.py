@@ -43,27 +43,11 @@ from m5.objects import (  # type: ignore
 # Every value is either derived from a CVA6 RTL localparam or is a gem5-side
 # estimate where CVA6 has no clean counterpart.
 #
-# This is the production configuration. All five transcribed memory
-# mechanisms are ON by default, and each has a --no- switch that turns it
-# off for teaching, ablation or bisection. With every switch given, the
-# behaviour is the thesis-frozen configuration.
+# The production configuration. Every transcribed mechanism is on by default
+# and each has a --no- switch that turns it off, so this doubles as its own
+# ablation harness. The README lists what each switch does.
 #
-#   axi2mem port model         single-ported memory adapter with fixed read
-#                              priority and 1 + N cycle occupancy
-#   evict-on-allocate          victim selected and written back at MSHR
-#                              allocation, as the HPDcache does
-#   victim-readout-stall       2-cycle data-array occupancy on a dirty victim
-#   HPDcache random policy     the configured victim branch, LFSR poly 0xE1
-#   victim-readable-until-fill victim answers hits until its refill lands
-#   fence-flushes-dcache       a fence writes back every dirty line and
-#                              holds the cache for 2 cycles per line
-#   cva6-icache-policy         L1I uses the transcribed instruction cache
-#                              policy, invalid way first then an LFSR
-#   cva6-direct-targets        taken direct branches and jumps take their
-#                              target from the decoded instruction and the
-#                              BTB serves indirect targets only
-#
-# Remove the two executeLSQ lines and pass every --no- switch to run
+# Comment the three executeLSQ lines and pass every --no- switch to run
 # against a stock gem5.
 
 CLK_FREQ = "50MHz"
@@ -345,6 +329,7 @@ class CVA6CPU(RiscvMinorCPU):
         # Requires the MinorCPU patch. Remove the following lines for stock gem5.
         self.executeLSQNoStoreForwarding = True
         self.executeLSQStoreCollisionReplayDelay = 2
+        self.executeLSQFenceSignalsDcache = True
 
         # Branch predictor.
         self.branchPred = LocalBP(

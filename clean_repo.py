@@ -1,15 +1,8 @@
 #!/usr/bin/env python3
-"""Remove the heavy run artefacts from this project's own folders.
-
-Deletes every .list, .vcd, .fst and debug-trace file, and every __pycache__
-folder, under the folders this project owns.
-
-Only PROJECT_DIRS below is ever looked at. That is the point of the script
-rather than a detail: upstream CVA6 keeps hand-written .list manifests that
-the build reads, in ci/ and under corev_apu/tb/, and a blanket sweep for
-'*.list' would delete them.
-
-The CARLA 2026 folder is kept whole.
+"""Remove the heavy run artefacts from this project's own folders: every
+.list, .vcd, .fst and debug trace, and every __pycache__. Only PROJECT_DIRS is
+looked at, since upstream CVA6 keeps hand-written .list manifests the build
+reads. The CARLA 2026 folder is kept whole.
 
   python3 clean_repo.py             # list, then ask
   python3 clean_repo.py -y          # delete without asking
@@ -67,10 +60,9 @@ def is_kept(path):
 
 
 def find_targets():
-    """Every artefact under the project's own folders, as a list of paths.
-
-    A __pycache__ is taken whole and not descended into, since it is about to
-    be deleted and nothing inside it can add a separate target."""
+    """Every artefact under the project's own folders, as a list of paths. A
+    __pycache__ is taken whole and not descended into, since it is about to be
+    deleted and nothing inside it can add a separate target."""
     targets = []
     for name in PROJECT_DIRS:
         base = os.path.join(REPO_ROOT, name)

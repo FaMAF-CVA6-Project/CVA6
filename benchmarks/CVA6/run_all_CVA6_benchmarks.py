@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
-"""
-Run every benchmark in a folder through run_CVA6.py.
-
-Collects the C and assembly tests in a directory, drops the templates, and
-runs them one by one against the same target, printing a pass/fail summary
-at the end. Each test is handed to run_CVA6.py untouched, so its
-metrics table and its VCD are exactly what a single run would produce.
-
-Only the first test pays for the Verilator build: the model does not depend
-on the test, and the target and the trace setting are fixed for the whole
-batch, so the rest run with run_CVA6.py's --keep-build. Pass
---rebuild-each to go back to rebuilding the core before every test.
+"""Run every benchmark in a folder through run_CVA6.py, dropping the
+templates and printing a pass/fail summary. Only the first test pays for the
+Verilator build, the rest reuse it. --rebuild-each rebuilds every time.
 """
 import argparse
 import datetime
@@ -164,12 +155,9 @@ def sim_run_files(test_name, target):
 
 
 def discard_run(results_dir, test_name, target):
-    """Delete what this run left behind, once it has been collected.
-
-    A VCD runs to hundreds of megabytes and a batch produces one per test, so
-    keeping them would cost far more disk than the batch is worth. Only this
-    test's files are removed, so a failed test's output survives the rest of
-    the batch."""
+    """Delete what this run left behind once it has been collected. A VCD runs
+    to hundreds of megabytes per test. Only this test's files go, so a failed
+    test's output survives the rest of the batch."""
     if os.path.isdir(results_dir):
         shutil.rmtree(results_dir, ignore_errors=True)
     for path in sim_run_files(test_name, target):
@@ -197,11 +185,9 @@ def clear_stale_outputs(results_dir, test_name):
 
 
 def extract_metrics(report_path):
-    """The metrics section of a _report.txt, or None if it holds none.
-
-    A _report.txt is the measured region of the disassembly followed by the
-    metrics table, so everything from the rule above the table's title to the
-    end of the file is the section wanted here."""
+    """The metrics section of a _report.txt, or None if it holds none. The
+    file is the measured disassembly then the metrics table, so everything from
+    the rule above the table's title to the end is what is wanted."""
     try:
         with open(report_path) as f:
             lines = f.read().splitlines()
@@ -219,11 +205,9 @@ def extract_metrics(report_path):
 
 
 def write_metrics_file(out_dir, entries, info):
-    """Gather every run's metrics table into one metrics.txt.
-
-    entries is [(label, report file)] in the order the runs were listed, so the
-    file reads in the same order as the summary above it. A run whose table is
-    missing is named rather than skipped silently."""
+    """Gather every run's metrics table into one metrics.txt. entries is
+    [(label, report file)] in the order the runs were listed, so the file reads
+    like the summary. A run with no table is named, not skipped."""
     blocks, missing = [], []
     for label, report_path in entries:
         block = extract_metrics(report_path)

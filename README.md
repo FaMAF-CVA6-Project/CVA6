@@ -55,6 +55,7 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `verilator_changes/`                            | Local changes to the Verilator harness. The memory-latency experiment under it is set aside for now and is untracked. |
 | `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
 | `clean_repo.py`                                 | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this project's folders.       |
+| `ignore_big_json.py`                            | Lists the tracer JSONs too big for GitHub in `.gitignore`.                                         |
 | `LICENSE.FaMAF`                                 | MIT licence covering this project's own work.                                                      |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                      |
 
@@ -91,7 +92,7 @@ The title names the simulator, the program and the L1 geometries the run used. T
 
 When a run **fails**, nothing is deleted. gem5's whole stdout and stderr go to `<test>_error.log` beside that run's output, and the CVA6 build and simulation go to `verif/sim/out_<date>/<test>_run.log`.
 
-Each folder carries a `test_template.c` and a `test_template.S` to start from. Both bracket the region to measure between `MAIN PROGRAM` and `END OF MAIN PROGRAM` markers: the CVA6 side reads the hardware counters around it into `s2`–`s10`, the gem5 side wraps it in `m5_reset_stats` and `m5_dump_stats`. That region is what gets measured and disassembled, so a new test means filling it in.
+Each folder carries a `test_template.c` and a `test_template.S` to start from. Both bracket the region to measure between `MAIN PROGRAM` and `END OF MAIN PROGRAM` markers: the CVA6 side reads the hardware counters around it into `s2` to `s10`, the gem5 side wraps it in `m5_reset_stats` and `m5_dump_stats`. That region is what gets measured and disassembled, so a new test means filling it in.
 
 Each folder also has a batch runner, for when you want the whole set instead of a single test:
 
@@ -152,6 +153,14 @@ python3 clean_repo.py [-y] [--dry-run] [-v]
 ```
 
 It only ever opens `gem5_config_CVA6/`, `verilator_changes/` and `viewers/`, and keeps each viewer's `docs/` whole.
+
+A tracer JSON survives all of that, since it is what the viewers read, but it is too big to commit: GitHub warns above 50 MiB and refuses above 100 MiB, and a full run leaves several over 200.
+
+```bash
+python3 ignore_big_json.py [-y] [--dry-run] [-v] [-l MIB] [--prune]
+```
+
+Run it after a sweep. It only ever adds, so a second run changes nothing. `--prune` drops the entries whose file has gone or shrunk, and `-l` sets a different threshold in MiB. A file git already tracks is reported rather than ignored, since an ignore rule has no effect on a file git is already carrying.
 
 The benchmark scripts are kept here for version control, but each one is run inside its own Docker image, from the "Run a test" sections below.
 

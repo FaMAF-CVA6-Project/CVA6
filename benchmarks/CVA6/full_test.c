@@ -8,14 +8,9 @@
 #define asm __asm__
 #define BARE_ALIGN __attribute__((aligned(4096)))
 
-// Sized against the CVA6 32 KiB 8-way D-cache. fp_x and fp_y are 4 KiB each
-// and stream is 32 KiB, so the working set is 40 KiB and cannot all be held,
-// which keeps the streaming phases missing rather than warming up once and
-// hitting for ever. stream is walked with SP_STRIDE, which is one 16-byte
-// cache line, so each access lands on a fresh line and produces a miss for
-// every iteration rather than one in four. That buys the D-cache miss signal
-// at a quarter of the instruction count, which keeps the traces inside the
-// 500 MB the viewers can load.
+// Sized against the 32 KiB 8-way D-cache. The 40 KiB working set cannot be
+// held, so the streaming phases keep missing, and SP_STRIDE is one 16-byte
+// line so every access misses rather than one in four.
 #define SP_VEC 512
 #define SP_STREAM 8192
 #define SP_STRIDE 4
@@ -161,10 +156,9 @@ int main()
         }
     }
 
-    // Phase 4b: data dependent conditionals. The xorshift bits are close to
-    // random, so each if is about half taken and the 2-bit counters thrash.
-    // The generator is inline so this phase contains no calls and leaves the
-    // RAS alone
+    // Phase 4b: data dependent conditionals. The xorshift bits are near
+    // random, so each if is about half taken and the counters thrash. Inline,
+    // so this phase makes no call and leaves the RAS alone.
     for (int rep = 0; rep < SP_BR_REPS; rep++)
     {
         for (int i = 0; i < 64; i++)
@@ -212,10 +206,9 @@ int main()
         }
     }
 
-    // Phase 5: strided streaming read. A 32 KiB array walked one cache line at
-    // a time, so every access misses. This is the clearest test of the miss
-    // penalty, of the PLRU victim selection, and of how far MinorCPU's single
-    // outstanding miss diverges from the HPDcache overlapping two
+    // Phase 5: strided streaming read, a 32 KiB array walked one line at a
+    // time so every access misses. The clearest test of the miss penalty, the
+    // victim policy, and MinorCPU's single outstanding miss.
     for (int rep = 0; rep < SP_ST_REPS; rep++)
     {
         for (int i = 0; i < SP_STREAM; i += SP_STRIDE)

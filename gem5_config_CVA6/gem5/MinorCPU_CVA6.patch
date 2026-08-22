@@ -1,6 +1,6 @@
 --- a/src/cpu/minor/BaseMinorCPU.py
 +++ b/src/cpu/minor/BaseMinorCPU.py
-@@ -398,6 +398,22 @@
+@@ -398,6 +398,31 @@
          2, "Size of LSQ transfers queue (memory transaction queue)"
      )
      executeLSQStoreBufferSize = Param.Unsigned(5, "Size of LSQ store buffer")
@@ -20,19 +20,29 @@
 +        "the LSU of a core without store-to-load forwarding.  Only meaningful "
 +        "when executeLSQNoStoreForwarding is set.",
 +    )
++
++    executeLSQFenceSignalsDcache = Param.Bool(
++        False,
++        "Signal the data cache on every memory fence, modelling a dedicated "
++        "flush wire from the core to its cache (CVA6 controller.sv "
++        "flush_dcache_o) rather than a transaction on the request port.  The "
++        "signal is functional and costs no port bandwidth.  Whether it does "
++        "anything is the cache's own fence_flushes_dcache.",
++    )
      executeBranchDelay = Param.Cycles(
          1,
          "Delay from Execute deciding to branch and Fetch1 reacting"
 --- a/src/cpu/minor/execute.cc
 +++ b/src/cpu/minor/execute.cc
-@@ -87,7 +87,9 @@
+@@ -87,7 +87,10 @@
          params.executeLSQRequestsQueueSize,
          params.executeLSQTransfersQueueSize,
          params.executeLSQStoreBufferSize,
 -        params.executeLSQMaxStoreBufferStoresPerCycle),
 +        params.executeLSQMaxStoreBufferStoresPerCycle,
 +        params.executeLSQNoStoreForwarding,
-+        params.executeLSQStoreCollisionReplayDelay),
++        params.executeLSQStoreCollisionReplayDelay,
++        params.executeLSQFenceSignalsDcache),
      executeInfo(params.numThreads,
              ExecuteThreadInfo(params.executeCommitLimit)),
      interruptPriority(0),
@@ -46,29 +56,20 @@
      state(NotIssued)
  {
      request = std::make_shared<Request>();
-@@ -796,6 +797,21 @@
+@@ -796,6 +797,12 @@
          slot_index--;
      }
  
-+    /*  CVA6 has no store-to-load forwarding. Its load unit parks a load in
-+     *  WAIT_PAGE_OFFSET until the store buffer drains whenever the address
-+     *  collides with a pending store (load_unit.sv, and store_buffer.sv
-+     *  page_offset_matches_o). Downgrading a full hit to a partial one makes
-+     *  tryToSendToTransfers take the wait path instead of the forward path, so
-+     *  the load retries until the store has drained and then reads it from the
-+     *  cache. This is the same mechanism containsAddrRangeOf already applies
-+     *  to masked requests. The downgrade is here rather than in
-+     *  containsAddrRangeOf so that the FullAddrRangeCoverage assertion in
-+     *  forwardStoreData keeps its meaning, and so that the non-bufferable
-+     *  ordering check, which only tests against NoAddrRangeCoverage, is
-+     *  unaffected. */
++    /*  CVA6 has no store-to-load forwarding: a colliding load waits in
++     *  WAIT_PAGE_OFFSET for the store buffer to drain, then reads the cache
++     *  (load_unit.sv, store_buffer.sv page_offset_matches_o). */
 +    if (lsq.noStoreForwarding && ret == FullAddrRangeCoverage)
 +        ret = PartialAddrRangeCoverage;
 +
      return ret;
  }
  
-@@ -1113,9 +1129,29 @@
+@@ -1113,9 +1120,22 @@
                case PartialAddrRangeCoverage:
                  DPRINTF(MinorMem, "Load partly satisfied by store buffer"
                      " data. Must wait for the store to complete\n");
@@ -79,16 +80,9 @@
                  return;
                  break;
                case NoAddrRangeCoverage:
-+                /* CVA6 charges two cycles to restart a load that was blocked
-+                 *  by a store collision.  Neither IDLE nor WAIT_PAGE_OFFSET
-+                 *  asserts data_req in load_unit.sv: the offset clearing only
-+                 *  moves the state to WAIT_GNT, which raises the request the
-+                 *  cycle after, whereas an unblocked load raises it directly
-+                 *  from IDLE.  So the re-request cannot issue until two cycles
-+                 *  after the fast path would have, however briefly the load
-+                 *  waited.  Spend that countdown here before touching the
-+                 *  cache.  storeCollisionReplayDelay is 0 by default, which
-+                 *  leaves this a no-op. */
++                /* CVA6 charges two cycles to restart a load blocked by a
++                 *  store collision (load_unit.sv WAIT_PAGE_OFFSET reaches
++                 *  WAIT_GNT before data_req). Default 0 is a no-op. */
 +                if (request->collisionReplay > 0) {
 +                    request->collisionReplay--;
 +                    DPRINTF(MinorMem, "Store collision cleared, %d replay"
@@ -98,83 +92,87 @@
                  DPRINTF(MinorMem, "No forwardable data from store buffer\n");
                  /* Fall through to try access */
                  break;
-@@ -1404,7 +1440,8 @@
+@@ -1404,7 +1424,9 @@
      unsigned int in_memory_system_limit, unsigned int line_width,
      unsigned int requests_queue_size, unsigned int transfers_queue_size,
      unsigned int store_buffer_size,
 -    unsigned int store_buffer_cycle_store_limit) :
 +    unsigned int store_buffer_cycle_store_limit,
-+    bool no_store_forwarding, Cycles store_collision_replay_delay) :
++    bool no_store_forwarding, Cycles store_collision_replay_delay,
++    bool fence_signals_dcache) :
      Named(name_),
      cpu(cpu_),
      execute(execute_),
-@@ -1413,6 +1450,8 @@
+@@ -1413,6 +1435,9 @@
      state(MemoryRunning),
      inMemorySystemLimit(in_memory_system_limit),
      lineWidth((line_width == 0 ? cpu.cacheLineSize() : line_width)),
 +    noStoreForwarding(no_store_forwarding),
 +    storeCollisionReplayDelay(store_collision_replay_delay),
++    fenceSignalsDcache(fence_signals_dcache),
      requests(name_ + ".requests", "addr", requests_queue_size),
      transfers(name_ + ".transfers", "addr", transfers_queue_size),
      storeBuffer(name_ + ".storeBuffer",
-@@ -1723,6 +1762,18 @@
+@@ -1723,6 +1748,16 @@
       *  barrier so this may result in some mem refs being
       *  delayed if they are between barriers */
      lastMemBarrier[inst->id.threadId] = inst->id.execSeqNum;
 +
-+    /* Signal the data cache that a fence has been issued. In CVA6 this
-+     *  is a dedicated wire from the controller to the cache
-+     *  (controller.sv flush_dcache_o), not a transaction on the
-+     *  request port, so it is sent functionally and consumes no port
-+     *  bandwidth. The cache swallows it unconditionally and only acts
-+     *  when it is configured to flush on a fence, so a cache without
-+     *  that behaviour is entirely unaffected. */
-+    RequestPtr fence_req = std::make_shared<Request>(
-+        0, 0, 0, Request::funcRequestorId);
-+    Packet fence_pkt(fence_req, MemCmd::FlushReq);
-+    dcachePort.sendFunctional(&fence_pkt);
++    /* Signal the data cache that a fence issued. In CVA6 this is a control
++     *  wire (controller.sv flush_dcache_o), not a port transaction, so it
++     *  goes functionally and costs no bandwidth. Off by default. */
++    if (fenceSignalsDcache) {
++        RequestPtr fence_req = std::make_shared<Request>(
++            0, 0, 0, Request::funcRequestorId);
++        Packet fence_pkt(fence_req, MemCmd::FlushReq);
++        dcachePort.sendFunctional(&fence_pkt);
++    }
  }
  
  void
 --- a/src/cpu/minor/lsq.hh
 +++ b/src/cpu/minor/lsq.hh
-@@ -166,6 +166,12 @@
+@@ -166,6 +166,11 @@
          /** Address translation is delayed due to table walk */
          bool isTranslationDelayed;
  
-+        /** Countdown of retries still to be skipped after a store collision
-+         *  cleared, modelling the LSU re-request of a core without store to
-+         *  load forwarding.  Re-armed on every blocked cycle, then counted
-+         *  down once the collision clears.  Always 0 when forwarding is on. */
++        /** Countdown of retries skipped after a store collision cleared,
++         *  modelling the LSU re-request of a core with no store to load
++         *  forwarding. Always 0 when forwarding is on. */
 +        unsigned int collisionReplay;
 +
          enum LSQRequestState
          {
              NotIssued, /* Newly created */
-@@ -550,6 +556,16 @@
+@@ -550,6 +555,20 @@
      /** Memory system access width (and snap) in bytes */
      const Addr lineWidth;
  
-+    /** Disable store-to-load forwarding from the store buffer.  A load which
-+     *  fully overlaps a pending store waits for that store to drain and then
-+     *  reads the cache, rather than taking the data from the store buffer.
-+     *  Models cores with no forwarding path, such as CVA6. */
++    /** Disable store-to-load forwarding from the store buffer. A load that
++     *  fully overlaps a pending store waits for it to drain, then reads the
++     *  cache. Models cores with no forwarding path, such as CVA6. */
 +    const bool noStoreForwarding;
 +
 +    /** Retries a load skips after a store collision clears, modelling the
 +     *  LSU re-request of a core without store-to-load forwarding */
 +    const Cycles storeCollisionReplayDelay;
 +
++    /** Signal the data cache on every memory fence.  Models a dedicated flush
++     *  wire from the core to its cache (CVA6 controller.sv flush_dcache_o).
++     *  Whether the cache acts on the signal is its own fence_flushes_dcache. */
++    const bool fenceSignalsDcache;
++
    public:
      /** The LSQ consists of three queues: requests, transfers and the
       *  store buffer storeBuffer. */
-@@ -650,7 +666,8 @@
+@@ -650,7 +669,9 @@
          unsigned int max_accesses_in_memory_system, unsigned int line_width,
          unsigned int requests_queue_size, unsigned int transfers_queue_size,
          unsigned int store_buffer_size,
 -        unsigned int store_buffer_cycle_store_limit);
 +        unsigned int store_buffer_cycle_store_limit,
-+        bool no_store_forwarding, Cycles store_collision_replay_delay);
++        bool no_store_forwarding, Cycles store_collision_replay_delay,
++        bool fence_signals_dcache);
  
      virtual ~LSQ();
  
@@ -216,20 +214,12 @@
        instShiftAmt(params.instShiftAmt),
        predHist(numThreads),
        btb(params.btb),
-@@ -286,6 +287,24 @@
+@@ -286,6 +287,16 @@
  
  
      /** ----------------------------------------------
-+     * Decode-computed direct targets
-+     * -----------------------------------------------
-+     * A taken direct branch or jump carries its target in the
-+     * instruction itself, so a front end that decodes before it
-+     * predicts can always redirect without the BTB. CVA6 computes
-+     * these targets in the fetch path (frontend.sv line 295) and
-+     * consults the BTB only for JALR (line 246). With this model on,
-+     * a taken direct prediction never falls through to not-taken for
-+     * want of a target.
-+     */
++     * Decode-computed direct targets: CVA6 computes them in the fetch
++     * path (frontend.sv 295) and uses the BTB only for JALR (line 246). */
 +    if (directTargetsFromDecode && hist->predTaken &&
 +        hist->targetProvider == TargetProvider::NoTarget &&
 +        inst->isDirectCtrl()) {
@@ -241,14 +231,16 @@
       * Fallthrough
       * -----------------------------------------------
       * All the target predictors did their job.
-@@ -583,8 +602,13 @@
-         // Update the BTB for all mispredicted taken branches.
-         // Always if `requiresBTBHit` is true otherwise only if the
-         // branch was direct or no indirect predictor is available.
-+        // With decode-computed direct targets, direct control never
-+        // needs the BTB, and CVA6 writes its BTB only on a
-+        // mispredicted JALR (frontend.sv lines 337 to 339), so keep
-+        // direct branches and jumps out of it.
+@@ -580,11 +591,12 @@
+         }
+ 
+         // Correct BTB ---------------------------------------------------
+-        // Update the BTB for all mispredicted taken branches.
+-        // Always if `requiresBTBHit` is true otherwise only if the
+-        // branch was direct or no indirect predictor is available.
++        // Update the BTB for mispredicted taken branches. Always if
++        // `requiresBTBHit`, else for direct control with decode targets off
++        // (CVA6 writes its BTB only on a JALR mispredict), or with no iPred.
          if (actually_taken &&
 -            (requiresBTBHit || hist->inst->isDirectCtrl() ||
 +            (requiresBTBHit ||
@@ -258,15 +250,13 @@
              if (!hist->btbHit) {
 --- a/src/cpu/pred/bpred_unit.hh
 +++ b/src/cpu/pred/bpred_unit.hh
-@@ -470,6 +470,13 @@
+@@ -470,6 +470,11 @@
       * Low-end CPUs predecoding might be used to identify branches. */
      const bool requiresBTBHit;
  
 +    /** Taken direct control flow takes its target from the decoded
-+     * instruction when no predictor supplies one, and never installs
-+     * in the BTB. Models a front end that computes direct targets in
-+     * the fetch path (CVA6 frontend.sv line 295) and reserves the BTB
-+     * for indirect targets (frontend.sv lines 337 to 339). */
++     * instruction when no predictor supplies one, and never installs in the
++     * BTB. Models CVA6 frontend.sv lines 295 and 337 to 339. */
 +    const bool directTargetsFromDecode;
 +
      /** Number of bits to shift instructions by for predictor addresses. */
@@ -419,7 +409,7 @@
  BaseCache::recvTimingResp(PacketPtr pkt)
  {
      assert(pkt->isResponse());
-@@ -559,8 +606,21 @@
+@@ -559,8 +606,20 @@
  
          const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
              writeAllocator->allocate() : mshr->allocOnFill();
@@ -432,16 +422,15 @@
          blk = handleFill(pkt, blk, writebacks, allocate);
          assert(blk != nullptr);
 +        if (evictOnAllocate && blk != tempBlock) {
-+            // Rule V4: the HPDcache pulses its victim-state update
-+            // when the refill lands, not when the miss allocates.
-+            // Touch here for reserved and fallback fills alike, which
-+            // also restores rule E4 in full for the stock policies.
++            // Rule V4: the HPDcache pulses its victim-state update when
++            // the refill lands, not when the miss allocates. Touch here
++            // for reserved and fallback fills alike.
 +            tags->replTouch(blk);
 +        }
          ppFill->notify(CacheAccessProbeArg(pkt, accessor));
      }
  
-@@ -957,7 +1017,19 @@
+@@ -957,7 +1016,19 @@
  
              const MSHR* mshr =
                  mshrQueue.findMatch(regenerateBlkAddr(blk), blk->isSecure());
@@ -461,7 +450,7 @@
                  // Must be an outstanding upgrade or clean request on a block
                  // we're about to replace
                  assert((!blk->isSet(CacheBlk::WritableBit) &&
-@@ -983,6 +1055,181 @@
+@@ -983,6 +1054,164 @@
      return true;
  }
  
@@ -506,10 +495,9 @@
 +        return nullptr;
 +    }
 +
-+    // Flush the victim now if it is dirty, as the miss handler does at
-+    // MSHR allocation, but leave the block valid and readable. The
-+    // writeback clears the dirty bit, so the block is now clean and
-+    // its data still answers hits until the refill overwrites it.
++    // Flush the victim now if it is dirty, as the miss handler does at MSHR
++    // allocation, but leave the block valid and readable. The writeback
++    // clears the dirty bit, so its data still answers hits until the refill.
 +    if (victim->isSet(CacheBlk::DirtyBit)) {
 +        dirty_victim = true;
 +        writebacks.push_back(writebackBlk(victim));
@@ -521,11 +509,6 @@
 +            writebacks.push_back(clean_evict);
 +        }
 +    }
-+
-+    // handleEvictions is bypassed on this path, and it is where gem5
-+    // counts a valid block being displaced. Count it here so the stat
-+    // keeps its meaning under the lever.
-+    stats.replacements++;
 +
 +    // handleEvictions is bypassed on this path, and it is where gem5
 +    // counts a valid block being displaced. Count it here so the stat
@@ -561,12 +544,9 @@
 +BaseCache::reserveOnAllocate(const PacketPtr pkt, MSHR *mshr,
 +                             Tick forward_time)
 +{
-+    // Rules E1 and E2: victim selection, tag insertion and the dirty
-+    // victim writeback all happen at MSHR allocation time, mirroring
-+    // mshr_alloc_wback in the HPDcache miss pipeline. The inserted
-+    // block sits in the valid-but-not-readable transient state until
-+    // the refill lands, the same state the stock write-miss path
-+    // already creates and the access path already treats as a miss.
++    // Rules E1 and E2: victim selection, tag insertion and the dirty victim
++    // writeback all happen at MSHR allocation time, mirroring
++    // mshr_alloc_wback in the HPDcache miss pipeline.
 +    PacketList writebacks;
 +    bool dirty_victim = false;
 +    CacheBlk *blk;
@@ -594,15 +574,9 @@
 +        assert(!blk->isSet(CacheBlk::ReadableBit));
 +        assert(!blk->isSet(CacheBlk::WritableBit));
 +
-+        // The data is not present until the refill lands, and
-+        // ReadableBit already keeps every consumer away from it.
-+        // Fresh insertion leaves whenReady at the MaxTick sentinel,
-+        // which getWhenReady asserts against when a coalescing access
-+        // to this line reaches calculateAccessLatency before the
-+        // fill. Pointing it at now mirrors the stock write-miss
-+        // transient, whose whenReady also lies in the past, adds no
-+        // latency to the coalescing miss, and is overwritten with the
-+        // true ready time by handleFill.
++        // The data is not present until the refill lands and ReadableBit
++        // keeps every consumer away. Pointing whenReady at now mirrors the
++        // stock write-miss transient and adds no latency.
 +        blk->setWhenReady(curTick());
 +
 +        for (const auto &wb : writebacks) {
@@ -618,11 +592,9 @@
 +    doWritebacks(writebacks, forward_time);
 +
 +    if (victimReadoutStall && dirty_victim) {
-+        // Rules E3 and E6: the dirty victim readout occupies the data
-+        // array for blkSize over the 8-byte access word, 2 cycles for
-+        // the 16-byte CVA6 line (clWords over accessWords, with
-+        // accessWords 1 and clWords 2 in the RTL configuration), and
-+        // it stalls hits as well as misses, hence the cpu-side block.
++        // Rules E3 and E6: the dirty victim readout occupies the data array
++        // for blkSize over the 8-byte access word, 2 cycles for the 16-byte
++        // CVA6 line, and it stalls hits as well as misses.
 +        const Cycles readout(blkSize / 8);
 +        const Tick until = clockEdge(readout);
 +        if (victimReadoutClearEvent.scheduled()) {
@@ -643,16 +615,15 @@
  bool
  BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                   PacketList &writebacks)
-@@ -1803,6 +2050,51 @@
+@@ -1803,6 +2032,46 @@
  
  
  void
 +BaseCache::fenceFlush()
 +{
-+    // Rule F3: the walk writes back dirty lines and clears their
-+    // dirty bit, leaving them valid, which is what writebackVisitor
-+    // already does. A flush is not an invalidate
-+    // (hpdcache_cmo.sv lines 409 to 417).
++    // Rule F3: the walk writes back dirty lines and clears their dirty bit,
++    // leaving them valid, which is what writebackVisitor already does. A
++    // flush is not an invalidate (hpdcache_cmo.sv lines 409 to 417).
 +    unsigned dirty = 0;
 +    unsigned lines = 0;
 +    tags->forEachBlk([this, &dirty, &lines](CacheBlk &blk) {
@@ -670,13 +641,9 @@
 +    // until the walk finishes, hence the cpu-side block.
 +    const Cycles walk(2 * lines);
 +    if (fenceFlushClearEvent.scheduled()) {
-+        // A second fence issued while a flush was still running. In
-+        // the RTL this cannot overlap: the core stalls on
-+        // flush_dcache_ack_i and its pipeline is flushed
-+        // (controller.sv lines 43 to 45 and 124 to 128), so the
-+        // second walk starts where the first one ends and the two
-+        // durations add rather than the later one replacing the
-+        // earlier.
++        // A second fence issued while a flush was still running. The RTL
++        // cannot overlap them (controller.sv lines 43 to 45 and 124 to
++        // 128), so the two durations add rather than replace.
 +        reschedule(fenceFlushClearEvent,
 +                   fenceFlushClearEvent.when() + cyclesToTicks(walk));
 +    } else {
@@ -695,23 +662,21 @@
  BaseCache::memWriteback()
  {
      tags->forEachBlk([this](CacheBlk &blk) { writebackVisitor(blk); });
-@@ -1915,6 +2207,15 @@
+@@ -1915,6 +2184,13 @@
  
      CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
  
 +    if (blk && blk == mshr->reservedBlk) {
-+        // evict-at-allocate: the reserved block holds no data yet, so
-+        // the outbound request must be formed as if no block existed,
-+        // otherwise the valid tag would be mistaken for an upgrade
-+        // candidate (createMissPacket asserts needsWritable on any
-+        // valid block).
++        // evict-at-allocate: the reserved block holds no data yet, so the
++        // request must be formed as if no block existed, otherwise the valid
++        // tag would be mistaken for an upgrade candidate.
 +        blk = nullptr;
 +    }
 +
      // either a prefetch that is not present upstream, or a normal
      // MSHR request, proceed to get the packet to send downstream
      PacketPtr pkt = createMissPacket(tgt_pkt, blk, mshr->needsWritable(),
-@@ -2286,6 +2587,19 @@
+@@ -2286,6 +2562,19 @@
               "average overall mshr uncacheable latency"),
      ADD_STAT(replacements, statistics::units::Count::get(),
               "number of replacements"),
@@ -731,7 +696,7 @@
      ADD_STAT(dataExpansions, statistics::units::Count::get(),
               "number of data expansions"),
      ADD_STAT(dataContractions, statistics::units::Count::get(),
-@@ -2409,6 +2723,8 @@
+@@ -2409,6 +2698,8 @@
      blockedCycles
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -740,7 +705,7 @@
          ;
  
  
-@@ -2416,11 +2732,15 @@
+@@ -2416,11 +2707,15 @@
      blockedCauses
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -756,7 +721,7 @@
          ;
      avgBlocked = blockedCycles / blockedCauses;
  
-@@ -2601,6 +2921,16 @@
+@@ -2601,6 +2896,16 @@
  void
  BaseCache::CpuSidePort::recvFunctional(PacketPtr pkt)
  {
@@ -773,16 +738,15 @@
      if (cache.system->bypassCaches()) {
          // The cache should be flushed if we are in cache bypass mode,
          // so we don't need to check if we need to update anything.
-@@ -2634,7 +2964,15 @@
+@@ -2634,7 +2939,14 @@
  bool
  BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
  {
 -    cache->recvTimingResp(pkt);
 +    if (cache->fillDelay > 0) {
-+        // Hold the response for fillDelay cycles so the fill instant
-+        // matches the RTL. Flow control is unaffected: the response is
-+        // accepted here and the MSHR simply stays in service a little
-+        // longer, which is what an outstanding miss looks like.
++        // Hold the response for fillDelay cycles so the fill instant matches
++        // the RTL. Flow control is unaffected: the MSHR simply stays in
++        // service a little longer.
 +        cache->scheduleDeferredFill(pkt);
 +    } else {
 +        cache->recvTimingResp(pkt);
@@ -811,61 +775,37 @@
          NUM_BLOCKED_CAUSES
      };
  
-@@ -681,6 +685,100 @@
+@@ -681,6 +685,69 @@
      const bool writebackClean;
  
      /**
-+     * evict-at-allocate lab levers, both default off. The first moves
-+     * victim selection and writeback issue to MSHR allocation time,
-+     * matching the HPDcache (rule E1). The second charges the derived
-+     * victim-readout occupancy, blkSize over the 8-byte access word,
-+     * on dirty evictions (rules E3 and E6).
++     * evict-at-allocate lab levers, both default off (rules E1, E3 and E6).
 +     */
 +    const bool evictOnAllocate;
 +    const bool victimReadoutStall;
 +
-+    /**
-+     * Keep the chosen victim readable until the refill lands instead
-+     * of making it unreachable at allocation. Transcribes the
-+     * observable behaviour of the HPDcache directory, whose update is
-+     * pipelined: a dependent access one cycle behind the allocation
-+     * still hits the victim. Requires evictOnAllocate.
-+     */
++    /** Keep the chosen victim readable until the refill lands instead of
++     * making it unreachable at allocation. Transcribes the pipelined
++     * HPDcache directory update. Requires evictOnAllocate. */
 +    const bool victimReadableUntilFill;
 +
-+    /**
-+     * Extra cycles between a memory response arriving at this cache and
-+     * the fill being handled. The HPDcache refill lands 7 cycles after
-+     * the victim selection where the stock model fills at 5.
-+     * Deferring the fill here rather than lengthening
-+     * the memory latency keeps the correction on the cache that needs
-+     * it, since a shared memory latency also charges every instruction
-+     * refill, which has no such deficit. Reduce response_latency by the
-+     * same amount to hold the cpu-visible miss latency constant.
-+     */
++    /** Extra cycles between a memory response arriving and the fill being
++     * handled. The HPDcache refill lands 7 cycles after victim selection
++     * where the stock model fills at 5. Reduce response_latency to match. */
 +    const Cycles fillDelay;
 +
-+    /**
-+     * A full memory fence flushes this cache, rule F1
-+     * (controller.sv lines 123 to 136, enabled by
-+     * CVA6Cfg.DcacheFlushOnFence which is set for this build). The
-+     * walk costs two cycles per line, one to check the directory
-+     * entry and one to update it, which the RTL states outright
-+     * (hpdcache_cmo.sv lines 424 to 427). The duration is therefore
-+     * derived from the cache geometry rather than configured.
-+     */
++    /** A full memory fence flushes this cache, rule F1 (controller.sv lines
++     * 123 to 136). The walk costs two cycles per line (hpdcache_cmo.sv lines
++     * 424 to 427), so the duration is derived from the cache geometry. */
 +    const bool fenceFlushesDcache;
 +
 +    /** Clears the fence-flush blocking cause. */
 +    void clearFenceFlushBlocked();
 +    EventFunctionWrapper fenceFlushClearEvent;
 +
-+    /**
-+     * Run a fence flush: write back every dirty line and hold the cpu
-+     * side for the derived walk time. Called from the functional path
-+     * because in the RTL the flush is a control wire from the
-+     * controller, not a transaction on the request port.
-+     */
++    /** Run a fence flush: write back every dirty line and hold the cpu side
++     * for the derived walk time. Called functionally because in the RTL the
++     * flush is a control wire, not a request-port transaction. */
 +    void fenceFlush();
 +
 +    /** Responses waiting out fillDelay, in arrival order. */
@@ -882,29 +822,22 @@
 +    void clearVictimReadoutBlocked();
 +    EventFunctionWrapper victimReadoutClearEvent;
 +
-+    /**
-+     * Reserve the fill block for a freshly allocated demand miss:
-+     * select the victim now, insert the incoming tag in the
-+     * valid-but-not-readable transient state, and issue any dirty
-+     * victim writeback immediately (rules E1 and E2).
-+     */
++    /** Reserve the fill block for a freshly allocated demand miss: select
++     * the victim now, insert the incoming tag in the valid-but-not-readable
++     * transient state, and issue any dirty victim writeback (rules E1, E2). */
 +    void reserveOnAllocate(const PacketPtr pkt, MSHR *mshr,
 +                           Tick forward_time);
 +
-+    /**
-+     * Reserve the victim in place: select it, flush it if dirty, and
-+     * leave it valid and readable until the refill consumes it.
-+     * Returns the victim, or nullptr when no victim could be taken.
-+     */
++    /** Reserve the victim in place: select it, flush it if dirty, and leave
++     * it valid and readable until the refill consumes it. Returns the
++     * victim, or nullptr when none could be taken. */
 +    CacheBlk *reserveVictimInPlace(const PacketPtr pkt,
 +                                   PacketList &writebacks,
 +                                   bool &dirty_victim);
 +
-+    /**
-+     * Consume an in-place reservation at fill time: write back the
-+     * victim if it was dirtied again after its flush, then invalidate
-+     * it and insert the incoming block in the same way.
-+     */
++    /** Consume an in-place reservation at fill time: write back the victim
++     * if it was dirtied again after its flush, then invalidate it and insert
++     * the incoming block in the same way. */
 +    CacheBlk *consumeReservation(const PacketPtr pkt, MSHR *mshr,
 +                                 PacketList &writebacks);
 +
@@ -912,23 +845,19 @@
       * Writebacks from the tempBlock, resulting on the response path
       * in atomic mode, must happen after the call to recvAtomic has
       * finished (for the right ordering of the packets). We therefore
-@@ -842,6 +940,15 @@
+@@ -842,6 +909,11 @@
      PacketPtr writebackBlk(CacheBlk *blk);
  
      /**
-+     * Create the clean-eviction packet for a victim, or nullptr when
-+     * the cache has no clean-evict notion. Declared here so the
-+     * evict-at-allocate in-place reservation can emit exactly the
-+     * packet the stock eviction path emits, and overridden by the
-+     * coherent cache.
-+     */
++     * Create the clean-eviction packet for a victim, or nullptr when the
++     * cache has no clean-evict notion. Overridden by the coherent cache. */
 +    virtual PacketPtr cleanEvictBlk(CacheBlk *blk) { return nullptr; }
 +
 +    /**
       * Create a writeclean request for the given block.
       *
       * Creates a request that writes the block to the cache below
-@@ -1139,6 +1246,21 @@
+@@ -1139,6 +1211,21 @@
          /** Number of replacements of valid blocks. */
          statistics::Scalar replacements;
  
@@ -971,18 +900,12 @@
          clearCoherenceBits(AllBits);
  
          setTaskId(context_switch_task_id::Unknown);
-@@ -252,6 +253,19 @@
+@@ -252,6 +253,13 @@
      bool wasPrefetched() const { return _prefetched; }
  
      /**
-+     * evict-at-allocate, victim-readable-until-fill lever: this block
-+     * is the chosen victim of a miss whose refill has not landed yet.
-+     * It still holds the previous line and stays readable, mirroring
-+     * the HPDcache data array, which keeps the victim's data until the
-+     * refill overwrites it. The marker exists because two predicates
-+     * differ under that lever: the block is readable to the CPU but
-+     * must not be offered to victim selection again.
-+     */
++     * evict-at-allocate: the chosen victim of a miss whose refill has not
++     * landed. It still holds the previous line and stays readable. */
 +    bool isReservedVictim() const { return _reservedVictim; }
 +    void setReservedVictim() { _reservedVictim = true; }
 +    void clearReservedVictim() { _reservedVictim = false; }
@@ -991,7 +914,7 @@
       * Clear the prefetching bit. Either because it was recently used, or due
       * to the block being invalidated.
       */
-@@ -506,6 +520,9 @@
+@@ -506,6 +514,9 @@
  
      /** Whether this block is an unaccessed hardware prefetch. */
      bool _prefetched = 0;
@@ -1022,15 +945,13 @@
  class BaseCache;
  
  /**
-@@ -126,6 +128,13 @@
+@@ -126,6 +128,11 @@
      /** True if the entry is just a simple forward from an upper level */
      bool isForward;
  
-+    /**
-+     * evict-at-allocate: block reserved for this miss at MSHR
-+     * allocation time (rule E1). Null when no reservation is live. Reset in
-+     * allocate() because MSHR objects are recycled from a free list.
-+     */
++    /** evict-at-allocate: block reserved for this miss at MSHR allocation
++     * time (rule E1). Null when no reservation is live. Reset in allocate()
++     * because MSHR objects are recycled from a free list. */
 +    CacheBlk *reservedBlk = nullptr;
 +
      class Target : public QueueEntry::Target
@@ -1081,22 +1002,18 @@
  Source('mru_rp.cc')
 --- a/src/mem/cache/tags/base.hh
 +++ b/src/mem/cache/tags/base.hh
-@@ -323,6 +323,15 @@
-      * @param src_blk The source block.
-      * @param dest_blk The destination block. Must be invalid.
+@@ -325,6 +325,11 @@
       */
-+    /**
-+     * Touch the replacement state of a block from the fill path.
-+     * Used under evict-at-allocate to transcribe the HPDcache refill
-+     * update (rule V4): the victim state advances when the line lands, not when the miss
-+     * allocates. Default is a no-op for tag classes without a
-+     * replacement policy.
-+     */
-+    virtual void replTouch(CacheBlk *blk) {}
-+
      virtual void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk);
  
++    /** Touch the replacement state of a block from the fill path. Rule V4:
++     * the victim state advances when the line lands, not when the miss
++     * allocates. Default is a no-op for tags with no replacement policy. */
++    virtual void replTouch(CacheBlk *blk) {}
++
      /**
+      * Regenerate the block address.
+      *
 --- a/src/mem/cache/tags/base_set_assoc.hh
 +++ b/src/mem/cache/tags/base_set_assoc.hh
 @@ -214,6 +214,12 @@
@@ -1114,7 +1031,7 @@
      /**
 --- /dev/null
 +++ b/src/mem/Axi2MemPort.py
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,45 @@
 +# Copyright (c) 2026 Manuel Nieto
 +# All rights reserved.
 +#
@@ -1141,13 +1058,9 @@
 +# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 +# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 +
-+# Axi2MemPort: a transaction-level transcription of the CVA6 testbench
-+# memory adapter (axi2mem.sv) for gem5. The object sits between the
-+# system crossbar and the memory controller and reproduces the
-+# single-ported, one-transaction-at-a-time behaviour of the AXI-to-SRAM
-+# adapter, with fixed read priority and an occupancy of 1 + N cycles for
-+# N beats of 8 bytes. Every behaviour is a transcription of an RTL
-+# rule. There are deliberately no tunable parameters. The clock is inherited from the parent clock domain.
++# Axi2MemPort: transaction-level transcription of the CVA6 testbench memory
++# adapter (axi2mem.sv). Single-ported, one transaction at a time, read
++# priority, 1 + N cycles for N beats of 8 bytes. No tunable parameters.
 +
 +from m5.objects.ClockedObject import ClockedObject
 +from m5.params import *
@@ -1166,7 +1079,7 @@
 +    )
 --- /dev/null
 +++ b/src/mem/axi2mem_port.cc
-@@ -0,0 +1,328 @@
+@@ -0,0 +1,316 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -1195,11 +1108,8 @@
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 + */
 +
-+/*
-+ * Axi2MemPort implementation. See axi2mem_port.hh for the rule
-+ * summary. The retry machinery follows Bridge (src/mem/bridge.cc) and
-+ * the transparent relay follows CommMonitor (src/mem/comm_monitor.cc),
-+ * both read from gem5 v25.0.0.1.
++/* Implementation, rules in axi2mem_port.hh. Retry follows Bridge and the
++ * transparent relay follows CommMonitor, both from gem5 v25.0.0.1.
 + */
 +
 +#include "mem/axi2mem_port.hh"
@@ -1215,12 +1125,9 @@
 +namespace gem5
 +{
 +
-+/**
-+ * Beat width in bytes, rule R6. AXI_DATA_WIDTH is 64 at the axi2mem
-+ * instantiation (ariane_testharness.sv lines 32 and 456), so a 16-byte
-+ * cache line moves as 2 beats and an 8-byte uncached access as 1 beat.
-+ * This is a transcription constant, not a parameter.
-+ */
++/* Beat width in bytes, rule R6. AXI_DATA_WIDTH is 64 at the axi2mem
++ * instantiation (ariane_testharness.sv lines 32 and 456). Transcription
++ * constant, not a parameter. */
 +static constexpr unsigned beatBytes = 8;
 +
 +Axi2MemPort::Axi2MemPort(const Params &params)
@@ -1268,27 +1175,24 @@
 +    if (pkt->isRead() && pkt->needsResponse())
 +        return TxnClass::Read;
 +
-+    // An AW plus W transaction: a write that carries a payload. This
-+    // covers WritebackDirty, which needs no gem5 response and ends at
-+    // the port, as well as uncached WriteReq, whose response passes
-+    // back through transparently.
++    // An AW plus W transaction. Covers WritebackDirty, which needs no gem5
++    // response and ends at the port, and uncached WriteReq, whose response
++    // passes back through transparently.
 +    if (pkt->isWrite() && pkt->hasData())
 +        return TxnClass::Write;
 +
-+    // No AXI equivalent. CleanEvict carries no data and no response,
-+    // and the HPDcache write-back configuration drops clean victims
-+    // silently, so charging occupancy here would invent traffic the
-+    // RTL never issues.
++    // No AXI equivalent. CleanEvict carries no data and no response, and the
++    // HPDcache write-back configuration drops clean victims silently, so
++    // charging occupancy would invent traffic the RTL never issues.
 +    return TxnClass::None;
 +}
 +
 +Cycles
 +Axi2MemPort::occupancy(const PacketPtr pkt) const
 +{
-+    // Rules R3 and R4: the read spends its extra cycle on the IDLE
-+    // accept plus the synchronous SRAM round trip, the write spends
-+    // its extra cycle on SEND_B, and both land on 1 + N. Rule R5
-+    // covers the streaming-beat assumption.
++    // Rules R3 and R4: the read spends its extra cycle on the IDLE accept
++    // plus the SRAM round trip, the write on SEND_B, and both land on 1 + N.
++    // Rule R5 covers the streaming-beat assumption.
 +    const unsigned beats =
 +        std::max<unsigned>(1, divCeil(pkt->getSize(), beatBytes));
 +    return Cycles(1 + beats);
@@ -1373,10 +1277,9 @@
 +        return;
 +    }
 +
-+    // Admission freed a slot, so a refused sender can try again. If the
-+    // retried packet belongs to the still-occupied class it is refused
-+    // once more and the flag is simply raised again, which makes
-+    // progress on every release and cannot deadlock.
++    // Admission freed a slot, so a refused sender can try again. A packet of
++    // the still-occupied class is refused once more and the flag raised
++    // again, which makes progress on every release and cannot deadlock.
 +    if (retryReq) {
 +        retryReq = false;
 +        cpuSidePort.sendRetryReq();
@@ -1389,9 +1292,8 @@
 +    portBusy = true;
 +
 +    // Rule R7: the occupancy window ends exactly at the next accept
-+    // opportunity, so a 2-beat transaction can be admitted every 3
-+    // cycles at most. clockEdge quantises to the inherited 50 MHz
-+    // domain, and arrivals from the same domain are already aligned.
++    // opportunity, so a 2-beat transaction is admitted every 3 cycles at
++    // most. clockEdge quantises to the inherited 50 MHz domain.
 +    schedule(releaseEvent, clockEdge(occupancy(pkt)));
 +
 +    // Forward in the same tick as admission. The uncontended path adds
@@ -1435,10 +1337,9 @@
 +bool
 +Axi2MemPort::recvTimingResp(PacketPtr pkt)
 +{
-+    // The response path is fully transparent, including flow control.
-+    // In the RTL the R beats and the B handshake already live inside
-+    // the occupancy of rules R3 and R4, so the return trip carries no
-+    // additional port semantics.
++    // The response path is fully transparent, including flow control. In the
++    // RTL the R beats and the B handshake already live inside the occupancy
++    // of rules R3 and R4.
 +    return cpuSidePort.sendTimingResp(pkt);
 +}
 +
@@ -1497,7 +1398,7 @@
 +} // namespace gem5
 --- /dev/null
 +++ b/src/mem/axi2mem_port.hh
-@@ -0,0 +1,255 @@
+@@ -0,0 +1,241 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -1582,13 +1483,9 @@
 +                  PortID idx = InvalidPortID) override;
 +
 +  private:
-+    /**
-+     * Packet classification against the AXI transactions the RTL
-+     * adapter would see. Read maps to an AR transaction, Write maps to
-+     * an AW plus W transaction, and None covers packets with no AXI
-+     * equivalent, such as CleanEvict, which the HPDcache write-back
-+     * configuration drops silently.
-+     */
++    /** Packet classification against the AXI transactions the RTL adapter
++     * would see. Read maps to AR, Write to AW plus W, and None to packets
++     * with no AXI equivalent, such as CleanEvict. */
 +    enum class TxnClass { Read, Write, None };
 +
 +    /** The port facing the memory controller. */
@@ -1681,18 +1578,13 @@
 +    /** Classify a packet against the RTL transaction classes. */
 +    static TxnClass classify(const PacketPtr pkt);
 +
-+    /**
-+     * Port occupancy of an admitted transaction, rules R3, R4 and R6.
-+     * Both classes occupy 1 + N cycles for N beats of 8 bytes.
-+     */
++    /** Port occupancy of an admitted transaction, rules R3, R4 and R6.
++     * Both classes occupy 1 + N cycles for N beats of 8 bytes. */
 +    Cycles occupancy(const PacketPtr pkt) const;
 +
-+    /**
-+     * Admission arbitration, rule R2. Called whenever the port frees or
-+     * a request arrives. Admits the pending read before the pending
-+     * write, exactly as the RTL IDLE state tests ar_valid before
-+     * aw_valid.
-+     */
++    /** Admission arbitration, rule R2. Called whenever the port frees or a
++     * request arrives. Admits the pending read before the pending write, as
++     * the RTL IDLE state tests ar_valid before aw_valid. */
 +    void arbitrate();
 +
 +    /** Admit one transaction: occupy the port and forward downstream. */
@@ -1704,12 +1596,9 @@
 +    /** Drain the downstream transmit list, honouring peer flow control. */
 +    void trySendDownstream();
 +
-+    /**
-+     * One pending slot per transaction class, mirroring the separate AR
-+     * and AW channels of the AXI fabric. A flat single-slot refusal
-+     * would head-block a read behind a refused write inside the
-+     * crossbar layer, and rule R2 would become untranscribable.
-+     */
++    /** One pending slot per transaction class, mirroring the separate AR and
++     * AW channels. A flat single-slot refusal would head-block a read behind
++     * a refused write, and rule R2 would become untranscribable. */
 +    PacketPtr pendingRead;
 +    Tick pendingReadArrival;
 +    PacketPtr pendingWrite;
@@ -1741,10 +1630,8 @@
 +        /** Packets forwarded with no AXI equivalent and no occupancy. */
 +        statistics::Scalar passThrough;
 +
-+        /**
-+         * Admission wait per class in cycles. The write histogram is
-+         * the gem5 twin of the CVA6 baseline writeback latency tail.
-+         */
++        /** Admission wait per class in cycles. The write histogram is the
++         * gem5 twin of the CVA6 baseline writeback latency tail. */
 +        statistics::Histogram readWaitCycles;
 +        statistics::Histogram writeWaitCycles;
 +    } stats;
@@ -1755,7 +1642,7 @@
 +#endif // __MEM_AXI2MEM_PORT_HH__
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.cc
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,122 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -1784,12 +1671,9 @@
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 + */
 +
-+/*
-+ * CVA6IcacheRandom implementation. See cva6_icache_random_rp.hh for
-+ * the rule set. The
-+ * candidate downcast mirrors the one BaseSetAssoc performs on its own
-+ * victim (base_set_assoc.hh line 186).
-+ */
++/* CVA6IcacheRandom implementation. See cva6_icache_random_rp.hh for the
++ * rule set. The candidate downcast mirrors the one BaseSetAssoc performs
++ * on its own victim (base_set_assoc.hh line 186). */
 +
 +#include "mem/cache/replacement_policies/cva6_icache_random_rp.hh"
 +
@@ -1883,7 +1767,7 @@
 +} // namespace gem5
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.hh
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,119 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -1969,11 +1853,9 @@
 +    {
 +    };
 +
-+    /**
-+     * The single LFSR, rule I5. Mutable because getVictim is const in
-+     * the base interface while a selection can advance the register,
-+     * exactly as in hardware.
-+     */
++    /** The single LFSR, rule I5. Mutable because getVictim is const in the
++     * base interface while a selection can advance the register, exactly as
++     * in hardware. */
 +    mutable uint8_t lfsr;
 +
 +  public:
@@ -2007,7 +1889,7 @@
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_CVA6_ICACHE_RANDOM_RP_HH__
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.cc
-@@ -0,0 +1,181 @@
+@@ -0,0 +1,172 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2036,13 +1918,9 @@
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 + */
 +
-+/*
-+ * HPDcachePLRU implementation. See hpdcache_plru_rp.hh for the V-rule
-+ * summary. The
-+ * shared-state pattern follows TreePLRU (tree_plru_rp.cc, gem5
-+ * v25.0.0.1), the candidate downcast mirrors the one BaseSetAssoc
-+ * itself performs on the victim (base_set_assoc.hh line 186).
-+ */
++/* HPDcachePLRU implementation. See hpdcache_plru_rp.hh for the V-rule
++ * summary. The shared-state pattern follows TreePLRU and the candidate
++ * downcast mirrors BaseSetAssoc's own (base_set_assoc.hh line 186). */
 +
 +#include "mem/cache/replacement_policies/hpdcache_plru_rp.hh"
 +
@@ -2106,11 +1984,9 @@
 +{
 +    assert(candidates.size() > 0);
 +
-+    // Rule V3 (hpdcache_victim_plru.sv lines 72 to 115). Candidates
-+    // arrive from the set-associative indexing policy in way order,
-+    // so keeping the first match per tier is the priority one-hot
-+    // encoder. This policy requires cache blocks as candidates, the
-+    // same guarantee BaseSetAssoc relies on in the other direction.
++    // Rule V3 (hpdcache_victim_plru.sv lines 72 to 115). Candidates arrive
++    // from the indexing policy in way order, so keeping the first match per
++    // tier is the priority one-hot encoder.
 +    ReplaceableEntry *unused_way = nullptr;
 +    ReplaceableEntry *plru_way = nullptr;
 +    ReplaceableEntry *clean_way = nullptr;
@@ -2120,10 +1996,8 @@
 +        CacheBlk *blk = static_cast<CacheBlk*>(candidate);
 +
 +        // sel_dir_fetch exclusion: a way with a fill in flight is the
-+        // valid-but-not-readable transient of evict-at-allocate.
-+        // See the random policy: a reserved victim stays readable
-+        // under the victim-readable-until-fill lever, so it carries an
-+        // explicit marker rather than the not-readable transient.
++        // valid-but-not-readable transient of evict-at-allocate. A reserved
++        // victim stays readable, so it carries an explicit marker instead.
 +        const bool fetching =
 +            (blk->isValid() && !blk->isSet(CacheBlk::ReadableBit)) ||
 +            blk->isReservedVictim();
@@ -2165,10 +2039,9 @@
 +        return dirty_way;
 +    }
 +
-+    // Every way has a fill in flight. The RTL outputs no victim and
-+    // replays (line 113). Nominating way 0 lets the evict-at-allocate
-+    // reservation guard refuse it, which drives the caller into the
-+    // counted graceful fallback, the gem5 twin of the replay.
++    // Every way has a fill in flight. The RTL outputs no victim and replays
++    // (line 113). Nominating way 0 lets the reservation guard refuse it,
++    // driving the counted graceful fallback, the gem5 twin of the replay.
 +    return candidates[0];
 +}
 +
@@ -2191,7 +2064,7 @@
 +} // namespace gem5
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.hh
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,132 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2297,11 +2170,9 @@
 +    HPDcachePLRU(const Params &p);
 +    ~HPDcachePLRU() = default;
 +
-+    /**
-+     * No-op by transcription: the RTL never clears a use bit on
-+     * invalidation (V2 is the only writer), and tier 1 of V3 makes
-+     * any stale bit on an invalid way unreachable.
-+     */
++    /** No-op by transcription: the RTL never clears a use bit on
++     * invalidation (V2 is the only writer), and tier 1 of V3 makes any stale
++     * bit on an invalid way unreachable. */
 +    void invalidate(const std::shared_ptr<ReplacementData>&
 +        replacement_data) override;
 +
@@ -2309,12 +2180,9 @@
 +    void touch(const std::shared_ptr<ReplacementData>&
 +        replacement_data) const override;
 +
-+    /**
-+     * No-op by transcription of rule V4: gem5 calls reset at
-+     * insertion, which under evict-at-allocate is miss time, where
-+     * the RTL performs no update. The refill update arrives later
-+     * through the fill-path replTouch hook.
-+     */
++    /** No-op by transcription of rule V4: gem5 calls reset at insertion,
++     * which under evict-at-allocate is miss time, where the RTL performs no
++     * update. The refill update arrives later through replTouch. */
 +    void reset(const std::shared_ptr<ReplacementData>&
 +        replacement_data) const override;
 +
@@ -2331,7 +2199,7 @@
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,165 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2360,11 +2228,9 @@
 + * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 + */
 +
-+/*
-+ * HPDcacheRandom implementation. See hpdcache_random_rp.hh for the
-+ * rule set. The candidate downcast mirrors BaseSetAssoc's own
-+ * (base_set_assoc.hh line 186), as in the PLRU sibling.
-+ */
++/* HPDcacheRandom implementation. See hpdcache_random_rp.hh for the rule
++ * set. The candidate downcast mirrors BaseSetAssoc's own
++ * (base_set_assoc.hh line 186), as in the PLRU sibling. */
 +
 +#include "mem/cache/replacement_policies/hpdcache_random_rp.hh"
 +
@@ -2412,22 +2278,17 @@
 +    assert(candidates.size() > 0);
 +    const int ways = candidates.size();
 +
-+    // The RTL derives the random way by decoding the low
-+    // wayIndexWidth bits of the LFSR into a one-hot vector of width
-+    // 2 to the wayIndexWidth (hpdcache_victim_random.sv lines 83 to
-+    // 88, hpdcache_decoder.sv line 31), so the hardware supports
-+    // powers of two only. The masking below matches that exactly and
-+    // would silently pick the wrong way otherwise, hence the check
-+    // rather than a modulo, which would be a fabrication.
++    // The RTL decodes the low wayIndexWidth bits of the LFSR into a one-hot
++    // vector (hpdcache_victim_random.sv lines 83 to 88), so the hardware
++    // supports powers of two only, hence the check rather than a modulo.
 +    fatal_if(!isPowerOf2(ways),
 +             "HPDcacheRandom needs a power-of-two associativity, got %d. "
 +             "The transcribed policy decodes LFSR bits directly onto "
 +             "ways, as the RTL does.", ways);
 +
-+    // Candidates arrive in way order, so first-match scans are the
-+    // priority encoders. Tier masks per hpdcache_victim_random.sv
-+    // lines 68 to 71, with fetching mapped to the reserved
-+    // valid-but-not-readable transient.
++    // Candidates arrive in way order, so first-match scans are the priority
++    // encoders. Tier masks per hpdcache_victim_random.sv lines 68 to 71,
++    // with fetching mapped to the reserved valid-but-not-readable transient.
 +    ReplaceableEntry *unused_way = nullptr;
 +    ReplaceableEntry *clean_way = nullptr;
 +    ReplaceableEntry *dirty_way = nullptr;
@@ -2437,10 +2298,9 @@
 +
 +    for (int w = 0; w < ways; w++) {
 +        CacheBlk *blk = static_cast<CacheBlk*>(candidates[w]);
-+        // A way is out of the running while its line is in flight.
-+        // Under the victim-readable-until-fill lever the reserved
-+        // victim is still readable, so it carries an explicit marker
-+        // instead, which is why both predicates appear here.
++        // A way is out of the running while its line is in flight. The
++        // reserved victim stays readable under the victim-readable lever, so
++        // it carries an explicit marker instead.
 +        const bool fetching =
 +            (blk->isValid() && !blk->isSet(CacheBlk::ReadableBit)) ||
 +            blk->isReservedVictim();
@@ -2491,10 +2351,9 @@
 +        return dirty_way;
 +    }
 +
-+    // Every way has a fill in flight. The RTL outputs no victim and
-+    // replays (default arm, line 123). Nominating way 0 lets the
-+    // evict-at-allocate guard refuse it, driving the counted
-+    // graceful fallback, as in the PLRU sibling.
++    // Every way has a fill in flight. The RTL outputs no victim and replays
++    // (default arm, line 123). Nominating way 0 lets the guard refuse it,
++    // driving the counted graceful fallback, as in the PLRU sibling.
 +    return candidates[0];
 +}
 +
@@ -2508,7 +2367,7 @@
 +} // namespace gem5
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,113 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2589,11 +2448,9 @@
 +    {
 +    };
 +
-+    /**
-+     * The single global LFSR (rule R5). Mutable because getVictim is
-+     * const in the base interface while a selection can shift the
-+     * register, exactly as in hardware.
-+     */
++    /** The single global LFSR (rule R5). Mutable because getVictim is const
++     * in the base interface while a selection can shift the register,
++     * exactly as in hardware. */
 +    mutable uint8_t lfsr;
 +
 +  public:

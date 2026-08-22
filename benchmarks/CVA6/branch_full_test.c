@@ -87,11 +87,9 @@ int main()
         }
     }
 
-    // Phase B: data dependent conditionals. The xorshift bits are close to
-    // random, so each if is about 50 per cent taken and the 2-bit counters
-    // thrash. Three distinct branch sites per iteration exercise separate
-    // BHT indices. The generator is expanded inline so that this phase
-    // contains no calls and does not disturb the RAS
+    // Phase B: data dependent conditionals. The xorshift bits are near
+    // random, so each if is about half taken and the counters thrash. Three
+    // branch sites per iteration, inline so no call disturbs the RAS.
     for (int rep = 0; rep < PHASE_B_REPS; rep++)
     {
         for (int i = 0; i < 64; i++)

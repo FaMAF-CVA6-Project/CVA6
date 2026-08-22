@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
-"""
-Run every benchmark in a folder through run_gem5.py.
-
-Collects the C and assembly programs in a directory, drops the templates,
-and runs them one by one against the same gem5 configuration, printing a
-pass/fail summary at the end. Each program is handed to run_gem5.py
-untouched, so its metrics table and its debug trace are exactly what a
-single run would produce.
-
-Run this from the gem5 root: run_gem5.py takes the current directory as the
-gem5 root, and the default test folder is relative to it.
+"""Run every benchmark in a folder through run_gem5.py, dropping the
+templates and printing a pass/fail summary. Run it from the gem5 root, which
+run_gem5.py takes as the current directory.
 """
 import argparse
 import concurrent.futures
@@ -70,12 +62,9 @@ def find_runner():
 
 
 def split_own_args(argv):
-    """Split the command line into this script's arguments and the ones meant
-    for the configuration.
-
-    Everything after a '--' is the configuration's, verbatim. That is the
-    unambiguous form, and the one to use for a flag that takes a value or that
-    shares a name with one of ours."""
+    """Split the command line into this script's arguments and the
+    configuration's. Everything after a '--' is the configuration's, verbatim,
+    which is what a flag taking a value or colliding with ours needs."""
     if "--" in argv:
         cut = argv.index("--")
         return argv[:cut], argv[cut + 1:]
@@ -135,10 +124,9 @@ def driver_results_dir(runner):
 
 
 def job_dirs(runner, label):
-    """The private folders one run works in.
-
-    Each job gets its own, so concurrent runs cannot overwrite each other's
-    stats.txt, trace or binary."""
+    """The private folders one run works in. Each job gets its own, so
+    concurrent runs cannot overwrite each other's stats.txt, trace or
+    binary."""
     return (os.path.join(GEM5_OUT_DIR, label),
             os.path.join(driver_results_dir(runner), label))
 
@@ -167,21 +155,17 @@ def collect(job_results, out_dir, want_trace):
 
 
 def discard_run(job_gem5_out, job_results):
-    """Delete a run's working folders, once it has been collected.
-
-    A debug trace runs to hundreds of megabytes and one is produced per run,
-    so keeping them would cost far more disk than the results are worth. Only
-    this run's folders go, so a failed run's output survives the batch."""
+    """Delete a run's working folders once it has been collected. A debug
+    trace runs to hundreds of megabytes per run. Only this run's folders go, so
+    a failed run's output survives the batch."""
     for path in (job_gem5_out, job_results):
         shutil.rmtree(path, ignore_errors=True)
 
 
 def prune_empty(path):
     """Remove a folder the batch has emptied, leaving anything else alone.
-
-    Deliberately not a recursive delete: a plain run_gem5.py run writes
-    straight into these folders, and that output is not the batch's to
-    destroy."""
+    Deliberately not a recursive delete, a plain run_gem5.py run writes
+    straight into these folders and that output is not the batch's."""
     try:
         if os.path.isdir(path) and not os.listdir(path):
             os.rmdir(path)
@@ -190,11 +174,9 @@ def prune_empty(path):
 
 
 def extract_metrics(report_path):
-    """The metrics section of a _report.txt, or None if it holds none.
-
-    A _report.txt is the measured region of the disassembly followed by the
-    metrics table, so everything from the rule above the table's title to the
-    end of the file is the section wanted here."""
+    """The metrics section of a _report.txt, or None if it holds none. The
+    file is the measured disassembly then the metrics table, so everything from
+    the rule above the table's title to the end is what is wanted."""
     try:
         with open(report_path) as f:
             lines = f.read().splitlines()
@@ -212,11 +194,9 @@ def extract_metrics(report_path):
 
 
 def write_metrics_file(out_dir, entries, info):
-    """Gather every run's metrics table into one metrics.txt.
-
-    entries is [(label, report file)] in the order the runs were listed, so the
-    file reads in the same order as the summary above it. A run whose table is
-    missing is named rather than skipped silently."""
+    """Gather every run's metrics table into one metrics.txt. entries is
+    [(label, report file)] in the order the runs were listed, so the file reads
+    like the summary. A run with no table is named, not skipped."""
     blocks, missing = [], []
     for label, report_path in entries:
         block = extract_metrics(report_path)
@@ -326,14 +306,13 @@ def main():
     own_argv, after_separator = split_own_args(sys.argv[1:])
     args, unrecognised = parser.parse_known_args(own_argv)
 
-    # A bare word among the leftovers is a mistyped option far more often than
-    # it is something the configuration wants: a flag that takes a value has to
-    # go after the '--' anyway. Refuse it rather than run the whole batch with
-    # it, since every run would fail the same way inside gem5.
+    # A bare word among the leftovers is nearly always a mistyped option, and
+    # a flag that takes a value has to go after the '--' anyway. Refuse it
+    # rather than have every run in the batch fail the same way inside gem5.
     stray = [a for a in unrecognised if not a.startswith("-")]
     if stray:
         print(f"[ERROR] Unrecognised argument(s): {' '.join(stray)}. "
-              f"Flags for the configuration are passed straight through; "
+              f"Flags for the configuration are passed straight through, "
               f"anything that takes a value goes after a '--'.")
         sys.exit(2)
     config_args = unrecognised + after_separator
@@ -491,7 +470,7 @@ def main():
     if failed:
         print(f"[INFO] The failed test(s) left their output under "
               f"{os.path.abspath(GEM5_OUT_DIR)}")
-    # Whatever the batch emptied goes; anything a plain run_gem5.py run left
+    # Whatever the batch emptied goes, anything a plain run_gem5.py run left
     # in there stays.
     prune_empty(driver_results_dir(runner))
     prune_empty(GEM5_OUT_DIR)

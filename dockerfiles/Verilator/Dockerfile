@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y \
 # Set NUM_JOBS to the number of cores for parallel make
 ENV NUM_JOBS=8
 
-# Clone the repository
-RUN git clone https://github.com/ManuelN313/cva6.git /cva6
+# Clone the repository, pinned to v5.3.0-89-g272e6e51
+RUN git clone https://github.com/ManuelN313/cva6.git /cva6 \
+    && git -C /cva6 checkout 272e6e513fb5fed4033872150f51864e58f66bda
 
 WORKDIR /cva6
 
@@ -57,5 +58,5 @@ RUN apt-get install -y help2man device-tree-compiler
 RUN pip3 install --no-cache-dir -r verif/sim/dv/requirements.txt
 
 # Install Verilator and Spike
-RUN export DV_SIMULATORS=veri-testharness,spike
+ENV DV_SIMULATORS=veri-testharness,spike
 RUN bash verif/regress/smoke-tests-cv64a6_imafdc_sv39.sh

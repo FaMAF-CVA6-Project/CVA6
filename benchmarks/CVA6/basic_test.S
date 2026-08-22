@@ -85,7 +85,6 @@ main:
 
   .balign   4096
 __region_start:
-  nop
 # ---------------------------------------------------------
 # SECTION 1 - Initialize integer registers
 # Hits IntALU (li expands to lui+addiw or just addi).

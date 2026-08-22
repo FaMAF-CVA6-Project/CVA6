@@ -9,8 +9,8 @@ RUN apt-get update && apt-get install -y build-essential scons python3-dev git p
     m4 libcapstone-dev libpng-dev libelf-dev pkg-config wget cmake doxygen clang-format gcc-riscv64-linux-gnu \
     g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Clone the gem5 repository
-RUN git clone https://github.com/gem5/gem5.git
+# Clone the gem5 repository, pinned to the release MinorCPU_CVA6.patch targets
+RUN git clone --branch v25.0.0.1 https://github.com/gem5/gem5.git
 
 # Set the working directory
 WORKDIR /gem5
