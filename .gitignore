@@ -60,3 +60,14 @@ verilator_changes/ddr3_memory
 *.vcd*
 *.list*
 *_trace*
+
+## BEGIN oversized JSONs
+/gem5_config_CVA6/CVA6/tests/branch_full_test.json
+/gem5_config_CVA6/CVA6/tests/full_test.json
+/gem5_config_CVA6/CVA6/tests/icache_pressure.json
+/gem5_config_CVA6/CVA6/tests/matmul_small.json
+/gem5_config_CVA6/gem5/tests/branch_full_test.json
+/gem5_config_CVA6/gem5/tests/full_test.json
+/gem5_config_CVA6/gem5/tests/icache_pressure.json
+/gem5_config_CVA6/gem5/tests/matmul_small.json
+## END oversized JSONs
