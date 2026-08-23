@@ -142,8 +142,11 @@ Run from the gem5 source root. The paths carry `a/` and `b/` prefixes, so the de
 cd /gem5
 git apply --check MinorCPU_CVA6.patch    # dry run, silent on success
 git apply MinorCPU_CVA6.patch
-scons build/RISCV/gem5.opt -j$(nproc)
+scons defconfig build/RISCV_PATCH build_opts/RISCV
+scons build/RISCV_PATCH/gem5.opt -j$(nproc)
 ```
+
+The build directory is `RISCV_PATCH` and not `RISCV` because this project keeps `build/RISCV` as the stock binary. Building the patch into it would overwrite that, and nothing afterwards would say so. See [Two builds side by side](#two-builds-side-by-side).
 
 The rebuild is not optional. The patch adds SimObjects and `SConscript` entries, so the generated Python parameter set changes and an existing `build/` will not pick the new parameters up on its own.
 
@@ -156,8 +159,14 @@ Feed the same file back with `-R`. Both tools restore the 19 edited files and de
 ```bash
 cd /gem5
 git apply -R MinorCPU_CVA6.patch          # or: patch -R -p1 < MinorCPU_CVA6.patch
-scons build/RISCV/gem5.opt -j$(nproc)
+scons build/RISCV_PATCH/gem5.opt -j$(nproc)
 ```
+
+That rebuild turns `build/RISCV_PATCH` back into a stock binary, which is rarely what you want. If a stock binary is all you need, `build/RISCV` already is one and nothing has to be rebuilt.
+
+[`run_gem5.py`](../benchmarks/gem5/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
+
+Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert.
 
 ### New parameters
 
