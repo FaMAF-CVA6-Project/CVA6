@@ -52,7 +52,8 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `viewers/MinorFlow`                             | The MinorFlow visualizer, as a submodule.                                                          |
 | `viewers/CVA6Flow`                              | The CVA6Flow visualizer, as a submodule.                                                           |
 | `gem5_config_CVA6/`                             | The gem5 configuration matched to CVA6, and the gem5 patch it depends on.                          |
-| `verilator_changes/`                            | Local changes to the Verilator harness. The memory-latency experiment under it is set aside for now and is untracked. |
+| `verilator_changes/`                            | Local changes to the Verilator harness.                                                            |
+| `verilator_changes/ddr3_memory/`                | DDR3-1600 main memory for the Verilated harness, matched to gem5 `SingleChannelDDR3_1600`, with a standalone testbench and the gem5 side of the comparison. |
 | `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
 | `clean_repo.py`                                 | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this project's folders.       |
 | `ignore_big_json.py`                            | Lists the tracer JSONs too big for GitHub in `.gitignore`.                                         |
@@ -366,11 +367,14 @@ docker stop <container_name> # stop
 From `/gem5`, run a test to produce its debug trace and the metrics table:
 
 ```bash
-python3 run_gem5.py <config>.py <test> [--lang c|asm] [--no-trace]
+python3 run_gem5.py <config>.py <test> [--variant patch|stock] [--lang c|asm] [--no-trace]
 ```
 
 - `<config>.py`: the gem5 MinorCPU configuration script.
 - `<test>`: a `.c` or `.S/.s/.asm` file, auto-detected as above (`--lang` to force).
+- `--variant`: which build to run, `stock` (default) or `patch`. It picks both the binary, `build/RISCV/` or `build/RISCV_PATCH/`, and the overhead profile measured on that build. The chosen build is named in the table header.
+- The two builds are indistinguishable from the outside, so before each run the script greps the binary for a SimObject only the patch adds and refuses to start when it does not match `--variant`. `--skip-build-check` runs anyway, for a deliberate cross-check where the NET figures are known not to apply.
+- `--build`: run any other build instead, by directory name under `build/`, by path to one, or by path to the binary. The overhead profile still follows `--variant`.
 - `--no-trace`: skip the trace and report metrics only.
 - anything else: passed on to the configuration script, so a configuration that defines its own options gets them here. Put them after a `--` when a flag takes a value or its name collides with one of the above.
 

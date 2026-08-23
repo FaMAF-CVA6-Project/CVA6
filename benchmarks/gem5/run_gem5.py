@@ -26,7 +26,23 @@ RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "run_results")
 GCC_CMD = "riscv64-unknown-elf-gcc"
 OBJDUMP_CMD = "riscv64-unknown-elf-objdump"
-GEM5_BIN = "./build/RISCV/gem5.opt"
+
+# The two builds living side by side in one gem5 tree, named by their build
+# directory. build/RISCV is the stock one every gem5 checkout already has, so
+# only the patched one has to be built. See gem5_config_CVA6/README.md.
+GEM5_BUILDS = {
+    "stock": "RISCV",
+    "patch": "RISCV_PATCH",
+}
+DEFAULT_VARIANT = "stock"
+
+# Tried in order inside a build directory, so a .fast build is picked up too.
+GEM5_BINARY_NAMES = ("gem5.opt", "gem5.fast", "gem5.debug")
+
+# A SimObject only the patch adds, so its presence in the binary is what tells
+# a patched build from a stock one. Checked before every run, because the two
+# are told apart by nothing else once they are built.
+PATCH_MARKER = b"Axi2MemPort"
 M5_INCLUDE = os.path.join(GEM5_ROOT, "include")
 M5_OP_ASM = os.path.join(GEM5_ROOT, "util/m5/src/abi/riscv/m5op.S")
 
@@ -62,28 +78,59 @@ ERROR_TAIL_LINES = 40
 # ==============================================================================
 # OVERHEAD PROFILES (CVA6 configuration)
 # ==============================================================================
+# The scaffolding around the measured region, subtracted to get the NET
+# figures. Measured per build, because the patched mechanisms can charge the
+# scaffold differently from the stock ones.
 OVERHEAD_PROFILES = {
-    "c": {
-        "numCycles":        27,
-        "numInsts":         6,
-        "icache_miss":      1,
-        "dcache_miss":      0,
-        "icache_access":    15,
-        "dcache_access":    0,
-        "branch_pred":      5,
-        "branch_miss":      1,
+    "patch": {
+        "c": {
+            "numCycles":        27,
+            "numInsts":         6,
+            "icache_miss":      1,
+            "dcache_miss":      0,
+            "icache_access":    15,
+            "dcache_access":    0,
+            "branch_pred":      5,
+            "branch_miss":      1,
+        },
+        "asm": {
+            "numCycles":        27,
+            "numInsts":         6,
+            "icache_miss":      1,
+            "dcache_miss":      0,
+            "icache_access":    15,
+            "dcache_access":    0,
+            "branch_pred":      5,
+            "branch_miss":      1,
+        },
     },
-    "asm": {
-        "numCycles":        27,
-        "numInsts":         6,
-        "icache_miss":      1,
-        "dcache_miss":      0,
-        "icache_access":    15,
-        "dcache_access":    0,
-        "branch_pred":      5,
-        "branch_miss":      1,
+    "stock": {
+        "c": {
+            "numCycles":        27,
+            "numInsts":         6,
+            "icache_miss":      1,
+            "dcache_miss":      0,
+            "icache_access":    15,
+            "dcache_access":    0,
+            "branch_pred":      5,
+            "branch_miss":      1,
+        },
+        "asm": {
+            "numCycles":        27,
+            "numInsts":         6,
+            "icache_miss":      1,
+            "dcache_miss":      0,
+            "icache_access":    15,
+            "dcache_access":    0,
+            "branch_pred":      5,
+            "branch_miss":      1,
+        },
     },
 }
+
+# Variants whose profile above is a placeholder rather than a measurement.
+# Take the name out once the numbers have been measured on that build.
+UNCALIBRATED_VARIANTS = {"stock"}
 
 # ==============================================================================
 # METRICS MAP
@@ -298,15 +345,48 @@ def split_own_args(argv):
     return argv, []
 
 
+def resolve_gem5_bin(spec):
+    """Find the binary a --build value names, or None.
+
+    Accepts a build directory name (RISCV), a path to one (build/RISCV) or a
+    path to the binary itself, so any build in the tree can be run.
+    """
+    if os.path.isfile(spec):
+        return spec
+    for directory in (spec, os.path.join("build", spec)):
+        for name in GEM5_BINARY_NAMES:
+            candidate = os.path.join(directory, name)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
+
+def build_is_patched(path):
+    """Whether this gem5 binary carries the patch, or None if it cannot be read."""
+    overlap = len(PATCH_MARKER) - 1
+    try:
+        with open(path, "rb") as handle:
+            tail = b""
+            while True:
+                chunk = handle.read(1 << 20)
+                if not chunk:
+                    return False
+                if PATCH_MARKER in tail + chunk:
+                    return True
+                tail = chunk[-overlap:]
+    except OSError:
+        return None
+
+
 def run_gem5(config_file, bin_file, no_trace, program_name, out_dir,
-             config_args=()):
+             config_args=(), gem5_bin=None):
     os.makedirs(out_dir, exist_ok=True)
 
     stats_path = os.path.join(out_dir, "stats.txt")
     if os.path.exists(stats_path):
         os.remove(stats_path)
 
-    cmd = [GEM5_BIN]
+    cmd = [gem5_bin or resolve_gem5_bin(GEM5_BUILDS[DEFAULT_VARIANT])]
 
     # Unless '--no-trace' is set, add the requested debug flags.
     if not no_trace:
@@ -580,6 +660,21 @@ if __name__ == "__main__":
     parser.add_argument("--lang", choices=["c", "asm"], default="auto",
                         help="Force the input type and overhead profile. "
                              "Defaults to detection by extension.")
+    parser.add_argument("--variant", choices=sorted(GEM5_BUILDS),
+                        default=DEFAULT_VARIANT,
+                        help=f"Which build to run and whose overhead profile "
+                             f"to subtract. Defaults to {DEFAULT_VARIANT}, "
+                             f"build/{GEM5_BUILDS[DEFAULT_VARIANT]}")
+    parser.add_argument("--skip-build-check", action="store_true",
+                        help="Run even when the build does not match "
+                             "--variant. The overhead profile is then almost "
+                             "certainly wrong, so only for a deliberate "
+                             "cross-check")
+    parser.add_argument("--build", default=None, metavar="NAME",
+                        help="Run a different build: a directory name under "
+                             "build/, a path to one, or a path to the binary "
+                             "itself. The overhead profile still follows "
+                             "--variant")
     parser.add_argument("--no-trace", action="store_true",
                         help="Disable collection of detailed debug traces.")
     parser.add_argument("--gem5-out-dir", default=GEM5_OUT_DIR,
@@ -607,13 +702,48 @@ if __name__ == "__main__":
         sys.exit(1)
 
     lang = detect_lang(src_file, args.lang)
-    overhead = OVERHEAD_PROFILES[lang]
+    overhead = OVERHEAD_PROFILES[args.variant][lang]
+
+    build_spec = args.build or GEM5_BUILDS[args.variant]
+    gem5_bin = resolve_gem5_bin(build_spec)
+    if gem5_bin is None:
+        print(f"[ERROR] No gem5 binary found for '{build_spec}'. Looked for "
+              f"{', '.join(GEM5_BINARY_NAMES)} in '{build_spec}' and in "
+              f"'{os.path.join('build', build_spec)}'.")
+        sys.exit(1)
+    if args.build:
+        print(f"[INFO] Build: {gem5_bin} (overhead profile: {args.variant})")
+    else:
+        print(f"[INFO] Build: {args.variant} ({gem5_bin})")
+
+    # The two builds are indistinguishable from the outside, so a mislabelled
+    # run would report the wrong NET figures with nothing to show for it.
+    patched = build_is_patched(gem5_bin)
+    wanted_patched = args.variant == "patch"
+    if patched is None:
+        print(f"[WARN] Could not read '{gem5_bin}' to check which build it is")
+    elif patched != wanted_patched:
+        found = "patched" if patched else "stock"
+        want = "patched" if wanted_patched else "stock"
+        message = (f"'{gem5_bin}' is a {found} build but --variant "
+                   f"{args.variant} expects a {want} one")
+        if args.skip_build_check:
+            print(f"[WARN] {message}. Continuing because --skip-build-check "
+                  f"was given, so the NET figures do not apply to this build.")
+        else:
+            print(f"[ERROR] {message}. Pick the other --variant, point "
+                  f"--build at the right build, or pass --skip-build-check.")
+            sys.exit(1)
+    if args.variant in UNCALIBRATED_VARIANTS:
+        print(f"[WARN] The {args.variant} overhead profile is a placeholder, "
+              f"not a measurement. The RAW figures are correct, the NET ones "
+              f"are not calibrated for this build.")
 
     program_name = os.path.splitext(os.path.basename(src_file))[0]
 
     binary = compile_program(src_file, lang, args.gem5_out_dir)
     stats_file = run_gem5(config_file, binary, args.no_trace, program_name,
-                          args.gem5_out_dir, config_args)
+                          args.gem5_out_dir, config_args, gem5_bin)
 
     report_file = generate_and_show_codelist(binary, program_name,
                                             args.gem5_out_dir)
@@ -623,7 +753,7 @@ if __name__ == "__main__":
     # The flags ride along: they are what separates one run of a configuration
     # from another, so a table without them cannot be told apart.
     config_label = " ".join([os.path.basename(config_file)] + list(config_args))
-    header = build_table_header("gem5", config_label,
+    header = build_table_header(f"gem5 [{args.variant}]", config_label,
                                 os.path.basename(src_file), geometry)
     print_table(metrics, overhead, report_file, header)
 
