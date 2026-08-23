@@ -54,8 +54,7 @@ Bender.lock
 
 # Our untracked files
 cva6_files
-verilator_changes/memory_latency
-
+verilator_changes/ddr3_memory
 
 # Files too big to be tracked
 *.vcd*
