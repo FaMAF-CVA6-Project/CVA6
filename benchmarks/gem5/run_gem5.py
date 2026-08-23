@@ -29,7 +29,7 @@ OBJDUMP_CMD = "riscv64-unknown-elf-objdump"
 
 # The two builds living side by side in one gem5 tree, named by their build
 # directory. build/RISCV is the stock one every gem5 checkout already has, so
-# only the patched one has to be built. See gem5_config_CVA6/README.md.
+# only the patched one has to be built.
 GEM5_BUILDS = {
     "stock": "RISCV",
     "patch": "RISCV_PATCH",

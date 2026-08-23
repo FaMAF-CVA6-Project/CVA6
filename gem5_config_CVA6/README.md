@@ -19,7 +19,7 @@ The comparison runs over the fourteen benchmarks `DEFAULT_ALL_TESTS` names in th
 
 ## Results
 
-Across the fourteen pairs the patched configuration lands at a mean absolute cycle error of 9.4 percent, and 3.8 excluding the two smallest programs, whose absolute gaps are a scaffold-dominated 131 and 467 cycles. The two blind composite tests, never used for calibration, read −0.35 and +0.24 percent. The stock-gem5 version, which keeps every calibrated value but none of the transcribed mechanisms, reads 21.4 percent on the same pairs, which is the argument for the patch in one number.
+Across the fourteen pairs the patched configuration lands at a mean absolute cycle error of 9.4 percent, and 3.8 excluding the two smallest programs, whose absolute gaps are a scaffold-dominated 131 and 467 cycles. The two composite tests, `full_test` and `branch_full_test`, read -0.35 and +0.24 percent. The stock-gem5 version, which keeps every calibrated value but none of the transcribed mechanisms, reads 21.4 percent on the same pairs, which is the argument for the patch in one number.
 
 ## The matched configuration
 
@@ -34,19 +34,21 @@ python3 run_gem5.py gem5_config_CVA6.py <test>         # stock gem5
 python3 run_gem5.py gem5_config_CVA6_Patch.py <test>   # patched gem5
 ```
 
-In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. Passing all of them reproduces the stock MinorCPU behaviour the calibration started from. The stock configuration takes no switches, since it carries none of these mechanisms.
+In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. `--no-patch` is all of them at once, which reproduces the stock MinorCPU behaviour the calibration started from. The stock configuration takes no switches, since it carries none of these mechanisms.
 
 | Switch | Turns off |
 | --- | --- |
+| `--no-patch` | Every mechanism below, at once |
 | `--no-port-model` | The single-ported memory adapter |
 | `--no-evict-on-allocate` | Victim selection and writeback at MSHR allocation |
 | `--no-victim-readout-stall` | The dirty-victim data-array occupancy |
 | `--no-cva6-victim-policy` | The transcribed L1D victim policy, back to gem5 TreePLRU |
 | `--no-victim-readable-until-fill` | The victim staying readable until its refill |
 | `--no-fill-phase` | The L1D fill-instant correction |
-| `--no-fence-flush` | A fence flushing the L1D |
+| `--no-fence-flush` | A fence flushing the L1D, both the core's signal and the cache acting on it |
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
 | `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
+| `--no-store-forwarding-model` | CVA6 having no store-to-load forwarding, and the replay delay with it |
 
 ### The calibration table
 
@@ -90,7 +92,7 @@ In the patched version every transcribed mechanism is on by default and each has
 | 27 | membus width 8 -> 16 | daxpy | yes |
 | 28 | membus width 8 -> 4 | daxpy | yes |
 | 29 | write_buffers 8 -> 2 | daxpy | yes |
-| 30 | memory bandwidth 12.8G -> 0.4GB/s | daxpy | yes |
+| 30 | memory bandwidth 12.8GiB/s -> 0.4GiB/s | daxpy | yes |
 | 31 | threadPolicy -> RoundRobin | daxpy | yes |
 | 32 | mem latency 0 -> 60ns | daxpy | yes |
 | 33 | L1D 16KiB | daxpy | yes |
@@ -146,7 +148,7 @@ scons defconfig build/RISCV_PATCH build_opts/RISCV
 scons build/RISCV_PATCH/gem5.opt -j$(nproc)
 ```
 
-The build directory is `RISCV_PATCH` and not `RISCV` because this project keeps `build/RISCV` as the stock binary. Building the patch into it would overwrite that, and nothing afterwards would say so. See [Two builds side by side](#two-builds-side-by-side).
+The build directory is `RISCV_PATCH` and not `RISCV` because this project keeps `build/RISCV` as the stock binary. Building the patch into it would overwrite that, and nothing afterwards would say so.
 
 The rebuild is not optional. The patch adds SimObjects and `SConscript` entries, so the generated Python parameter set changes and an existing `build/` will not pick the new parameters up on its own.
 
@@ -166,7 +168,7 @@ That rebuild turns `build/RISCV_PATCH` back into a stock binary, which is rarely
 
 [`run_gem5.py`](../benchmarks/gem5/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
 
-Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert.
+Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert. `gem5_config_CVA6_Patch.py --no-patch` is the same test from the other direction, holding the configuration fixed and turning the mechanisms off.
 
 ### New parameters
 

@@ -57,6 +57,9 @@ CLK_FREQ = "50MHz"
 L1I_SIZE = "16KiB"
 L1D_SIZE = "32KiB"
 
+# Cycles a load waits after a store collision clears, the CVA6 LSU re-request.
+STORE_COLLISION_REPLAY_DELAY = 2
+
 # Miss-latency split, L1D only.
 MEM_LATENCY = "0ns"
 L1D_FILL_DELAY = 2
@@ -292,7 +295,8 @@ class CVA6FUPool(MinorFUPool):
 
 
 class CVA6CPU(RiscvMinorCPU):
-    def __init__(self, direct_targets=True):
+    def __init__(self, direct_targets=True, store_forwarding_model=True,
+                 fence_signal=True):
         super().__init__()
 
         self.executeFuncUnits = CVA6FUPool()
@@ -329,10 +333,12 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeAllowEarlyMemoryIssue = True
         self.threadPolicy = 'SingleThreaded'
         self.enableIdling = False
-        # Requires the MinorCPU patch. Remove the following lines for stock gem5.
-        self.executeLSQNoStoreForwarding = True
-        self.executeLSQStoreCollisionReplayDelay = 2
-        self.executeLSQFenceSignalsDcache = True
+        # Requires the MinorCPU patch. Each defaults to the stock behaviour,
+        # so switching a mechanism off here leaves nothing of it behind.
+        self.executeLSQNoStoreForwarding = store_forwarding_model
+        self.executeLSQStoreCollisionReplayDelay = (
+            STORE_COLLISION_REPLAY_DELAY if store_forwarding_model else 0)
+        self.executeLSQFenceSignalsDcache = fence_signal
 
         # Branch predictor.
         self.branchPred = LocalBP(
@@ -359,8 +365,11 @@ class CVA6CPU(RiscvMinorCPU):
 
 
 class CVA6Processor(BaseCPUProcessor):
-    def __init__(self, direct_targets=True):
-        cpu = CVA6CPU(direct_targets=direct_targets)
+    def __init__(self, direct_targets=True, store_forwarding_model=True,
+                 fence_signal=True):
+        cpu = CVA6CPU(direct_targets=direct_targets,
+                      store_forwarding_model=store_forwarding_model,
+                      fence_signal=fence_signal)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
 
@@ -475,6 +484,11 @@ parser.add_argument("--ddr3", action="store_true",
                     help="Use the DDR3-1600 device instead of a flat memory "
                          "at MEM_LATENCY. Matches the Verilator DDR3 model in "
                          "verilator_changes/ddr3_memory.")
+parser.add_argument("--no-patch", action="store_true",
+                    help="Turn every transcribed mechanism below off at once, "
+                         "leaving the stock MinorCPU behaviour the "
+                         "calibration started from. A patched build run this "
+                         "way should match a stock one exactly")
 parser.add_argument("--no-port-model", action="store_true",
                     help="Remove the axi2mem single-port model")
 parser.add_argument("--no-evict-on-allocate", action="store_true",
@@ -494,12 +508,21 @@ parser.add_argument("--no-cva6-icache-policy", action="store_true",
 parser.add_argument("--no-cva6-direct-targets", action="store_true",
                     help="Direct branches and jumps take targets from the "
                          "BTB only, the stock gem5 behaviour")
+parser.add_argument("--no-store-forwarding-model", action="store_true",
+                    help="Let the store buffer forward to loads, the stock "
+                         "gem5 behaviour, and drop the replay delay with it")
 parser.add_argument("--no-fence-flush", action="store_true",
-                    help="A fence does not flush the L1D")
+                    help="A fence does not flush the L1D, and the core stops "
+                         "signalling the cache")
 parser.add_argument("--no-fill-phase", action="store_true",
                     help="Use the frozen miss-latency split, 0ns memory and "
                          "L1D response latency 4")
 args = parser.parse_args()
+
+if args.no_patch:
+    for _switch in vars(args):
+        if _switch.startswith("no_") and _switch != "no_patch":
+            setattr(args, _switch, True)
 
 evict_on_allocate = not args.no_evict_on_allocate
 victim_readout_stall = not args.no_victim_readout_stall
@@ -507,6 +530,7 @@ cva6_victim_policy = not args.no_cva6_victim_policy
 victim_readable_until_fill = not args.no_victim_readable_until_fill
 fill_phase = not args.no_fill_phase
 fence_flush = not args.no_fence_flush
+store_forwarding_model = not args.no_store_forwarding_model
 icache_policy = not args.no_cva6_icache_policy
 direct_targets = not args.no_cva6_direct_targets
 
@@ -519,7 +543,9 @@ if not evict_on_allocate:
 
 binary = BinaryResource(args.binary)
 
-processor = CVA6Processor(direct_targets=direct_targets)
+processor = CVA6Processor(direct_targets=direct_targets,
+                          store_forwarding_model=store_forwarding_model,
+                          fence_signal=fence_flush)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
@@ -570,7 +596,8 @@ active = [n for n, on in (
     ("fill-phase", fill_phase),
     ("fence-flush", fence_flush),
     ("cva6-icache-policy", icache_policy),
-    ("cva6-direct-targets", direct_targets)) if on]
+    ("cva6-direct-targets", direct_targets),
+    ("store-forwarding-model", store_forwarding_model)) if on]
 print("Starting CVA6 simulation with: " +
       (", ".join(active) if active else "no transcribed mechanisms"))
 simulator.run()
