@@ -99,7 +99,7 @@ Each folder also has a batch runner, for when you want the whole set instead of 
 
 ```bash
 python3 run_all_CVA6_benchmarks.py <target> [folder] [--no-vcd]   # defaults to /cva6/benchmarks/
-python3 run_all_gem5_benchmarks.py <config>.py [folder] [-j N] [--no-trace]   # defaults to /gem5/benchmarks/
+python3 run_all_gem5_benchmarks.py <config>.py [folder] [-j N] [--variant patch|stock] [--no-trace]   # defaults to /gem5/benchmarks/
 ```
 
 They collect the C and assembly tests in the folder, skip the templates, run each through the matching driver, and print a pass/fail summary. Tests sharing a name are warned about up front, since outputs are named after the test. `-r` includes subfolders, `--dry-run` lists without running.
@@ -125,10 +125,10 @@ Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a t
 `run_CVA6_testing_sweep.py`, next to it, replays the whole thing. It always sweeps its own `DEFAULT_CONFIG`, the file it is written for. Run it from `/gem5`:
 
 ```bash
-python3 run_CVA6_testing_sweep.py [-j N] [--configs 1,4-6] [--tests daxpy,full_test] [--no-trace] [--list]
+python3 run_CVA6_testing_sweep.py [-j N] [--configs 1,4-6] [--tests daxpy,full_test] [--variant patch|stock] [--no-trace] [--list]
 ```
 
-For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `CVA6_testing_sweep_results/` tagged `.config<N>`, plus one `metrics.txt` gathering every table. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
+It defaults to `--variant patch`, since `DEFAULT_CONFIG` sets parameters only the patch provides. For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `CVA6_testing_sweep_results/` tagged `.config<N>`, plus one `metrics.txt` gathering every table. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
 
 The sweep runs `-j` at once, 4 by default, each in its own folder under `m5out/` and `run_results/`, deleted once collected. A run that **fails** keeps its folder, under `m5out/config<N>_<test>/`, together with the configuration copy it ran. Both parent folders are removed only if the sweep leaves them empty, since a plain `run_gem5.py` run writes into them too.
 

@@ -5,6 +5,7 @@ run_gem5.py takes as the current directory.
 """
 import argparse
 import concurrent.futures
+import glob
 import os
 import shutil
 import subprocess
@@ -21,8 +22,9 @@ DEFAULT_TESTS_DIR = "benchmarks"
 # The driver this script delegates to, looked up next to it and then in cwd.
 RUNNER_NAME = "run_gem5.py"
 
-# What run_gem5.py needs from the gem5 root, used to check where we are.
-GEM5_BIN = os.path.join("build", "RISCV", "gem5.opt")
+# Any built gem5 under build/, used to check we are being run from the gem5
+# root. Not a fixed directory, since which builds exist is up to the tree.
+GEM5_BINARY_NAMES = ("gem5.opt", "gem5.fast", "gem5.debug")
 
 # Where run_gem5.py has gem5 write, cleared after each collected run.
 GEM5_OUT_DIR = "m5out"
@@ -59,6 +61,15 @@ def find_runner():
     print(f"[ERROR] {RUNNER_NAME} not found next to this script or in the "
           f"current directory.")
     sys.exit(2)
+
+
+def find_gem5_builds():
+    """Every built gem5 binary under build/, which is how we tell we are in
+    the gem5 root. Any build counts, the runner picks which one to use."""
+    found = []
+    for name in GEM5_BINARY_NAMES:
+        found.extend(glob.glob(os.path.join("build", "*", name)))
+    return sorted(found)
 
 
 def split_own_args(argv):
@@ -298,6 +309,16 @@ def main():
     parser.add_argument("--no-trace", action="store_true",
                         help="Forwarded to run_gem5.py: no debug trace, "
                              "metrics only")
+    parser.add_argument("--variant", choices=["patch", "stock"], default=None,
+                        help="Forwarded to run_gem5.py: which build to run "
+                             "and whose overhead profile to subtract")
+    parser.add_argument("--build", default=None, metavar="NAME",
+                        help="Forwarded to run_gem5.py: run a different "
+                             "build, by directory name under build/, a path "
+                             "to one, or a path to the binary")
+    parser.add_argument("--skip-build-check", action="store_true",
+                        help="Forwarded to run_gem5.py: run even when the "
+                             "build does not match --variant")
     parser.add_argument("-r", "--recursive", action="store_true",
                         help="Also pick up tests in subfolders")
     parser.add_argument("--dry-run", action="store_true",
@@ -330,8 +351,8 @@ def main():
 
     # run_gem5.py resolves the gem5 root from the cwd, so this has to be run
     # from there. Say so now instead of failing later on a missing binary.
-    if not os.path.isfile(GEM5_BIN):
-        print(f"[ERROR] {GEM5_BIN} not found in {os.getcwd()}. "
+    if not find_gem5_builds():
+        print(f"[ERROR] No built gem5 found under build/ in {os.getcwd()}. "
               f"Run this from the gem5 root.")
         sys.exit(2)
 
@@ -399,6 +420,12 @@ def main():
                "--results-dir", job_results]
         if args.no_trace:
             cmd.append("--no-trace")
+        if args.variant:
+            cmd.extend(["--variant", args.variant])
+        if args.build:
+            cmd.extend(["--build", args.build])
+        if args.skip_build_check:
+            cmd.append("--skip-build-check")
         # After a '--', so run_gem5.py hands them to the configuration whatever
         # they are named.
         if config_args:
