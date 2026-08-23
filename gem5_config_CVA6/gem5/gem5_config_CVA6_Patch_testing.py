@@ -110,7 +110,7 @@ TESTS = {
     27: ("membus width 8->16",           {}, "16KiB", "32KiB", {"_membus_width": 16}, {}, "50MHz", "0ns", {}),
     28: ("membus width 8->4",            {}, "16KiB", "32KiB", {"_membus_width": 4}, {}, "50MHz", "0ns", {}),
     29: ("write_buffers 8->2",           {}, "16KiB", "32KiB", {"write_buffers": 2}, {}, "50MHz", "0ns", {}),
-    30: ("memory bandwidth 0.4GB/s",     {}, "16KiB", "32KiB", {"_mem_bandwidth": "0.4GB/s"}, {}, "50MHz", "0ns", {}),
+    30: ("memory bandwidth 0.4GiB/s",    {}, "16KiB", "32KiB", {"_mem_bandwidth": "0.4GiB/s"}, {}, "50MHz", "0ns", {}),
     31: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     32: ("legacy 60ns memory",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
     33: ("L1D 16KiB",                    {}, "16KiB", "16KiB", {}, {}, "50MHz", "0ns", {}),
