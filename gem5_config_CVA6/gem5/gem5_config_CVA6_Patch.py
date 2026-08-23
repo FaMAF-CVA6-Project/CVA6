@@ -6,6 +6,8 @@ from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
 from gem5.components.processors.base_cpu_core import BaseCPUCore  # type: ignore
 from gem5.components.processors.base_cpu_processor import BaseCPUProcessor  # type: ignore
 from gem5.components.memory.simple import SingleChannelSimpleMemory  # type: ignore
+from gem5.components.memory.single_channel import SingleChannelDDR3_1600  # type: ignore
+from gem5.components.memory.memory import ChanneledMemory  # type: ignore
 from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import (  # type: ignore
     PrivateL1CacheHierarchy,
 )
@@ -15,6 +17,7 @@ from gem5.resources.resource import BinaryResource  # type: ignore
 
 from m5.objects import (  # type: ignore
     Axi2MemPort,
+    DDR3_1600_8x8,
     CVA6IcacheRandomRP,
     HPDcacheRandomRP,
     LocalBP,
@@ -453,9 +456,25 @@ class Axi2MemPortedMemory(SingleChannelSimpleMemory):
         return [(self.module.range, self.port_model.cpu_side)]
 
 
+class Axi2MemPortedDDR3(ChanneledMemory):
+    """SingleChannelDDR3_1600 with the Axi2MemPort model in front."""
+
+    def __init__(self, size):
+        super().__init__(DDR3_1600_8x8, 1, 64, size=size)
+        self.port_model = Axi2MemPort()
+        self.port_model.mem_side = self.mem_ctrl[0].port
+
+    def get_mem_ports(self):
+        return [(self.mem_ctrl[0].dram.range, self.port_model.cpu_side)]
+
+
 parser = argparse.ArgumentParser(description="CVA6 replication on gem5")
 parser.add_argument("binary", type=str,
                     help="Path to the compiled RISC-V ELF binary")
+parser.add_argument("--ddr3", action="store_true",
+                    help="Use the DDR3-1600 device instead of a flat memory "
+                         "at MEM_LATENCY. Matches the Verilator DDR3 model in "
+                         "verilator_changes/ddr3_memory.")
 parser.add_argument("--no-port-model", action="store_true",
                     help="Remove the axi2mem single-port model")
 parser.add_argument("--no-evict-on-allocate", action="store_true",
@@ -514,14 +533,18 @@ cache_hierarchy = CVA6CacheHierarchy(
     icache_policy=icache_policy,
 )
 
-mem_class = (SingleChannelSimpleMemory if args.no_port_model
-             else Axi2MemPortedMemory)
-memory = mem_class(
-    latency=MEM_LATENCY,
-    latency_var="0ns",
-    bandwidth="12.8GiB/s",
-    size="1GiB",
-)
+if args.ddr3:
+    memory = (SingleChannelDDR3_1600(size="1GiB") if args.no_port_model
+              else Axi2MemPortedDDR3(size="1GiB"))
+else:
+    mem_class = (SingleChannelSimpleMemory if args.no_port_model
+                 else Axi2MemPortedMemory)
+    memory = mem_class(
+        latency=MEM_LATENCY,
+        latency_var="0ns",
+        bandwidth="12.8GiB/s",
+        size="1GiB",
+    )
 
 board = SimpleBoard(
     clk_freq=CLK_FREQ,
@@ -538,6 +561,7 @@ for _core in board.get_processor().get_cores():
 
 simulator = Simulator(board=board)
 active = [n for n, on in (
+    ("ddr3" if args.ddr3 else f"flat-mem-{MEM_LATENCY}", True),
     ("port-model", not args.no_port_model),
     ("evict-on-allocate", evict_on_allocate),
     ("victim-readout-stall", victim_readout_stall),
