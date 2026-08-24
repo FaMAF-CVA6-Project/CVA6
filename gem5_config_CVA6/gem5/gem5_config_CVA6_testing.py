@@ -56,9 +56,51 @@ from m5.objects import (  # type: ignore
 # dcache_overrides takes "_membus_width" in bytes and "_mem_bandwidth" as a
 # SimpleMemory string.
 #
-# The full table, with the workload each entry is measured on, is in the
-# README under "The calibration table". This file carries the entries that
-# need no patch.
+#   1   adopted baseline                          workload: all
+#   --- replacement policies ---
+#   3   L1I random -> LRU                         workload: full_test
+#   --- fetch geometry (the two-sided bound) ---
+#   4   fetch1FetchLimit 2 -> 1                   workload: matmul_small
+#   5   fetch1FetchLimit 2 -> 3                   workload: matmul_small
+#   6   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   7   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
+#   8   L1I response_latency 0 -> 1               workload: daxpy
+#   --- decode buffer (structural hypothesis refuted) ---
+#   9   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
+#  10   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
+#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#  11   requests queue 2 -> 4                     workload: store_fwd
+#  12   requests queue 2 -> 8                     workload: store_fwd
+#  13   store buffer 4 -> 8                       workload: store_fwd
+#  14   requests 8, store buffer 8                workload: store_fwd
+#   --- branch prediction ---
+#  15   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
+#  16   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
+#  17   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#   --- functional units ---
+#  18   int_mul opLat 2 -> 1                      workload: daxpy, full_test
+#  19   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  20   serdiv base 1 -> 0                        workload: int_div
+#  21   fp_addmul without the double mask         workload: fp_addmul
+#  22   FP mem classes back on vec_mem_fast       workload: daxpy
+#  23   atomic occupancy entries removed          workload: atomic_fence
+#   --- memory path ---
+#  24   response_latency 4 -> 5                   workload: daxpy
+#  25   response_latency 4 -> 6                   workload: daxpy
+#  26   response_latency 4 -> 3                   workload: daxpy
+#  27   membus width 8 -> 16                      workload: daxpy
+#  28   membus width 8 -> 4                       workload: daxpy
+#  29   write_buffers 8 -> 2                      workload: daxpy
+#  30   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
+#  31   threadPolicy -> RoundRobin                workload: daxpy
+#  32   mem latency 0 -> 60ns                     workload: daxpy
+#  33   L1D 16KiB                                 workload: daxpy
+#  34   L1D 64KiB                                 workload: daxpy
+#  35   L1D assoc 8 -> 2                          workload: daxpy
+#  36   L1I 4KiB                                  workload: daxpy
+#  37   L1D mshrs 8 -> 1                          workload: daxpy
+#  38   L1D hit lat +1                            workload: daxpy
+#  39   L1I resp 0 -> 2                           workload: daxpy
 
 TEST = 1
 
