@@ -56,12 +56,86 @@ from m5.objects import (  # type: ignore
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
 #
-# Special keys: bp_overrides["fuVariant"] picks a CVA6FUPool variant, and
-# dcache_overrides takes "_membus_width" in bytes, "_mem_bandwidth" as a
-# SimpleMemory string, and "_port_model" to splice in the axi2mem model.
+# Special keys:
+#   bp_overrides["fuVariant"]        selects a CVA6FUPool variant (below)
+#   dcache_overrides["_membus_width"]   crossbar payload width in bytes
+#   dcache_overrides["_mem_bandwidth"]  SimpleMemory bandwidth string
+#   dcache_overrides["_port_model"]     splice the axi2mem single-port model
 #
-# The full table, with the workload each entry is measured on, is in the
-# README under "The calibration table".
+#   1   adopted baseline                          workload: all
+#   --- replacement policies ---
+#   2   L1D PLRU -> true LRU                      workload: full_test
+#   3   L1I random -> LRU                         workload: full_test
+#   --- fetch geometry (the two-sided bound) ---
+#   4   fetch1FetchLimit 2 -> 1                   workload: matmul_small
+#   5   fetch1FetchLimit 2 -> 3                   workload: matmul_small
+#   6   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   7   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
+#   8   L1I response_latency 0 -> 1               workload: daxpy
+#   --- decode buffer (structural hypothesis refuted) ---
+#   9   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
+#  10   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
+#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#  11   requests queue 2 -> 4                     workload: store_fwd
+#  12   requests queue 2 -> 8                     workload: store_fwd
+#  13   store buffer 4 -> 8                       workload: store_fwd
+#  14   requests 8, store buffer 8                workload: store_fwd
+#   --- branch prediction ---
+#  15   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
+#  16   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
+#  17   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#   --- functional units ---
+#  18   int_mul opLat 2 -> 1                      workload: daxpy, full_test
+#  19   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  20   serdiv base 1 -> 0                        workload: int_div
+#  21   fp_addmul without the double mask         workload: fp_addmul
+#  22   FP mem classes back on vec_mem_fast       workload: daxpy
+#  23   atomic occupancy entries removed          workload: atomic_fence
+#   --- memory path ---
+#  24   response_latency 4 -> 5                   workload: daxpy
+#  25   response_latency 4 -> 6                   workload: daxpy
+#  26   response_latency 4 -> 3                   workload: daxpy
+#  27   membus width 8 -> 16                      workload: daxpy
+#  28   membus width 8 -> 4                       workload: daxpy
+#  29   write_buffers 8 -> 2                      workload: daxpy
+#  30   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
+#  31   threadPolicy -> RoundRobin                workload: daxpy
+#  32   mem latency 0 -> 60ns                     workload: daxpy
+#  33   L1D 16KiB                                 workload: daxpy
+#  34   L1D 64KiB                                 workload: daxpy
+#  35   L1D assoc 8 -> 2                          workload: daxpy
+#  36   L1I 4KiB                                  workload: daxpy
+#  37   L1D mshrs 8 -> 1                          workload: daxpy
+#  38   L1D hit lat +1                            workload: daxpy
+#  39   L1I resp 0 -> 2                           workload: daxpy
+#   --- memory-mechanism campaigns---
+#  40   store forwarding re-enabled               workload: store_fwd
+#  41   replay delay 2 -> 0                       workload: store_fwd
+#  42   port model alone                          workload: daxpy
+#  43   port model + evict-on-allocate            workload: daxpy
+#  44   + victim readout stall                    workload: daxpy
+#  45   + HPDcache bit-PLRU (counterfactual)      workload: daxpy
+#  46   + HPDcache random (configured branch)     workload: daxpy
+#  47   + victim readable until fill              workload: daxpy
+#  48   + fill phase, the production stack        workload: daxpy
+#  49   production stack, L1D 16 KiB              workload: daxpy
+#  50   production stack, L1D 64 KiB              workload: daxpy
+#  51   production minus the port model           workload: daxpy
+#  52   production minus the readout stall        workload: daxpy
+#  53   production with bit-PLRU instead          workload: daxpy
+#  54   production minus the fill phase           workload: daxpy
+#  55   fill delay without the random policy      workload: daxpy
+#   --- fence, instruction-cache policy, front end ---
+#  56   + fence flushes the L1D                   workload: atomic_fence
+#  57   + transcribed L1I policy (IG1)            workload: all
+#  58   production minus direct targets (BG)      workload: btb_pressure
+#   --- grounded frontend candidates, bilateral bubble measurement ---
+#  59   same-cycle fetch2 redirect (adopted)      workload: all
+#  60   BTB as the JALR store                     workload: all
+#  62   tagless BTB                               workload: all
+#  63   dirty-only fill delay                     workload: all
+#   --- full patch baseline ---
+#  99   full production                           workload: all
 
 TEST = 1
 
@@ -237,6 +311,17 @@ TESTS = {
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    63: ("dirty-only fill delay",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
