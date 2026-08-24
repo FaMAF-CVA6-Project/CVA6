@@ -134,6 +134,8 @@ from m5.objects import (  # type: ignore
 #  60   BTB as the JALR store                     workload: all
 #  62   tagless BTB                               workload: all
 #  63   dirty-only fill delay                     workload: all
+#  64   refill window + clean fill                workload: all
+#  65   refill window alone at flat fill          workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -322,6 +324,30 @@ TESTS = {
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 0,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    64: ("refill window + clean fill (the pair)",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "refill_window_blocks": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    65: ("refill window alone, isolation",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "refill_window_blocks": True,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
