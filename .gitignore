@@ -53,6 +53,7 @@ Bender.lock
 !/vendor/riscv/riscv-isa-manual/build/*
 
 # Our untracked files
+temp/
 cva6_files
 verilator_changes/ddr3_memory
 
