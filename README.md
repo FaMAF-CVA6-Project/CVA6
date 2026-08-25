@@ -114,12 +114,12 @@ The **gem5 batch runs several tests at once**: gem5 is single-threaded, so `-j` 
 
 ### The calibration sweep
 
-Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a time and comparing the result against the core. [gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py](gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py) holds that as a table of configurations, `TEST 1` being the matched baseline and every other entry a single-knob change, with the workloads that localize it:
+Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a time and comparing the result against the core. [gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py](gem5_config_CVA6/gem5/gem5_config_CVA6_testing.py) holds that as a table of configurations, `TEST 1` being the matched baseline and every other entry a single-knob change, grouped by the part of the machine it touches, with the workloads that localize it:
 
 ```
-#   1   adopted baseline                            workload: all
-#   4   fetch1FetchLimit 2 -> 1 (starvation)        workload: matmul_small
-#  21   fp_addmul without the double mask           workload: fp_addmul
+#   1   adopted baseline                          workload: all
+#   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
+#  22   fp_addmul without the double mask         workload: fp_addmul
 ```
 
 `run_CVA6_testing_sweep.py`, next to it, replays the whole thing. It always sweeps its own `DEFAULT_CONFIG`, the file it is written for. Run it from `/gem5`:

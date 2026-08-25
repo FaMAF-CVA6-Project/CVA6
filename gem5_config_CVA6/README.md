@@ -8,8 +8,8 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 | --- | --- |
 | `gem5/gem5_config_CVA6.py` | The matched configuration, for a **stock** gem5 |
 | `gem5/gem5_config_CVA6_Patch.py` | The matched configuration, for a **patched** gem5 |
-| `gem5/gem5_config_CVA6_testing.py` | The calibration harness: the stock core as a table of single-knob perturbations |
-| `gem5/gem5_config_CVA6_Patch_testing.py` | The same table for the patched core. This is the sweep's `DEFAULT_CONFIG` |
+| `gem5/gem5_config_CVA6_testing.py` | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39` |
+| `gem5/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch. This is the sweep's `DEFAULT_CONFIG` |
 | `gem5/run_CVA6_testing_sweep.py` | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep) |
 | `gem5/MinorCPU_CVA6.patch` | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file |
 | `gem5/tests/` | The gem5 tests side |
@@ -52,83 +52,112 @@ In the patched version every transcribed mechanism is on by default and each has
 
 ### The calibration table
 
-`gem5_config_CVA6_Patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, `TEST 99` is the full production configuration, and every other entry is a single-knob perturbation. `gem5_config_CVA6_testing.py` carries the same table minus the entries that need the patch.
+`gem5_config_CVA6_Patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, `TEST 99` is the full production configuration, and every other entry is a single-knob perturbation.
 
-| # | What it changes | Workload | Stock too |
-| --- | --- | --- | --- |
-| 1 | adopted baseline | all | yes |
-| | **replacement policies** | | |
-| 2 | L1D PLRU -> true LRU | full_test |  |
-| 3 | L1I random -> LRU | full_test | yes |
-| | **fetch geometry (the two-sided bound)** | | |
-| 4 | fetch1FetchLimit 2 -> 1 | matmul_small | yes |
-| 5 | fetch1FetchLimit 2 -> 3 | matmul_small | yes |
-| 6 | fetch 8B/8B, fetch2 buffer 8 | all | yes |
-| 7 | fetch2InputBufferSize 2 -> 4 | fetch2_probe | yes |
-| 8 | L1I response_latency 0 -> 1 | daxpy | yes |
-| | **decode buffer (structural hypothesis refuted)** | | |
-| 9 | decodeInputBufferSize 1 -> 4 | daxpy, full_test | yes |
-| 10 | decodeInputBufferSize 1 -> 8 | daxpy, full_test | yes |
-| | **LSQ queue geometry (mechanism A exclusion set)** | | |
-| 11 | requests queue 2 -> 4 | store_fwd | yes |
-| 12 | requests queue 2 -> 8 | store_fwd | yes |
-| 13 | store buffer 4 -> 8 | store_fwd | yes |
-| 14 | requests 8, store buffer 8 | store_fwd | yes |
-| | **branch prediction** | | |
-| 15 | Morillas 2025 predictor sizing | branch_full_test, btb_pressure, full_test | yes |
-| 16 | BTB 32 -> 512 | branch_full_test, btb_pressure, full_test | yes |
-| 17 | BTB 32 -> 4096 | branch_full_test, btb_pressure, full_test | yes |
-| | **functional units** | | |
-| 18 | int_mul opLat 2 -> 1 | daxpy, full_test | yes |
-| 19 | fp_divsqrt legacy (2, flat +2) | fp_divsqrt | yes |
-| 20 | serdiv base 1 -> 0 | int_div | yes |
-| 21 | fp_addmul without the double mask | fp_addmul | yes |
-| 22 | FP mem classes back on vec_mem_fast | daxpy | yes |
-| 23 | atomic occupancy entries removed | atomic_fence | yes |
-| | **memory path** | | |
-| 24 | response_latency 4 -> 5 | daxpy | yes |
-| 25 | response_latency 4 -> 6 | daxpy | yes |
-| 26 | response_latency 4 -> 3 | daxpy | yes |
-| 27 | membus width 8 -> 16 | daxpy | yes |
-| 28 | membus width 8 -> 4 | daxpy | yes |
-| 29 | write_buffers 8 -> 2 | daxpy | yes |
-| 30 | memory bandwidth 12.8GiB/s -> 0.4GiB/s | daxpy | yes |
-| 31 | threadPolicy -> RoundRobin | daxpy | yes |
-| 32 | mem latency 0 -> 60ns | daxpy | yes |
-| 33 | L1D 16KiB | daxpy | yes |
-| 34 | L1D 64KiB | daxpy | yes |
-| 35 | L1D assoc 8 -> 2 | daxpy | yes |
-| 36 | L1I 4KiB | daxpy | yes |
-| 37 | L1D mshrs 8 -> 1 | daxpy | yes |
-| 38 | L1D hit lat +1 | daxpy | yes |
-| 39 | L1I resp 0 -> 2 | daxpy | yes |
-| | **memory-mechanism campaigns** | | |
-| 40 | store forwarding re-enabled | store_fwd |  |
-| 41 | replay delay 2 -> 0 | store_fwd |  |
-| 42 | port model alone | daxpy |  |
-| 43 | port model + evict-on-allocate | daxpy |  |
-| 44 | + victim readout stall | daxpy |  |
-| 45 | + HPDcache bit-PLRU (counterfactual) | daxpy |  |
-| 46 | + HPDcache random (configured branch) | daxpy |  |
-| 47 | + victim readable until fill | daxpy |  |
-| 48 | + fill phase, the production stack | daxpy |  |
-| 49 | production stack, L1D 16 KiB | daxpy |  |
-| 50 | production stack, L1D 64 KiB | daxpy |  |
-| 51 | production minus the port model | daxpy |  |
-| 52 | production minus the readout stall | daxpy |  |
-| 53 | production with bit-PLRU instead | daxpy |  |
-| 54 | production minus the fill phase | daxpy |  |
-| 55 | fill delay without the random policy | daxpy |  |
-| | **fence, instruction-cache policy, front end** | | |
-| 56 | + fence flushes the L1D | atomic_fence |  |
-| 57 | + transcribed L1I policy (IG1) | all |  |
-| 58 | production minus direct targets (BG) | btb_pressure |  |
-| | **grounded frontend candidates, bilateral bubble measurement** | | |
-| 59 | same-cycle fetch2 redirect (adopted) | all |  |
-| 60 | BTB as the JALR store | all |  |
-| 62 | tagless BTB | all |  |
-| | **full patch baseline** | | |
-| 99 | full production | all |  |
+The table is ordered by what an entry needs to run, then by the part of the machine it touches, front of the pipeline first. `gem5_config_CVA6_testing.py` carries the first tier, `TEST 1` to `TEST 39`, under the same numbers, so a row means the same thing in both files.
+
+**TESTS 1 to 39 run on a stock gem5.**
+
+| # | What it changes | Workload |
+| --- | --- | --- |
+| 1 | adopted baseline | all |
+| | **fetch geometry (the two-sided bound)** | |
+| 2 | fetch1FetchLimit 2 -> 1 | matmul_small |
+| 3 | fetch1FetchLimit 2 -> 3 | matmul_small |
+| 4 | fetch 8B/8B, fetch2 buffer 8 | all |
+| 5 | fetch2InputBufferSize 2 -> 4 | fetch2_probe |
+| | **instruction cache** | |
+| 6 | L1I random -> LRU | full_test |
+| 7 | L1I response_latency 0 -> 1 | daxpy |
+| 8 | L1I response_latency 0 -> 2 | daxpy |
+| 9 | L1I 4KiB | daxpy |
+| | **decode buffer (structural hypothesis refuted)** | |
+| 10 | decodeInputBufferSize 1 -> 4 | daxpy, full_test |
+| 11 | decodeInputBufferSize 1 -> 8 | daxpy, full_test |
+| | **branch prediction** | |
+| 12 | Morillas 2025 predictor sizing | branch_full_test, btb_pressure, full_test |
+| 13 | BTB 32 -> 512 | branch_full_test, btb_pressure, full_test |
+| 14 | BTB 32 -> 4096 | branch_full_test, btb_pressure, full_test |
+| | **LSQ queue geometry (mechanism A exclusion set)** | |
+| 15 | requests queue 2 -> 4 | store_fwd |
+| 16 | requests queue 2 -> 8 | store_fwd |
+| 17 | store buffer 4 -> 8 | store_fwd |
+| 18 | requests 8, store buffer 8 | store_fwd |
+| | **functional units** | |
+| 19 | int_mul opLat 2 -> 1 | daxpy, full_test |
+| 20 | fp_divsqrt legacy (2, flat +2) | fp_divsqrt |
+| 21 | serdiv base 1 -> 0 | int_div |
+| 22 | fp_addmul without the double mask | fp_addmul |
+| 23 | FP mem classes back on vec_mem_fast | daxpy |
+| 24 | atomic occupancy entries removed | atomic_fence |
+| | **data cache** | |
+| 25 | L1D PLRU -> true LRU | full_test |
+| 26 | response_latency 4 -> 5 | daxpy |
+| 27 | response_latency 4 -> 6 | daxpy |
+| 28 | response_latency 4 -> 3 | daxpy |
+| 29 | L1D 16KiB | daxpy |
+| 30 | L1D 64KiB | daxpy |
+| 31 | L1D assoc 8 -> 2 | daxpy |
+| 32 | L1D mshrs 8 -> 1 | daxpy |
+| 33 | L1D write_buffers 8 -> 2 | daxpy |
+| 34 | L1D hit lat +1 | daxpy |
+| | **memory system** | |
+| 35 | membus width 8 -> 16 | daxpy |
+| 36 | membus width 8 -> 4 | daxpy |
+| 37 | memory bandwidth 12.8GiB/s -> 0.4GiB/s | daxpy |
+| 38 | mem latency 0 -> 60ns | daxpy |
+| | **core-wide** | |
+| 39 | threadPolicy -> RoundRobin | daxpy |
+
+**TESTS 40 to 62 and TEST 99 need `MinorCPU_CVA6.patch`.**
+
+| # | What it changes | Workload |
+| --- | --- | --- |
+| | **store-to-load forwarding** | |
+| 40 | store forwarding re-enabled | store_fwd |
+| 41 | replay delay 2 -> 0 | store_fwd |
+| | **data-cache stack, one mechanism at a time** | |
+| 42 | port model alone | daxpy |
+| 43 | + evict-on-allocate | daxpy |
+| 44 | + victim readout stall | daxpy |
+| 45 | + HPDcache bit-PLRU (counterfactual) | daxpy |
+| 46 | + HPDcache random (configured branch) | daxpy |
+| 47 | + victim readable until fill | daxpy |
+| 48 | + fill phase, the production stack | daxpy |
+| | **production stack, ablations and geometry** | |
+| 49 | production stack, L1D 16 KiB | daxpy |
+| 50 | production stack, L1D 64 KiB | daxpy |
+| 51 | production minus the port model | daxpy |
+| 52 | production minus the readout stall | daxpy |
+| 53 | production with bit-PLRU instead | daxpy |
+| 54 | production minus the fill phase | daxpy |
+| 55 | fill delay without the random policy | daxpy |
+| | **fence and instruction-cache policy** | |
+| 56 | + fence flushes the L1D | atomic_fence |
+| 57 | + transcribed L1I policy (IG1) | all |
+| | **front end, direct targets and the BTB** | |
+| 58 | production minus direct targets (BG) | btb_pressure |
+| 59 | same-cycle fetch2 redirect (adopted) | all |
+| 60 | BTB as the JALR store | all |
+| 61 | tagless BTB | all |
+| | **fill timing** | |
+| 62 | dirty-only fill delay | all |
+| | **full patch baseline, MinorCPU_CVA6.patch only** | |
+| 99 | full production | all |
+
+**TESTS 63 to 69 need a further patch that is not in this repository**, named in the group header. They are the in-flight candidate campaign, kept in the table so the numbering does not move when they land.
+
+| # | What it changes | Workload |
+| --- | --- | --- |
+| | **refill window, MinorCPU_Refill_Window.patch** | |
+| 63 | refill window + clean fill (the pair) | all |
+| 64 | refill window alone, isolation | all |
+| | **tier 1 and 2 candidates, MinorCPU_Tier12.patch** | |
+| 65 | fence pipeline squash, rule F5 | all |
+| 66 | RAS no-recovery | all |
+| 67 | store-class readout extra, isolation | all |
+| 68 | fill 0 + class z, the tier 0 plus 2 pair | all |
+| 69 | all tier 1 and 2 candidates together | all |
 
 ## The patch
 
