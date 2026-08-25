@@ -52,6 +52,12 @@ from m5.objects import (  # type: ignore
 # configuration. Every other TEST is a single-knob perturbation of the
 # calibration campaign, with its observation in the entry's own comment.
 #
+# The table is ordered by what a TEST needs to run. TESTS 1 to 39 use nothing
+# the patch adds, and are the same entries, under the same numbers, as in
+# gem5_config_CVA6_testing.py. TESTS 40 to 62 and TEST 99 need
+# MinorCPU_CVA6.patch. TESTS 63 to 69 need a further patch that is not in the
+# repository.
+#
 # TEST table fields (unchanged shape):
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
@@ -63,61 +69,66 @@ from m5.objects import (  # type: ignore
 #   dcache_overrides["_port_model"]     splice the axi2mem single-port model
 #
 #   1   adopted baseline                          workload: all
-#   --- replacement policies ---
-#   2   L1D PLRU -> true LRU                      workload: full_test
-#   3   L1I random -> LRU                         workload: full_test
 #   --- fetch geometry (the two-sided bound) ---
-#   4   fetch1FetchLimit 2 -> 1                   workload: matmul_small
-#   5   fetch1FetchLimit 2 -> 3                   workload: matmul_small
-#   6   fetch 8B/8B, fetch2 buffer 8              workload: all
-#   7   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
-#   8   L1I response_latency 0 -> 1               workload: daxpy
+#   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
+#   3   fetch1FetchLimit 2 -> 3                   workload: matmul_small
+#   4   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   5   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
+#   --- instruction cache ---
+#   6   L1I random -> LRU                         workload: full_test
+#   7   L1I response_latency 0 -> 1               workload: daxpy
+#   8   L1I response_latency 0 -> 2               workload: daxpy
+#   9   L1I 4KiB                                  workload: daxpy
 #   --- decode buffer (structural hypothesis refuted) ---
-#   9   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
-#  10   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
-#   --- LSQ queue geometry (mechanism A exclusion set) ---
-#  11   requests queue 2 -> 4                     workload: store_fwd
-#  12   requests queue 2 -> 8                     workload: store_fwd
-#  13   store buffer 4 -> 8                       workload: store_fwd
-#  14   requests 8, store buffer 8                workload: store_fwd
+#  10   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
+#  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
 #   --- branch prediction ---
-#  15   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
-#  16   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
-#  17   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#  12   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
+#  13   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
+#  14   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#  15   requests queue 2 -> 4                     workload: store_fwd
+#  16   requests queue 2 -> 8                     workload: store_fwd
+#  17   store buffer 4 -> 8                       workload: store_fwd
+#  18   requests 8, store buffer 8                workload: store_fwd
 #   --- functional units ---
-#  18   int_mul opLat 2 -> 1                      workload: daxpy, full_test
-#  19   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
-#  20   serdiv base 1 -> 0                        workload: int_div
-#  21   fp_addmul without the double mask         workload: fp_addmul
-#  22   FP mem classes back on vec_mem_fast       workload: daxpy
-#  23   atomic occupancy entries removed          workload: atomic_fence
-#   --- memory path ---
-#  24   response_latency 4 -> 5                   workload: daxpy
-#  25   response_latency 4 -> 6                   workload: daxpy
-#  26   response_latency 4 -> 3                   workload: daxpy
-#  27   membus width 8 -> 16                      workload: daxpy
-#  28   membus width 8 -> 4                       workload: daxpy
-#  29   write_buffers 8 -> 2                      workload: daxpy
-#  30   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
-#  31   threadPolicy -> RoundRobin                workload: daxpy
-#  32   mem latency 0 -> 60ns                     workload: daxpy
-#  33   L1D 16KiB                                 workload: daxpy
-#  34   L1D 64KiB                                 workload: daxpy
-#  35   L1D assoc 8 -> 2                          workload: daxpy
-#  36   L1I 4KiB                                  workload: daxpy
-#  37   L1D mshrs 8 -> 1                          workload: daxpy
-#  38   L1D hit lat +1                            workload: daxpy
-#  39   L1I resp 0 -> 2                           workload: daxpy
-#   --- memory-mechanism campaigns---
+#  19   int_mul opLat 2 -> 1                      workload: daxpy, full_test
+#  20   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  21   serdiv base 1 -> 0                        workload: int_div
+#  22   fp_addmul without the double mask         workload: fp_addmul
+#  23   FP mem classes back on vec_mem_fast       workload: daxpy
+#  24   atomic occupancy entries removed          workload: atomic_fence
+#   --- data cache ---
+#  25   L1D PLRU -> true LRU                      workload: full_test
+#  26   response_latency 4 -> 5                   workload: daxpy
+#  27   response_latency 4 -> 6                   workload: daxpy
+#  28   response_latency 4 -> 3                   workload: daxpy
+#  29   L1D 16KiB                                 workload: daxpy
+#  30   L1D 64KiB                                 workload: daxpy
+#  31   L1D assoc 8 -> 2                          workload: daxpy
+#  32   L1D mshrs 8 -> 1                          workload: daxpy
+#  33   L1D write_buffers 8 -> 2                  workload: daxpy
+#  34   L1D hit lat +1                            workload: daxpy
+#   --- memory system ---
+#  35   membus width 8 -> 16                      workload: daxpy
+#  36   membus width 8 -> 4                       workload: daxpy
+#  37   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
+#  38   mem latency 0 -> 60ns                     workload: daxpy
+#   --- core-wide ---
+#  39   threadPolicy -> RoundRobin                workload: daxpy
+#   === every TEST below needs MinorCPU_CVA6.patch ===
+#   --- store-to-load forwarding ---
 #  40   store forwarding re-enabled               workload: store_fwd
 #  41   replay delay 2 -> 0                       workload: store_fwd
+#   --- data-cache stack, one mechanism at a time ---
 #  42   port model alone                          workload: daxpy
-#  43   port model + evict-on-allocate            workload: daxpy
+#  43   + evict-on-allocate                       workload: daxpy
 #  44   + victim readout stall                    workload: daxpy
 #  45   + HPDcache bit-PLRU (counterfactual)      workload: daxpy
 #  46   + HPDcache random (configured branch)     workload: daxpy
 #  47   + victim readable until fill              workload: daxpy
 #  48   + fill phase, the production stack        workload: daxpy
+#   --- production stack, ablations and geometry ---
 #  49   production stack, L1D 16 KiB              workload: daxpy
 #  50   production stack, L1D 64 KiB              workload: daxpy
 #  51   production minus the port model           workload: daxpy
@@ -125,18 +136,27 @@ from m5.objects import (  # type: ignore
 #  53   production with bit-PLRU instead          workload: daxpy
 #  54   production minus the fill phase           workload: daxpy
 #  55   fill delay without the random policy      workload: daxpy
-#   --- fence, instruction-cache policy, front end ---
+#   --- fence and instruction-cache policy ---
 #  56   + fence flushes the L1D                   workload: atomic_fence
 #  57   + transcribed L1I policy (IG1)            workload: all
+#   --- front end, direct targets and the BTB ---
 #  58   production minus direct targets (BG)      workload: btb_pressure
-#   --- grounded frontend candidates, bilateral bubble measurement ---
 #  59   same-cycle fetch2 redirect (adopted)      workload: all
 #  60   BTB as the JALR store                     workload: all
-#  62   tagless BTB                               workload: all
-#  63   dirty-only fill delay                     workload: all
-#  64   refill window + clean fill                workload: all
-#  65   refill window alone at flat fill          workload: all
-#   --- full patch baseline ---
+#  61   tagless BTB                               workload: all
+#   --- fill timing ---
+#  62   dirty-only fill delay                     workload: all
+#   === every TEST below also needs a patch that is not in the repository ===
+#   --- refill window, MinorCPU_Refill_Window.patch ---
+#  63   refill window + clean fill (the pair)     workload: all
+#  64   refill window alone, isolation            workload: all
+#   --- tier 1 and 2 candidates, MinorCPU_Tier12.patch ---
+#  65   fence pipeline squash, rule F5            workload: all
+#  66   RAS no-recovery                           workload: all
+#  67   store-class readout extra, isolation      workload: all
+#  68   fill 0 + class z, the tier 0 plus 2 pair  workload: all
+#  69   all tier 1 and 2 candidates together      workload: all
+#   --- full patch baseline, MinorCPU_CVA6.patch only ---
 #  99   full production                           workload: all
 
 TEST = 1
@@ -147,58 +167,70 @@ USE_MORILLAS = False
 
 TESTS = {
     1:  ("adopted baseline",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    2:  ("L1D PLRU->LRU",                {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "0ns", {}),
-    3:  ("L1I random->LRU",              {}, "16KiB", "32KiB", {}, {"replacement_policy": LRURP()}, "50MHz", "0ns", {}),
-    4:  ("fetch1FetchLimit 2->1",        {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    5:  ("fetch1FetchLimit 2->3",        {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    6:  ("fetch 8B alternative side",    {"fetch1LineWidth": 8, "fetch1LineSnapWidth": 8,
+    # --- fetch geometry (the two-sided bound) ---
+    2:  ("fetch1FetchLimit 2->1",        {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    3:  ("fetch1FetchLimit 2->3",        {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    4:  ("fetch 8B alternative side",    {"fetch1LineWidth": 8, "fetch1LineSnapWidth": 8,
                                           "fetch2InputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    7:  ("fetch2 buffer 2->4",           {"fetch2InputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    8:  ("L1I response 0->1",            {}, "16KiB", "32KiB", {}, {"response_latency": 1}, "50MHz", "0ns", {}),
-    9:  ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    10: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    11: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    12: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    13: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    14: ("LSQ queue 8 buffer 8",         {"executeLSQRequestsQueueSize": 8, "executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    15: ("Morillas branch predictor",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    5:  ("fetch2 buffer 2->4",           {"fetch2InputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # --- instruction cache ---
+    6:  ("L1I random->LRU",              {}, "16KiB", "32KiB", {}, {"replacement_policy": LRURP()}, "50MHz", "0ns", {}),
+    7:  ("L1I response 0->1",            {}, "16KiB", "32KiB", {}, {"response_latency": 1}, "50MHz", "0ns", {}),
+    8:  ("L1I resp 0->2",                {}, "16KiB", "32KiB", {}, {"response_latency": 2}, "50MHz", "0ns", {}),
+    9:  ("L1I 4KiB",                     {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # --- decode buffer (structural hypothesis refuted) ---
+    10: ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    11: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # --- branch prediction ---
+    12: ("Morillas branch predictor",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"localPredictorSize": 1024, "bhtInstShiftAmt": 2,
           "btbNumEntries": 64, "btbAssociativity": 16, "btbInstShiftAmt": 2}),
-    16: ("BTB 32->512",                  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    13: ("BTB 32->512",                  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"btbNumEntries": 512}),
-    17: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    14: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"btbNumEntries": 4096}),
-    18: ("int_mul opLat 2->1",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    # --- LSQ queue geometry (mechanism A exclusion set) ---
+    15: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    16: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    17: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    18: ("LSQ queue 8 buffer 8",         {"executeLSQRequestsQueueSize": 8, "executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # --- functional units ---
+    19: ("int_mul opLat 2->1",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "int_mul_1"}),
-    19: ("fp_divsqrt legacy 2 flat +2",  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    20: ("fp_divsqrt legacy 2 flat +2",  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "divsqrt_legacy"}),
-    20: ("serdiv base 1->0",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    21: ("serdiv base 1->0",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "serdiv_base0"}),
-    21: ("fp_addmul without fmt mask",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    22: ("fp_addmul without fmt mask",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "addmul_flat"}),
-    22: ("FP mem classes on vec unit",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    23: ("FP mem classes on vec unit",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "fp_on_vec"}),
-    23: ("atomic occupancy removed",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    24: ("atomic occupancy removed",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "no_occupancy"}),
-    24: ("response_latency 4->5",        {}, "16KiB", "32KiB", {"response_latency": 5}, {}, "50MHz", "0ns", {}),
-    25: ("response_latency 4->6",        {}, "16KiB", "32KiB", {"response_latency": 6}, {}, "50MHz", "0ns", {}),
-    26: ("response_latency 4->3",        {}, "16KiB", "32KiB", {"response_latency": 3}, {}, "50MHz", "0ns", {}),
-    27: ("membus width 8->16",           {}, "16KiB", "32KiB", {"_membus_width": 16}, {}, "50MHz", "0ns", {}),
-    28: ("membus width 8->4",            {}, "16KiB", "32KiB", {"_membus_width": 4}, {}, "50MHz", "0ns", {}),
-    29: ("write_buffers 8->2",           {}, "16KiB", "32KiB", {"write_buffers": 2}, {}, "50MHz", "0ns", {}),
-    30: ("memory bandwidth 0.4GiB/s",    {}, "16KiB", "32KiB", {"_mem_bandwidth": "0.4GiB/s"}, {}, "50MHz", "0ns", {}),
-    31: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    32: ("legacy 60ns memory",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
-    33: ("L1D 16KiB",                    {}, "16KiB", "16KiB", {}, {}, "50MHz", "0ns", {}),
-    34: ("L1D 64KiB",                    {}, "16KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
-    35: ("L1D assoc 8->2",               {}, "16KiB", "32KiB", {"assoc": 2}, {}, "50MHz", "0ns", {}),
-    36: ("L1I 4KiB",                     {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    37: ("L1D mshrs 8->1",               {}, "16KiB", "32KiB", {"mshrs": 1}, {}, "50MHz", "0ns", {}),
-    38: ("L1D hit lat +1",               {}, "16KiB", "32KiB", {"tag_latency": 2, "data_latency": 2}, {}, "50MHz", "0ns", {}),
-    39: ("L1I resp 0->2",                {}, "16KiB", "32KiB", {}, {"response_latency": 2}, "50MHz", "0ns", {}),
+    # --- data cache ---
+    25: ("L1D PLRU->LRU",                {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "0ns", {}),
+    26: ("response_latency 4->5",        {}, "16KiB", "32KiB", {"response_latency": 5}, {}, "50MHz", "0ns", {}),
+    27: ("response_latency 4->6",        {}, "16KiB", "32KiB", {"response_latency": 6}, {}, "50MHz", "0ns", {}),
+    28: ("response_latency 4->3",        {}, "16KiB", "32KiB", {"response_latency": 3}, {}, "50MHz", "0ns", {}),
+    29: ("L1D 16KiB",                    {}, "16KiB", "16KiB", {}, {}, "50MHz", "0ns", {}),
+    30: ("L1D 64KiB",                    {}, "16KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
+    31: ("L1D assoc 8->2",               {}, "16KiB", "32KiB", {"assoc": 2}, {}, "50MHz", "0ns", {}),
+    32: ("L1D mshrs 8->1",               {}, "16KiB", "32KiB", {"mshrs": 1}, {}, "50MHz", "0ns", {}),
+    33: ("write_buffers 8->2",           {}, "16KiB", "32KiB", {"write_buffers": 2}, {}, "50MHz", "0ns", {}),
+    34: ("L1D hit lat +1",               {}, "16KiB", "32KiB", {"tag_latency": 2, "data_latency": 2}, {}, "50MHz", "0ns", {}),
+    # --- memory system ---
+    35: ("membus width 8->16",           {}, "16KiB", "32KiB", {"_membus_width": 16}, {}, "50MHz", "0ns", {}),
+    36: ("membus width 8->4",            {}, "16KiB", "32KiB", {"_membus_width": 4}, {}, "50MHz", "0ns", {}),
+    37: ("memory bandwidth 0.4GiB/s",    {}, "16KiB", "32KiB", {"_mem_bandwidth": "0.4GiB/s"}, {}, "50MHz", "0ns", {}),
+    38: ("legacy 60ns memory",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
+    # --- core-wide ---
+    39: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # === every TEST below needs MinorCPU_CVA6.patch ===
+    # --- store-to-load forwarding ---
     40: ("store forwarding on",          {"executeLSQNoStoreForwarding": False,
                                           "executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     41: ("replay delay 2->0",            {"executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    # --- data-cache stack, one mechanism at a time ---
     42: ("port model alone",              {}, "16KiB", "32KiB",
          {"_port_model": True}, {}, "50MHz", "0ns", {}),
     43: ("port + evict-on-allocate",      {}, "16KiB", "32KiB",
@@ -225,6 +257,7 @@ TESTS = {
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
+    # --- production stack, ablations and geometry ---
     49: ("production stack, L1D 16KiB",   {}, "16KiB", "16KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -263,6 +296,7 @@ TESTS = {
           "victim_readout_stall": True,
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
+    # --- fence and instruction-cache policy ---
     56: ("+ fence flushes the L1D",       {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -278,6 +312,7 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
+    # --- front end, direct targets and the BTB ---
     58: ("production minus direct targets",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -306,7 +341,7 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
-    62: ("tagless BTB",
+    61: ("tagless BTB",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -317,7 +352,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    63: ("dirty-only fill delay",
+    # --- fill timing ---
+    62: ("dirty-only fill delay",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -328,7 +364,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    64: ("refill window + clean fill (the pair)",
+    # === every TEST below also needs a patch that is not in the repository ===
+    # --- refill window, MinorCPU_Refill_Window.patch ---
+    63: ("refill window + clean fill (the pair)",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -340,7 +378,7 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    65: ("refill window alone, isolation",
+    64: ("refill window alone, isolation",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -352,6 +390,70 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
+    # --- tier 1 and 2 candidates, MinorCPU_Tier12.patch ---
+    65: ("fence pipeline squash, rule F5",
+         {"fetch1ToFetch2BackwardDelay": 0,
+          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    66: ("RAS no-recovery",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0,
+          "rasNoRecovery": True}),
+    67: ("store-class readout extra, isolation",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "victim_readout_store_extra": 4,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    68: ("tier 0 plus 2, the pair with class z",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    69: ("all tier 1 and 2 candidates together",
+         {"fetch1ToFetch2BackwardDelay": 0,
+          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0,
+          "rasNoRecovery": True}),
+    # --- full patch baseline, MinorCPU_CVA6.patch only ---
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -765,6 +867,8 @@ class CVA6CPU(RiscvMinorCPU):
             self.branchPred.indirectBranchPred = bp["indirectBranchPred"]
         if "btbTagBits" in bp:
             self.branchPred.btb.tagBits = bp["btbTagBits"]
+        if "rasNoRecovery" in bp:
+            self.branchPred.rasNoRecovery = bp["rasNoRecovery"]
 
 
 class MorillasCPU(RiscvMinorCPU):
