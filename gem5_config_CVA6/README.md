@@ -48,6 +48,7 @@ In the patched version every transcribed mechanism is on by default and each has
 | `--no-fence-flush` | A fence flushing the L1D, both the core's signal and the cache acting on it |
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
 | `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
+| `--no-ras-decay` | The unrecovered speculative RAS, back to gem5's repair on squash. Implied by `--no-cva6-direct-targets` |
 | `--no-store-forwarding-model` | CVA6 having no store-to-load forwarding, and the replay delay with it |
 
 ### The calibration table
@@ -61,7 +62,7 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | # | What it changes | Workload |
 | --- | --- | --- |
 | 1 | adopted baseline | all |
-| | **fetch geometry (the two-sided bound)** | |
+| | **fetch geometry** | |
 | 2 | fetch1FetchLimit 2 -> 1 | matmul_small |
 | 3 | fetch1FetchLimit 2 -> 3 | matmul_small |
 | 4 | fetch 8B/8B, fetch2 buffer 8 | all |
@@ -71,21 +72,21 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 7 | L1I response_latency 0 -> 1 | daxpy |
 | 8 | L1I response_latency 0 -> 2 | daxpy |
 | 9 | L1I 4KiB | daxpy |
-| | **decode buffer (structural hypothesis refuted)** | |
+| | **decode buffer** | |
 | 10 | decodeInputBufferSize 1 -> 4 | daxpy, full_test |
 | 11 | decodeInputBufferSize 1 -> 8 | daxpy, full_test |
 | | **branch prediction** | |
 | 12 | Morillas 2025 predictor sizing | branch_full_test, btb_pressure, full_test |
 | 13 | BTB 32 -> 512 | branch_full_test, btb_pressure, full_test |
 | 14 | BTB 32 -> 4096 | branch_full_test, btb_pressure, full_test |
-| | **LSQ queue geometry (mechanism A exclusion set)** | |
+| | **LSQ queue geometry** | |
 | 15 | requests queue 2 -> 4 | store_fwd |
 | 16 | requests queue 2 -> 8 | store_fwd |
 | 17 | store buffer 4 -> 8 | store_fwd |
 | 18 | requests 8, store buffer 8 | store_fwd |
 | | **functional units** | |
 | 19 | int_mul opLat 2 -> 1 | daxpy, full_test |
-| 20 | fp_divsqrt legacy (2, flat +2) | fp_divsqrt |
+| 20 | fp_divsqrt legacy | fp_divsqrt |
 | 21 | serdiv base 1 -> 0 | int_div |
 | 22 | fp_addmul without the double mask | fp_addmul |
 | 23 | FP mem classes back on vec_mem_fast | daxpy |
@@ -109,19 +110,19 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | | **core-wide** | |
 | 39 | threadPolicy -> RoundRobin | daxpy |
 
-**TESTS 40 to 62 and TEST 99 need `MinorCPU_CVA6.patch`.**
+**TESTS 40 to 70 and TEST 99 need the patch.**
 
 | # | What it changes | Workload |
 | --- | --- | --- |
 | | **store-to-load forwarding** | |
 | 40 | store forwarding re-enabled | store_fwd |
 | 41 | replay delay 2 -> 0 | store_fwd |
-| | **data-cache stack, one mechanism at a time** | |
+| | **data-cache stack** | |
 | 42 | port model alone | daxpy |
 | 43 | + evict-on-allocate | daxpy |
 | 44 | + victim readout stall | daxpy |
-| 45 | + HPDcache bit-PLRU (counterfactual) | daxpy |
-| 46 | + HPDcache random (configured branch) | daxpy |
+| 45 | + HPDcache bit-PLRU | daxpy |
+| 46 | + HPDcache random | daxpy |
 | 47 | + victim readable until fill | daxpy |
 | 48 | + fill phase, the production stack | daxpy |
 | | **production stack, ablations and geometry** | |
@@ -134,36 +135,30 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 55 | fill delay without the random policy | daxpy |
 | | **fence and instruction-cache policy** | |
 | 56 | + fence flushes the L1D | atomic_fence |
-| 57 | + transcribed L1I policy (IG1) | all |
+| 57 | + transcribed L1I policy | all |
 | | **front end, direct targets and the BTB** | |
-| 58 | production minus direct targets (BG) | btb_pressure |
-| 59 | same-cycle fetch2 redirect (adopted) | all |
+| 58 | production minus direct targets | btb_pressure |
+| 59 | same-cycle fetch2 redirect | all |
 | 60 | BTB as the JALR store | all |
 | 61 | tagless BTB | all |
 | | **fill timing** | |
 | 62 | dirty-only fill delay | all |
-| | **full patch baseline, MinorCPU_CVA6.patch only** | |
-| 99 | full production | all |
-
-**TESTS 63 to 69 need a further patch that is not in this repository**, named in the group header. They are the in-flight candidate campaign, kept in the table so the numbering does not move when they land.
-
-| # | What it changes | Workload |
-| --- | --- | --- |
-| | **refill window, MinorCPU_Refill_Window.patch** | |
-| 63 | refill window + clean fill (the pair) | all |
+| | **refill window** | |
+| 63 | refill window + clean fill | all |
 | 64 | refill window alone, isolation | all |
-| | **tier 1 and 2 candidates, MinorCPU_Tier12.patch** | |
+| | **final tests** | |
 | 65 | fence pipeline squash, rule F5 | all |
 | 66 | RAS no-recovery | all |
 | 67 | store-class readout extra, isolation | all |
-| 68 | fill 0 + class z, the tier 0 plus 2 pair | all |
-| 69 | all tier 1 and 2 candidates together | all |
+| 68 | the tier 0 plus 2 pair | all |
+| 69 | all candidates together | all |
+| 70 | pair + class x and z | all |
+| | **full patch baseline** | |
+| 99 | full production | all |
 
 ## The patch
 
 `MinorCPU_CVA6.patch` is the whole gem5 side in one file, verified to apply cleanly on pristine v25.0.0.1 with both `git apply` and `patch`, and to revert to a byte-identical tree. Every behaviour it adds is a transcription of a specific RTL rule, every one is behind a parameter that defaults to the stock behaviour, and every one carries its citation in the source comments. A patched gem5 runs unpatched configurations unchanged.
-
-It touches 28 files under `src/`: 19 edited in place and 9 created.
 
 ### Applying it
 
@@ -185,7 +180,7 @@ The rebuild is not optional. The patch adds SimObjects and `SConscript` entries,
 
 ### Reverting it
 
-Feed the same file back with `-R`. Both tools restore the 19 edited files and delete the 9 created ones, leaving a tree that `git status` reports as clean.
+Feed the same file back with `-R`. Both tools restore the 22 edited files and delete the 9 created ones, leaving a tree that `git status` reports as clean.
 
 ```bash
 cd /gem5
@@ -207,8 +202,13 @@ Since every added parameter defaults off, the patched binary running `gem5_confi
 | `executeLSQStoreCollisionReplayDelay` | MinorCPU | `0` | Cycles a load waits after a store collision clears |
 | `executeLSQFenceSignalsDcache` | MinorCPU | `False` | A fence signals the data cache, modelling the core's flush wire |
 | `directTargetsFromDecode` | BranchPredictor | `False` | Taken direct control takes its target from the decoded instruction and never installs in the BTB |
+| `executeFenceSquashesPipeline` | MinorCPU | `False` | A committed full fence squashes the pipeline and restarts fetch at the next PC |
+| `rasNoRecovery` | BranchPredictor | `False` | Speculative RAS pushes and pops stand uncorrected on a squash, as CVA6's scan-driven stack |
 | `evict_on_allocate` | Cache | `False` | Selects the victim and issues its writeback at MSHR allocation |
 | `victim_readout_stall` | Cache | `False` | Charges the dirty-victim data-array readout, `blkSize / 8` cycles |
+| `victim_readout_store_extra` | Cache | `0` | Extra readout-window cycles when a store triggered the eviction |
+| `victim_readout_first_load_extra` | Cache | `0` | Extra readout-window cycles when a lone load triggered the eviction |
+| `refill_window_blocks` | Cache | `False` | Blocks the CPU side for `blkSize / 8` cycles while a refill writes the data array |
 | `victim_readable_until_fill` | Cache | `False` | Keeps the victim answering hits until its refill lands |
 | `fill_delay` | Cache | `0` | Extra cycles from response arrival to fill, without touching shared memory latency |
 | `fence_flushes_dcache` | Cache | `False` | A fence writes back every dirty line and holds the cache 2 cycles per line |
@@ -221,6 +221,26 @@ Since every added parameter defaults off, the patched binary running `gem5_confi
 | `HPDcacheRandomRP` | The L1D victim policy the build configures: four tiers, with an 8-bit Galois LFSR, polynomial `0xE1` |
 | `HPDcachePLRURP` | The L1D bit-PLRU branch the build does **not** configure |
 | `CVA6IcacheRandomRP` | The L1I policy: lowest-index invalid way, else an 8-bit Galois LFSR, polynomial `0xFA` |
+
+### New statistics
+
+The patch leaves every stock counter untouched and adds its own beside them.
+
+| Statistic | Object | What it counts |
+| --- | --- | --- |
+| `preemptionBlockedCycles` | Cache | Cycles blocked by a CVA6 preemption cause: victim readout, fence flush or refill window |
+| `cva6ComparableDemandAccesses` | Cache | Demand accesses plus those cycles, the count the HPDcache PMU reports |
+| `earlyReservations` | Cache | Victims reserved at miss time by evict-on-allocate |
+| `reservationFallbacks` | Cache | Misses that fell back to stock fill-time allocation |
+| `inPlaceReservations` | Cache | Reservations that kept the victim readable |
+| `reservationRedirties` | Cache | In-place victims dirtied again before their refill landed, so written back twice |
+| `fenceFlushes` | Cache | Full flushes a fence triggered |
+| `fenceFlushWritebacks` | Cache | Dirty lines those flushes wrote back |
+| `readsAdmitted`, `writesAdmitted` | Axi2MemPort | Transactions admitted to the single port, by class |
+| `passThrough` | Axi2MemPort | Packets with no AXI equivalent, forwarded without occupancy |
+| `readWaitCycles`, `writeWaitCycles` | Axi2MemPort | Admission wait histograms, by class |
+
+`preemptionBlockedCycles` is the one the metrics table uses. Both `run_gem5.py` scripts add it to the cache-access rows and print the result as a third column, `NET (CVA6)`, next to `NET`, so a gem5 table reads against a CVA6 one row for row. The column appears only when the run produced the counter, which is to say only on a patched build.
 
 ### What each change models, briefly
 
@@ -244,14 +264,16 @@ Since every added parameter defaults off, the patched binary running `gem5_confi
 
 ### Files changed
 
-`src/cpu/minor/` for `BaseMinorCPU.py`, `execute.cc`, `lsq.cc` and `lsq.hh`. `src/cpu/pred/` for `BranchPredictor.py`, `bpred_unit.hh` and `bpred_unit.cc`. `src/mem/` for the adapter and its `SConscript` entry. `src/mem/cache/` for `Cache.py`, `base.hh`, `base.cc`, `cache.hh`, `cache_blk.hh`, `mshr.hh` and `mshr.cc`. `src/mem/cache/tags/` for the fill-time replacement hook. `src/mem/cache/replacement_policies/` for the three policies and their registrations.
+`src/cpu/minor/` for `BaseMinorCPU.py`, `execute.cc`, `execute.hh`, `lsq.cc` and `lsq.hh`. `src/cpu/pred/` for `BranchPredictor.py`, `bpred_unit.hh`, `bpred_unit.cc`, `ras.hh` and `ras.cc`. `src/mem/` for the adapter and its `SConscript` entry. `src/mem/cache/` for `Cache.py`, `base.hh`, `base.cc`, `cache.hh`, `cache_blk.hh`, `mshr.hh` and `mshr.cc`. `src/mem/cache/tags/` for the fill-time replacement hook, in `base.hh` and `base_set_assoc.hh`. `src/mem/cache/replacement_policies/` for the three policies and their registrations.
 
 ## Known limitations
 
-Three divergences remain, each with a named mechanism.
+Four divergences remain, each with a named mechanism.
 
-**Store-buffer residency.** gem5's store buffer drains faster than CVA6's two-queue structure, so the collision stall fires on 3 loads where CVA6 stalls on 128. Its dependent chain also costs about 2 cycles more per iteration, and the two errors partly cancel, so correcting either alone makes the agreement worse.
+**Dependent-wakeup granularity.** On the store-and-reload stress gem5 runs +27 percent, and the slot map closes the account: the LSQ is exonerated, every memory segment of every load identical between the fast and slow classes, and fetch is exonerated, frontend timing textbook on both. The entire residual sits in one column, the dependent's issue slot after its load's data is ready, which lands at 0, 1 or 3 extra cycles in a period-four beat of Minor's one-wide issue and two-wide commit, where CVA6's scoreboard wakes uniformly. No parameter expresses the difference without unseating calibrated anchors, so it stands as pipeline granularity, measured to the cycle.
 
-**Miss-path parallelism.** Minor serializes demand misses where the HPDcache overlaps them, and no queue or MSHR parameter lifts it. The miss-chasing stress test carries the cost at about 2 cycles per miss.
+**Clean-miss refill floor.** CVA6's clean misses complete around 9 cycles where the model's flat fill charges 11, since the fill-instant correction came from the dirty-eviction probe. On the chained miss stress this is 2 cycles per miss and the whole +15 percent, proven by a one-knob test that lands that benchmark at +0.19. The fix stays withheld under the blind gate: the overcharge cancels contention CVA6 exposes and gem5 hides, so the split ships with the class model as future work. Minor's miss-level parallelism also remains at one where the HPDcache overlaps.
 
-**Eviction cost accounting.** CVA6 charges 2 and 6 extra cycles when a dirty eviction is triggered by the second load or the store, against gem5's zero, while gem5's baseline window is 2 cycles longer than CVA6's. The terms have opposite signs and nearly cancel, and the residual is predictable from cache geometry alone to within a quarter of a percent.
+**Contention-visibility asymmetry.** The window law's class charges are transcribed and instrumented, `victim_readout_store_extra` and `victim_readout_first_load_extra` beside the base readout, and when enabled they fire exactly as the law prices them, 1,792 x-cycles on daxpy on the new counter, while the cycle tables stay bit-identical: Minor's own serialisation already covers the slots where CVA6's array preemption bites. The knobs ship default-off as a specification with instrumentation for a phase-transcribed pipeline, and the shipped configuration's residual stays predictable from cache geometry to within a quarter of a percent.
+
+**Unrecovered speculative RAS.** On the dispatch-heavy stress the hardware mispredicts 4,113 times against gem5's 2,069, all 2,048 paired returns after mispredicted calls, because the frontend pushes and pops from scanned unvalidated fetch (`frontend.sv` 229 to 238) and nothing repairs the stack on a mispredict flush (`ras.sv` 67, `controller.sv` 108 and 247). The repair suppression is transcribed and adopted as `rasNoRecovery`, moving 64 of the 2,044 events, the remainder capped by Minor's shallow wrong-path run-ahead, a frontend-depth property no predictor knob reaches.

@@ -61,7 +61,7 @@ from m5.objects import (  # type: ignore
 # SimpleMemory string.
 #
 #   1   adopted baseline                          workload: all
-#   --- fetch geometry (the two-sided bound) ---
+#   --- fetch geometry ---
 #   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
 #   3   fetch1FetchLimit 2 -> 3                   workload: matmul_small
 #   4   fetch 8B/8B, fetch2 buffer 8              workload: all
@@ -71,21 +71,21 @@ from m5.objects import (  # type: ignore
 #   7   L1I response_latency 0 -> 1               workload: daxpy
 #   8   L1I response_latency 0 -> 2               workload: daxpy
 #   9   L1I 4KiB                                  workload: daxpy
-#   --- decode buffer (structural hypothesis refuted) ---
+#   --- decode buffer ---
 #  10   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
 #  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
 #   --- branch prediction ---
 #  12   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
 #  13   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
 #  14   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
-#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#   --- LSQ queue geometry ---
 #  15   requests queue 2 -> 4                     workload: store_fwd
 #  16   requests queue 2 -> 8                     workload: store_fwd
 #  17   store buffer 4 -> 8                       workload: store_fwd
 #  18   requests 8, store buffer 8                workload: store_fwd
 #   --- functional units ---
 #  19   int_mul opLat 2 -> 1                      workload: daxpy, full_test
-#  20   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  20   fp_divsqrt legacy                         workload: fp_divsqrt
 #  21   serdiv base 1 -> 0                        workload: int_div
 #  22   fp_addmul without the double mask         workload: fp_addmul
 #  23   FP mem classes back on vec_mem_fast       workload: daxpy
@@ -117,7 +117,7 @@ USE_MORILLAS = False
 
 TESTS = {
     1:  ("adopted baseline",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # --- fetch geometry (the two-sided bound) ---
+    # --- fetch geometry ---
     2:  ("fetch1FetchLimit 2->1",        {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     3:  ("fetch1FetchLimit 2->3",        {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     4:  ("fetch 8B alternative side",    {"fetch1LineWidth": 8, "fetch1LineSnapWidth": 8,
@@ -128,7 +128,7 @@ TESTS = {
     7:  ("L1I response 0->1",            {}, "16KiB", "32KiB", {}, {"response_latency": 1}, "50MHz", "0ns", {}),
     8:  ("L1I resp 0->2",                {}, "16KiB", "32KiB", {}, {"response_latency": 2}, "50MHz", "0ns", {}),
     9:  ("L1I 4KiB",                     {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # --- decode buffer (structural hypothesis refuted) ---
+    # --- decode buffer ---
     10: ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     11: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     # --- branch prediction ---
@@ -139,7 +139,7 @@ TESTS = {
          {"btbNumEntries": 512}),
     14: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"btbNumEntries": 4096}),
-    # --- LSQ queue geometry (mechanism A exclusion set) ---
+    # --- LSQ queue geometry ---
     15: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     16: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     17: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),

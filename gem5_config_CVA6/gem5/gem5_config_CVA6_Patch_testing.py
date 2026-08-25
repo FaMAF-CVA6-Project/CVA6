@@ -54,9 +54,8 @@ from m5.objects import (  # type: ignore
 #
 # The table is ordered by what a TEST needs to run. TESTS 1 to 39 use nothing
 # the patch adds, and are the same entries, under the same numbers, as in
-# gem5_config_CVA6_testing.py. TESTS 40 to 62 and TEST 99 need
-# MinorCPU_CVA6.patch. TESTS 63 to 69 need a further patch that is not in the
-# repository.
+# gem5_config_CVA6_testing.py. TESTS 40 to 70 and TEST 99 need
+# MinorCPU_CVA6.patch.
 #
 # TEST table fields (unchanged shape):
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
@@ -69,7 +68,7 @@ from m5.objects import (  # type: ignore
 #   dcache_overrides["_port_model"]     splice the axi2mem single-port model
 #
 #   1   adopted baseline                          workload: all
-#   --- fetch geometry (the two-sided bound) ---
+#   --- fetch geometry ---
 #   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
 #   3   fetch1FetchLimit 2 -> 3                   workload: matmul_small
 #   4   fetch 8B/8B, fetch2 buffer 8              workload: all
@@ -79,21 +78,21 @@ from m5.objects import (  # type: ignore
 #   7   L1I response_latency 0 -> 1               workload: daxpy
 #   8   L1I response_latency 0 -> 2               workload: daxpy
 #   9   L1I 4KiB                                  workload: daxpy
-#   --- decode buffer (structural hypothesis refuted) ---
+#   --- decode buffer ---
 #  10   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
 #  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
 #   --- branch prediction ---
 #  12   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
 #  13   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
 #  14   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
-#   --- LSQ queue geometry (mechanism A exclusion set) ---
+#   --- LSQ queue geometry ---
 #  15   requests queue 2 -> 4                     workload: store_fwd
 #  16   requests queue 2 -> 8                     workload: store_fwd
 #  17   store buffer 4 -> 8                       workload: store_fwd
 #  18   requests 8, store buffer 8                workload: store_fwd
 #   --- functional units ---
 #  19   int_mul opLat 2 -> 1                      workload: daxpy, full_test
-#  20   fp_divsqrt legacy (2, flat +2)            workload: fp_divsqrt
+#  20   fp_divsqrt legacy                         workload: fp_divsqrt
 #  21   serdiv base 1 -> 0                        workload: int_div
 #  22   fp_addmul without the double mask         workload: fp_addmul
 #  23   FP mem classes back on vec_mem_fast       workload: daxpy
@@ -120,12 +119,12 @@ from m5.objects import (  # type: ignore
 #   --- store-to-load forwarding ---
 #  40   store forwarding re-enabled               workload: store_fwd
 #  41   replay delay 2 -> 0                       workload: store_fwd
-#   --- data-cache stack, one mechanism at a time ---
+#   --- data-cache stack ---
 #  42   port model alone                          workload: daxpy
 #  43   + evict-on-allocate                       workload: daxpy
 #  44   + victim readout stall                    workload: daxpy
-#  45   + HPDcache bit-PLRU (counterfactual)      workload: daxpy
-#  46   + HPDcache random (configured branch)     workload: daxpy
+#  45   + HPDcache bit-PLRU                       workload: daxpy
+#  46   + HPDcache random                         workload: daxpy
 #  47   + victim readable until fill              workload: daxpy
 #  48   + fill phase, the production stack        workload: daxpy
 #   --- production stack, ablations and geometry ---
@@ -138,25 +137,25 @@ from m5.objects import (  # type: ignore
 #  55   fill delay without the random policy      workload: daxpy
 #   --- fence and instruction-cache policy ---
 #  56   + fence flushes the L1D                   workload: atomic_fence
-#  57   + transcribed L1I policy (IG1)            workload: all
+#  57   + transcribed L1I policy                  workload: all
 #   --- front end, direct targets and the BTB ---
-#  58   production minus direct targets (BG)      workload: btb_pressure
-#  59   same-cycle fetch2 redirect (adopted)      workload: all
+#  58   production minus direct targets           workload: btb_pressure
+#  59   same-cycle fetch2 redirect                workload: all
 #  60   BTB as the JALR store                     workload: all
 #  61   tagless BTB                               workload: all
 #   --- fill timing ---
 #  62   dirty-only fill delay                     workload: all
-#   === every TEST below also needs a patch that is not in the repository ===
-#   --- refill window, MinorCPU_Refill_Window.patch ---
-#  63   refill window + clean fill (the pair)     workload: all
+#   --- refill window ---
+#  63   refill window + clean fill                workload: all
 #  64   refill window alone, isolation            workload: all
-#   --- tier 1 and 2 candidates, MinorCPU_Tier12.patch ---
+#   --- final tests ---
 #  65   fence pipeline squash, rule F5            workload: all
 #  66   RAS no-recovery                           workload: all
 #  67   store-class readout extra, isolation      workload: all
-#  68   fill 0 + class z, the tier 0 plus 2 pair  workload: all
-#  69   all tier 1 and 2 candidates together      workload: all
-#   --- full patch baseline, MinorCPU_CVA6.patch only ---
+#  68   the tier 0 plus 2 pair                    workload: all
+#  69   all candidates together                   workload: all
+#  70   pair + class x and z                      workload: all
+#   --- full patch baseline ---
 #  99   full production                           workload: all
 
 TEST = 1
@@ -167,7 +166,7 @@ USE_MORILLAS = False
 
 TESTS = {
     1:  ("adopted baseline",             {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # --- fetch geometry (the two-sided bound) ---
+    # --- fetch geometry ---
     2:  ("fetch1FetchLimit 2->1",        {"fetch1FetchLimit": 1}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     3:  ("fetch1FetchLimit 2->3",        {"fetch1FetchLimit": 3}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     4:  ("fetch 8B alternative side",    {"fetch1LineWidth": 8, "fetch1LineSnapWidth": 8,
@@ -178,7 +177,7 @@ TESTS = {
     7:  ("L1I response 0->1",            {}, "16KiB", "32KiB", {}, {"response_latency": 1}, "50MHz", "0ns", {}),
     8:  ("L1I resp 0->2",                {}, "16KiB", "32KiB", {}, {"response_latency": 2}, "50MHz", "0ns", {}),
     9:  ("L1I 4KiB",                     {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # --- decode buffer (structural hypothesis refuted) ---
+    # --- decode buffer ---
     10: ("decode buffer 1->4",           {"decodeInputBufferSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     11: ("decode buffer 1->8",           {"decodeInputBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     # --- branch prediction ---
@@ -189,7 +188,7 @@ TESTS = {
          {"btbNumEntries": 512}),
     14: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"btbNumEntries": 4096}),
-    # --- LSQ queue geometry (mechanism A exclusion set) ---
+    # --- LSQ queue geometry ---
     15: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     16: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     17: ("LSQ store buffer 4->8",        {"executeLSQStoreBufferSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
@@ -230,7 +229,7 @@ TESTS = {
     40: ("store forwarding on",          {"executeLSQNoStoreForwarding": False,
                                           "executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     41: ("replay delay 2->0",            {"executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # --- data-cache stack, one mechanism at a time ---
+    # --- data-cache stack ---
     42: ("port model alone",              {}, "16KiB", "32KiB",
          {"_port_model": True}, {}, "50MHz", "0ns", {}),
     43: ("port + evict-on-allocate",      {}, "16KiB", "32KiB",
@@ -364,8 +363,7 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    # === every TEST below also needs a patch that is not in the repository ===
-    # --- refill window, MinorCPU_Refill_Window.patch ---
+    # --- refill window ---
     63: ("refill window + clean fill (the pair)",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -390,7 +388,7 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    # --- tier 1 and 2 candidates, MinorCPU_Tier12.patch ---
+    # --- final tests ---
     65: ("fence pipeline squash, rule F5",
          {"fetch1ToFetch2BackwardDelay": 0,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
@@ -427,7 +425,7 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    68: ("tier 0 plus 2, the pair with class z",
+    68: ("the pair with class z",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -439,7 +437,7 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    69: ("all tier 1 and 2 candidates together",
+    69: ("all candidates together",
          {"fetch1ToFetch2BackwardDelay": 0,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -453,7 +451,20 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0,
           "rasNoRecovery": True}),
-    # --- full patch baseline, MinorCPU_CVA6.patch only ---
+    70: ("pair with class x and z",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0}),
+    # --- full patch baseline ---
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -464,7 +475,7 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
-          "btbTagBits": 0}),
+          "btbTagBits": 0, "rasNoRecovery": True}),
 }
 
 
