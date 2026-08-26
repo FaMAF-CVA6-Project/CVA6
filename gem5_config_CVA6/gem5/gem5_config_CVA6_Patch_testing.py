@@ -159,7 +159,11 @@ from m5.objects import (  # type: ignore
 #  71   accept-and-charge, dirty-only fill        workload: all
 #  72   accept-and-charge with the class law      workload: all
 #  73   accept-and-charge, the full pair          workload: all
-#  74   accept-and-charge all                     workload: all
+#  74   accept-and-charge refill window           workload: all
+#   --- the fetch supply beat, basic_test's owner ---
+#  75   fetch1FetchLimit 2 -> 4                   workload: all
+#  76   fetch1FetchLimit 4, fetch2 buffer 2 -> 1  workload: all
+#  77   fetch limit 4, fetch2 buffer 2 -> 4       workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -520,6 +524,45 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "refill_window_blocks": True,
           "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    # --- the fetch supply beat ---
+    75: ("fetch1FetchLimit 2->4, the supply beat",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    76: ("fetch limit 4, fetch2 buffer 1",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+          "fetch2InputBufferSize": 1},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    77: ("fetch limit 4, fetch2 buffer 4",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+          "fetch2InputBufferSize": 4},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
