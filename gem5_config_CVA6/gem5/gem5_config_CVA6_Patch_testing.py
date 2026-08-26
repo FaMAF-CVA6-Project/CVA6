@@ -155,6 +155,11 @@ from m5.objects import (  # type: ignore
 #  68   the tier 0 plus 2 pair                    workload: all
 #  69   all candidates together                   workload: all
 #  70   pair + class x and z                      workload: all
+#   --- accept-and-charge, needs MinorCPU_Accept_And_Charge.patch ---
+#  71   accept-and-charge, dirty-only fill        workload: all
+#  72   accept-and-charge with the class law      workload: all
+#  73   accept-and-charge, the full pair          workload: all
+#  74   accept-and-charge all                     workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -464,6 +469,61 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
+    # --- accept-and-charge, the form conversion ---
+    71: ("accept-and-charge, dirty-only fill",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    72: ("accept-and-charge with the class law",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    73: ("accept-and-charge, the full pair",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "refill_window_blocks": True,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    74: ("accept-and-charge refill window, flat fill",
+         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": False,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "refill_window_blocks": True,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
     # --- full patch baseline ---
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
