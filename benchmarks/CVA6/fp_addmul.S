@@ -85,6 +85,9 @@ main:
 
   .balign  4096
 __region_start:
+  li       t6, 64
+  .balign  16
+addmul_loop:
   li       t0, 0x3F800000           # 1.0f
   fmv.w.x  f0, t0
   li       t0, 0x38D1B717           # about 1e-4f, keeps the sum small
@@ -129,6 +132,9 @@ __region_start:
   .rept    64
   fmadd.d  f2, f2, f3, f2
   .endr
+
+  addi     t6, t6, -1
+  bnez     t6, addmul_loop
 __region_end:
 # ---------------------------------------------------------
 # END OF MAIN PROGRAM

@@ -13,6 +13,9 @@ main:
 
   .balign   4096
 __region_start:
+  li        t6, 64
+  .balign   16
+basic_loop:
 # -----------------------------------------------------------
 # SECTION 1 - Initialize integer registers
 # Hits IntALU (li expands to lui+addiw or just addi).
@@ -158,6 +161,8 @@ __region_start:
   c.xor     s1, s0
   c.mv      s3, s1
 
+  addi      t6, t6, -1
+  bnez      t6, basic_loop
 __region_end:
 # -----------------------------------------------------------
 # END OF MAIN PROGRAM
