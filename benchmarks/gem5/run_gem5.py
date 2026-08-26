@@ -106,31 +106,31 @@ OVERHEAD_PROFILES = {
     },
     "stock": {
         "c": {
-            "numCycles":        41,
-            "numInsts":         6,
+            "numCycles":        32,
+            "numInsts":         3,
             "icache_miss":      3,
             "dcache_miss":      0,
-            "icache_access":    21,
+            "icache_access":    27,
             "dcache_access":    0,
-            "branch_pred":      6,
-            "branch_miss":      3,
+            "branch_pred":      4,
+            "branch_miss":      6,
         },
         "asm": {
-            "numCycles":        41,
-            "numInsts":         6,
+            "numCycles":        32,
+            "numInsts":         3,
             "icache_miss":      3,
             "dcache_miss":      0,
-            "icache_access":    21,
+            "icache_access":    27,
             "dcache_access":    0,
-            "branch_pred":      5,
-            "branch_miss":      3,
+            "branch_pred":      4,
+            "branch_miss":      6,
         },
     },
 }
 
 # Variants whose profile above is a placeholder rather than a measurement.
 # Take the name out once the numbers have been measured on that build.
-UNCALIBRATED_VARIANTS = {"stock"}
+UNCALIBRATED_VARIANTS = set()
 
 # ==============================================================================
 # METRICS MAP
