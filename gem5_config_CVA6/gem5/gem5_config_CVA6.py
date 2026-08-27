@@ -287,7 +287,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1ToFetch2BackwardDelay = 0
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
-        self.fetch2CycleInput = False
+        self.fetch2CycleInput = True
         self.decodeInputBufferSize = 1
         self.decodeToExecuteForwardDelay = 1
         self.decodeInputWidth = 1
