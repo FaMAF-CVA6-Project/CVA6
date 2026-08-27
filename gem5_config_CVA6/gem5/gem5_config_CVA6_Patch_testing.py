@@ -148,14 +148,13 @@ from m5.objects import (  # type: ignore
 #   --- refill window ---
 #  63   refill window + clean fill                workload: all
 #  64   refill window alone, isolation            workload: all
-#   --- final tests ---
 #  65   fence pipeline squash, rule F5            workload: all
 #  66   RAS no-recovery                           workload: all
 #  67   store-class readout extra, isolation      workload: all
 #  68   the tier 0 plus 2 pair                    workload: all
 #  69   all candidates together                   workload: all
 #  70   pair + class x and z                      workload: all
-#   --- accept-and-charge, needs MinorCPU_Accept_And_Charge.patch ---
+#   --- accept-and-charge ---
 #  71   accept-and-charge, dirty-only fill        workload: all
 #  72   accept-and-charge with the class law      workload: all
 #  73   accept-and-charge, the full pair          workload: all
@@ -170,6 +169,8 @@ from m5.objects import (  # type: ignore
 #   --- the class law without the fill-0 phase artefact ---
 #  80   flat fill, accept-and-charge              workload: all
 #  81   TEST 72 stack on the 79 frontend          workload: all
+#  82   adopted stack plus the serdiv turnaround  workload: all
+#  83   adopted stack plus the divsqrt format law workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -630,6 +631,38 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
+    82: ("adopted stack, serdiv turnaround",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "serdiv_turnaround"}),
+    83: ("adopted stack, divsqrt format law",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "divsqrt_format_law"}),
     # --- full patch baseline ---
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
@@ -715,7 +748,7 @@ class CVA6FUPool(MinorFUPool):
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
         int_div.opLat = 2
-        int_div.issueLat = 2
+        int_div.issueLat = 3 if variant == "serdiv_turnaround" else 2
         int_div.timings = [MinorFUTiming(
             description='IntDivSerdiv',
             srcRegsRelativeLats=[0],
@@ -754,6 +787,15 @@ class CVA6FUPool(MinorFUPool):
                 description='FpDivSqrtLegacy',
                 srcRegsRelativeLats=[0],
                 extraCommitLat=2)]
+        elif variant == "divsqrt_format_law":
+            fp_divsqrt.opLat = 12
+            fp_divsqrt.issueLat = 12
+            fp_divsqrt.timings = [MinorFUTiming(
+                description='FpDivSqrtFp64',
+                srcRegsRelativeLats=[0],
+                mask=0x06000000,
+                match=0x02000000,
+                extraCommitLat=7)]
         else:
             fp_divsqrt.opLat = 15
             fp_divsqrt.issueLat = 15

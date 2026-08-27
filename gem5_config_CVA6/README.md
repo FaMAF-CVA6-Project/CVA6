@@ -146,7 +146,6 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | | **refill window** | |
 | 63 | refill window + clean fill | all |
 | 64 | refill window alone, isolation | all |
-| | **final tests** | |
 | 65 | fence pipeline squash, rule F5 | all |
 | 66 | RAS no-recovery | all |
 | 67 | store-class readout extra, isolation | all |
