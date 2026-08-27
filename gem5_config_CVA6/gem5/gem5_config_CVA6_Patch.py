@@ -60,7 +60,15 @@ L1D_SIZE = "32KiB"
 # Cycles a load waits after a store collision clears, the CVA6 LSU re-request.
 STORE_COLLISION_REPLAY_DELAY = 2
 
-# Miss-latency split, L1D only.
+# Class extras on the dirty-victim readout window, the additive law's
+# x and z terms (hpdcache_rtab.sv POP_TRY, hpdcache_flush.sv).
+VICTIM_READOUT_STORE_EXTRA = 4
+VICTIM_READOUT_FIRST_LOAD_EXTRA = 1
+
+# Miss-latency split, L1D only. L1D_FILL_DELAY is the flat split used
+# when the window mechanism is off. Under it the fill delay is 0,
+# because the readout window charges the trigger's own fill and a flat
+# delay on every fill would double-charge the base.
 MEM_LATENCY = "0ns"
 L1D_FILL_DELAY = 2
 L1D_RESPONSE_LATENCY = 2
@@ -309,7 +317,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1ToFetch2BackwardDelay = 0
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
-        self.fetch2CycleInput = False
+        self.fetch2CycleInput = True
         self.decodeInputBufferSize = 1
         self.decodeToExecuteForwardDelay = 1
         self.decodeInputWidth = 1
@@ -381,13 +389,15 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
     def __init__(self, l1d_size, l1i_size, evict_on_allocate=True,
                  victim_readout_stall=True, cva6_victim_policy=True,
                  victim_readable_until_fill=True, fill_phase=True,
-                 fence_flush=True, icache_policy=True):
+                 fence_flush=True, icache_policy=True,
+                 window_charge=True):
         super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)
         self._evict_on_allocate = evict_on_allocate
         self._victim_readout_stall = victim_readout_stall
         self._cva6_victim_policy = cva6_victim_policy
         self._victim_readable_until_fill = victim_readable_until_fill
         self._fill_phase = fill_phase
+        self._window_charge = window_charge
         self._fence_flush = fence_flush
         self._icache_policy = icache_policy
 
@@ -427,8 +437,9 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
                 L1D_RESPONSE_LATENCY if self._fill_phase
                 else FROZEN_L1D_RESPONSE_LATENCY)
             self.l1dcaches[i].fill_delay = (
-                L1D_FILL_DELAY if self._fill_phase
-                else FROZEN_L1D_FILL_DELAY)
+                0 if self._window_charge
+                else (L1D_FILL_DELAY if self._fill_phase
+                      else FROZEN_L1D_FILL_DELAY))
             self.l1dcaches[i].fence_flushes_dcache = self._fence_flush
             self.l1dcaches[i].mshrs = 8
             self.l1dcaches[i].tgts_per_mshr = 16
@@ -449,6 +460,12 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
                 self._victim_readout_stall
             self.l1dcaches[i].victim_readable_until_fill = \
                 self._victim_readable_until_fill
+            self.l1dcaches[i].window_accept_and_charge = self._window_charge
+            self.l1dcaches[i].victim_readout_store_extra = (
+                VICTIM_READOUT_STORE_EXTRA if self._window_charge else 0)
+            self.l1dcaches[i].victim_readout_first_load_extra = (
+                VICTIM_READOUT_FIRST_LOAD_EXTRA if self._window_charge
+                else 0)
 
 
 class Axi2MemPortedMemory(SingleChannelSimpleMemory):
@@ -520,6 +537,9 @@ parser.add_argument("--no-fence-flush", action="store_true",
 parser.add_argument("--no-fill-phase", action="store_true",
                     help="Use the frozen miss-latency split, 0ns memory and "
                          "L1D response latency 4")
+parser.add_argument("--no-window-charge", action="store_true",
+                    help="Drop the accept-and-charge window mechanism and "
+                         "its class extras, leaving the flat fill split")
 parser.add_argument("--no-ras-decay", action="store_true",
                     help="Repair the RAS on squash, the stock gem5 "
                          "behaviour, instead of CVA6's unrecovered "
@@ -536,10 +556,16 @@ victim_readout_stall = not args.no_victim_readout_stall
 cva6_victim_policy = not args.no_cva6_victim_policy
 victim_readable_until_fill = not args.no_victim_readable_until_fill
 fill_phase = not args.no_fill_phase
+window_charge = not args.no_window_charge
 fence_flush = not args.no_fence_flush
 store_forwarding_model = not args.no_store_forwarding_model
 icache_policy = not args.no_cva6_icache_policy
 direct_targets = not args.no_cva6_direct_targets
+
+# The window charge is the readout window's accept-and-charge form.
+if window_charge and not victim_readout_stall:
+    parser.error("--no-victim-readout-stall also requires "
+                 "--no-window-charge")
 
 # The three cache levers all live under evict-at-allocate.
 if not evict_on_allocate:
@@ -563,6 +589,7 @@ cache_hierarchy = CVA6CacheHierarchy(
     cva6_victim_policy=cva6_victim_policy,
     victim_readable_until_fill=victim_readable_until_fill,
     fill_phase=fill_phase,
+    window_charge=window_charge,
     fence_flush=fence_flush,
     icache_policy=icache_policy,
 )
@@ -602,6 +629,7 @@ active = [n for n, on in (
     ("cva6-victim-policy", cva6_victim_policy),
     ("victim-readable-until-fill", victim_readable_until_fill),
     ("fill-phase", fill_phase),
+    ("window-charge", window_charge),
     ("fence-flush", fence_flush),
     ("cva6-icache-policy", icache_policy),
     ("cva6-direct-targets", direct_targets),
