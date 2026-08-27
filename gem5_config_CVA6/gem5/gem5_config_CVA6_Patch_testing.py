@@ -164,6 +164,9 @@ from m5.objects import (  # type: ignore
 #  75   fetch1FetchLimit 2 -> 4                   workload: all
 #  76   fetch1FetchLimit 4, fetch2 buffer 2 -> 1  workload: all
 #  77   fetch limit 4, fetch2 buffer 2 -> 4       workload: all
+#   --- the per-line cadence, the beat's real owner ---
+#  78   fetch2CycleInput False -> True            workload: all
+#  79   fetch2CycleInput True, fetch & buffer 2   workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -557,6 +560,32 @@ TESTS = {
     77: ("fetch limit 4, fetch2 buffer 4",
          {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
           "fetch2InputBufferSize": 4},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    # --- the per-line cadence ---
+    78: ("fetch2CycleInput True, limit 4, buffer 4",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+          "fetch2InputBufferSize": 4, "fetch2CycleInput": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    79: ("fetch2CycleInput True, production queues",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
