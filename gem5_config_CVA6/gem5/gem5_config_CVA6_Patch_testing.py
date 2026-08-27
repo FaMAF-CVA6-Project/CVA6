@@ -167,6 +167,9 @@ from m5.objects import (  # type: ignore
 #   --- the per-line cadence, the beat's real owner ---
 #  78   fetch2CycleInput False -> True            workload: all
 #  79   fetch2CycleInput True, fetch & buffer 2   workload: all
+#   --- the class law without the fill-0 phase artefact ---
+#  80   flat fill, accept-and-charge              workload: all
+#  81   TEST 72 stack on the 79 frontend          workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -592,6 +595,37 @@ TESTS = {
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    # --- the class law on the 79 frontend ---
+    80: ("flat fill, class extras accept-and-charge",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 2,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    81: ("TEST 72 stack on the 79 frontend",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
