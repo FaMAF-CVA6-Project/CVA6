@@ -171,6 +171,7 @@ from m5.objects import (  # type: ignore
 #  81   TEST 72 stack on the 79 frontend          workload: all
 #  82   adopted stack plus the serdiv turnaround  workload: all
 #  83   adopted stack plus the divsqrt format law workload: all
+#  84   adopted stack plus all                    workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -663,6 +664,22 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True,
           "fuVariant": "divsqrt_format_law"}),
+    84: ("adopted stack, fence squash",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True},
+         "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
     # --- full patch baseline ---
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
@@ -748,7 +765,7 @@ class CVA6FUPool(MinorFUPool):
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
         int_div.opLat = 2
-        int_div.issueLat = 3 if variant == "serdiv_turnaround" else 2
+        int_div.issueLat = 2 if variant == "serdiv_no_turnaround" else 3
         int_div.timings = [MinorFUTiming(
             description='IntDivSerdiv',
             srcRegsRelativeLats=[0],
