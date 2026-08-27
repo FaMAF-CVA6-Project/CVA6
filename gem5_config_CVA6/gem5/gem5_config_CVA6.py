@@ -116,7 +116,7 @@ class CVA6FUPool(MinorFUPool):
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
         int_div.opLat = 2
-        int_div.issueLat = 2
+        int_div.issueLat = 3
         int_div.timings = [MinorFUTiming(
             description='IntDivSerdiv',
             srcRegsRelativeLats=[0],
