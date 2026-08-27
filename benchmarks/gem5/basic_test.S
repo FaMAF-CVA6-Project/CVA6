@@ -24,8 +24,8 @@ basic_loop:
   li        t1, 0x00FF
   li        t2, 0xAAAA
   li        t3, 0x5555
-  li        t4, 0x3F800000  # IEEE-754 single 1.0
-  li        t5, 0x40000000  # IEEE-754 single 2.0
+  li        t4, 0x40490000  # 3.140625f, a full-count mantissa
+  li        t5, 0x402E0000  # 2.71875f, a full-count mantissa
   li        a4, 0x00000010  # 16
   li        a5, 0x00000004  # 4
   li        a6, 0xFFFFFFFF  # all-ones (sign-extends to 64-bit)
@@ -35,10 +35,10 @@ basic_loop:
 # SECTION 2 - Move into FP regs and build doubles
 # FloatMisc (fmv.w.x), then FPCvt (fcvt.d.s) to populate doubles.
 # -----------------------------------------------------------
-  fmv.w.x   f0, t4          # f0 = 1.0f
-  fmv.w.x   f1, t5          # f1 = 2.0f
-  fcvt.d.s  f2, f0          # f2 = 1.0 (double)
-  fcvt.d.s  f3, f1          # f3 = 2.0 (double)
+  fmv.w.x   f0, t4          # f0 = 3.140625f
+  fmv.w.x   f1, t5          # f1 = 2.71875f
+  fcvt.d.s  f2, f0          # f2 = 3.140625 (double)
+  fcvt.d.s  f3, f1          # f3 = 2.71875 (double)
 
 # -----------------------------------------------------------
 # SECTION 3 - Integer ALU, register-register
