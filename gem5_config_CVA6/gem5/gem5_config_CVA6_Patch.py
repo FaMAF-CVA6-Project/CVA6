@@ -304,7 +304,8 @@ class CVA6FUPool(MinorFUPool):
 
 class CVA6CPU(RiscvMinorCPU):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
-                 fence_signal=True, ras_no_recovery=True):
+                 fence_signal=True, ras_no_recovery=True,
+                 fence_squash=True):
         super().__init__()
 
         self.executeFuncUnits = CVA6FUPool()
@@ -347,6 +348,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeLSQStoreCollisionReplayDelay = (
             STORE_COLLISION_REPLAY_DELAY if store_forwarding_model else 0)
         self.executeLSQFenceSignalsDcache = fence_signal
+        self.executeFenceSquashesPipeline = fence_squash
 
         # Branch predictor.
         self.branchPred = LocalBP(
@@ -376,10 +378,12 @@ class CVA6CPU(RiscvMinorCPU):
 
 class CVA6Processor(BaseCPUProcessor):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
-                 fence_signal=True, ras_no_recovery=True):
+                 fence_signal=True, ras_no_recovery=True,
+                 fence_squash=True):
         cpu = CVA6CPU(direct_targets=direct_targets,
                       store_forwarding_model=store_forwarding_model,
                       fence_signal=fence_signal,
+                      fence_squash=fence_squash,
                       ras_no_recovery=ras_no_recovery)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
@@ -537,6 +541,9 @@ parser.add_argument("--no-fence-flush", action="store_true",
 parser.add_argument("--no-fill-phase", action="store_true",
                     help="Use the frozen miss-latency split, 0ns memory and "
                          "L1D response latency 4")
+parser.add_argument("--no-fence-squash", action="store_true",
+                    help="Drop the rule F5 pipeline squash on a committed "
+                         "full fence")
 parser.add_argument("--no-window-charge", action="store_true",
                     help="Drop the accept-and-charge window mechanism and "
                          "its class extras, leaving the flat fill split")
@@ -579,7 +586,8 @@ binary = BinaryResource(args.binary)
 processor = CVA6Processor(direct_targets=direct_targets,
                           store_forwarding_model=store_forwarding_model,
                           fence_signal=fence_flush,
-                          ras_no_recovery=not args.no_ras_decay)
+                          ras_no_recovery=not args.no_ras_decay,
+                          fence_squash=not args.no_fence_squash)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
@@ -630,6 +638,7 @@ active = [n for n, on in (
     ("victim-readable-until-fill", victim_readable_until_fill),
     ("fill-phase", fill_phase),
     ("window-charge", window_charge),
+    ("fence-squash", not args.no_fence_squash),
     ("fence-flush", fence_flush),
     ("cva6-icache-policy", icache_policy),
     ("cva6-direct-targets", direct_targets),
