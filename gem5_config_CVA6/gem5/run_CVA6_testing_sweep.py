@@ -55,6 +55,8 @@ DEFAULT_ALL_TESTS = [
     "fetch2_probe",
     "fp_addmul",
     "fp_divsqrt",
+    "fp_divsqrt_probe",
+    "fp_divsqrt_probe2",
     "full_test",
     "icache_pressure",
     "int_div",
