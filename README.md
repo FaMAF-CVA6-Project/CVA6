@@ -380,7 +380,7 @@ python3 run_gem5.py <config>.py <test> [--variant patch|stock] [--lang c|asm] [-
 
 It compiles the test (linking gem5's `m5op.S` so the test can call `m5_reset_stats` and `m5_dump_stats`), runs gem5 into `m5out/`, disassembles the test, and prints the same metrics table as the CVA6 side, read from gem5's `stats.txt`.
 
-On a patched build the table carries a third column, `NET (CVA6)`, beside `NET`. The HPDcache PMU re-presents a demand on every cycle a preemption blocks the port, so the core's access counts run above gem5's. The patch counts those cycles and the column adds them to the two cache-access rows, so the gem5 table can be read against the CVA6 one row for row. Every other row repeats `NET`. A stock build writes no such counter and the column does not appear.
+On a patched build the table carries a third column, `NET (CVA6)`, beside `NET`. The HPDcache PMU re-presents a demand on every cycle it holds a request off, so the core's access counts run above gem5's. The patch counts those cycles, under whichever of its two forms is configured: blocking charges `preemptionBlockedCycles`, and accept-and-charge, which the production configuration uses, charges `windowTriggerCycles` and `windowOverlapCycles` instead. The column adds all three to the two cache-access rows, which is what the patch's own `cva6ComparableDemandAccesses` adds up, so the gem5 table can be read against the CVA6 one row for row.
 
 gem5 writes to `m5out/`, and the test is compiled there too, so a run is self-contained. The four keepers, the trace, the `.list`, `<test>_report.txt` and `<test>_stats.txt`, are copied to `run_results/` next to the script. `--gem5-out-dir` and `--results-dir` move either folder, which is how concurrent runs stay apart.
 
