@@ -37,7 +37,7 @@ index 545dfeaee5..e67023dd86 100644
          1,
          "Delay from Execute deciding to branch and Fetch1 reacting"
 diff --git a/src/cpu/minor/execute.cc b/src/cpu/minor/execute.cc
-index ba4032e39c..9d74a82866 100644
+index ba4032e39c..a434b72d6c 100644
 --- a/src/cpu/minor/execute.cc
 +++ b/src/cpu/minor/execute.cc
 @@ -79,6 +79,7 @@ Execute::Execute(const std::string &name_,
@@ -60,19 +60,25 @@ index ba4032e39c..9d74a82866 100644
      executeInfo(params.numThreads,
              ExecuteThreadInfo(params.executeCommitLimit)),
      interruptPriority(0),
-@@ -977,6 +981,17 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
+@@ -977,6 +981,23 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
  
          committed = true;
  
-+        if (fenceSquashesPipeline && fault == NoFault &&
-+            inst->staticInst->isFullMemBarrier() && branch.isBubble())
++        if (fault == NoFault && inst->isInst() &&
++            inst->staticInst->isFullMemBarrier())
 +        {
-+            // A fence at commit flushes the pipeline and refetches
-+            // (controller.sv lines 123 to 136, rule F5).
-+            std::unique_ptr<PCStateBase> fence_next(inst->pc->clone());
-+            inst->staticInst->advancePC(*fence_next);
-+            updateBranchData(thread_id, BranchData::UnpredictedBranch,
-+                inst, *fence_next, branch);
++            // The fence signal belongs at commit (controller.sv), so
++            // a squash of younger state can never replay it.
++            lsq.signalFenceDcache();
++
++            if (fenceSquashesPipeline && branch.isBubble()) {
++                // A fence at commit flushes the pipeline and refetches
++                // (controller.sv lines 123 to 136, rule F5).
++                std::unique_ptr<PCStateBase> fence_next(inst->pc->clone());
++                inst->staticInst->advancePC(*fence_next);
++                updateBranchData(thread_id, BranchData::UnpredictedBranch,
++                    inst, *fence_next, branch);
++            }
 +        }
 +
          if (fault != NoFault) {
@@ -93,7 +99,7 @@ index 0a1dde1424..87d7056feb 100644
       *  which pass the MinorDynInst::isNoCostInst test */
      unsigned int noCostFUIndex;
 diff --git a/src/cpu/minor/lsq.cc b/src/cpu/minor/lsq.cc
-index 4b31b26577..013f2a57ab 100644
+index 4b31b26577..a194a150a5 100644
 --- a/src/cpu/minor/lsq.cc
 +++ b/src/cpu/minor/lsq.cc
 @@ -69,6 +69,7 @@ LSQ::LSQRequest::LSQRequest(LSQ &port_, MinorDynInstPtr inst_, bool isLoad_,
@@ -161,25 +167,29 @@ index 4b31b26577..013f2a57ab 100644
      requests(name_ + ".requests", "addr", requests_queue_size),
      transfers(name_ + ".transfers", "addr", transfers_queue_size),
      storeBuffer(name_ + ".storeBuffer",
-@@ -1723,6 +1748,16 @@ LSQ::issuedMemBarrierInst(MinorDynInstPtr inst)
-      *  barrier so this may result in some mem refs being
-      *  delayed if they are between barriers */
+@@ -1725,6 +1750,20 @@ LSQ::issuedMemBarrierInst(MinorDynInstPtr inst)
      lastMemBarrier[inst->id.threadId] = inst->id.execSeqNum;
-+
-+    /* Signal the data cache that a fence issued. In CVA6 this is a control
-+     *  wire (controller.sv flush_dcache_o), not a port transaction, so it
-+     *  goes functionally and costs no bandwidth. Off by default. */
+ }
+ 
++void
++LSQ::signalFenceDcache()
++{
++    /* CVA6 raises flush_dcache_o from commit (controller.sv), a
++     *  control wire and not a port transaction, so the signal goes
++     *  functionally and costs no bandwidth. Off by default. */
 +    if (fenceSignalsDcache) {
 +        RequestPtr fence_req = std::make_shared<Request>(
 +            0, 0, 0, Request::funcRequestorId);
 +        Packet fence_pkt(fence_req, MemCmd::FlushReq);
 +        dcachePort.sendFunctional(&fence_pkt);
 +    }
- }
- 
++}
++
  void
+ LSQ::LSQRequest::makePacket()
+ {
 diff --git a/src/cpu/minor/lsq.hh b/src/cpu/minor/lsq.hh
-index e30a615803..d3d2db7b08 100644
+index e30a615803..c647361492 100644
 --- a/src/cpu/minor/lsq.hh
 +++ b/src/cpu/minor/lsq.hh
 @@ -166,6 +166,11 @@ class LSQ : public Named
@@ -226,6 +236,17 @@ index e30a615803..d3d2db7b08 100644
  
      virtual ~LSQ();
  
+@@ -694,6 +715,10 @@ class LSQ : public Named
+      *  committed */
+     void issuedMemBarrierInst(MinorDynInstPtr inst);
+ 
++    /** Fence signal to the dcache, commit-side as CVA6's
++     *  flush_dcache_o. */
++    void signalFenceDcache();
++
+     /** Get the execSeqNum of the last issued memory barrier */
+     InstSeqNum getLastMemBarrier(ThreadID thread_id) const
+     { return lastMemBarrier[thread_id]; }
 diff --git a/src/cpu/pred/BranchPredictor.py b/src/cpu/pred/BranchPredictor.py
 index 47b985242d..02b0569bd5 100644
 --- a/src/cpu/pred/BranchPredictor.py
@@ -1047,10 +1068,10 @@ index 0000000000..2b93503162
 +
 +#endif // __MEM_AXI2MEM_PORT_HH__
 diff --git a/src/mem/cache/Cache.py b/src/mem/cache/Cache.py
-index fdc1d8fc0f..59e2c871b5 100644
+index fdc1d8fc0f..e30c3bdae0 100644
 --- a/src/mem/cache/Cache.py
 +++ b/src/mem/cache/Cache.py
-@@ -151,6 +151,54 @@ class BaseCache(ClockedObject):
+@@ -151,6 +151,63 @@ class BaseCache(ClockedObject):
      # In case of the downstream cache is mostly inclusive, this should be
      # set to False.
      writeback_clean = Param.Bool(False, "Writeback clean lines")
@@ -1096,6 +1117,15 @@ index fdc1d8fc0f..59e2c871b5 100644
 +        "fill instant without touching shared memory latency. Reduce "
 +        "response_latency equally to keep miss latency constant.",
 +    )
++    window_accept_and_charge = Param.Bool(
++        False,
++        "Accept-and-charge form of the victim readout and refill windows: "
++        "the cpu side is never blocked, the miss that opens a readout "
++        "window takes the window, base plus class extra, as latency on "
++        "its own fill, and a request arriving inside an open window takes "
++        "the remaining overlap as latency, the HPDcache stall and replay "
++        "paths (hpdcache_ctrl_pe.sv lines 338 to 348)",
++    )
 +    fence_flushes_dcache = Param.Bool(
 +        False,
 +        "A full memory fence flushes this cache, writing back "
@@ -1106,10 +1136,10 @@ index fdc1d8fc0f..59e2c871b5 100644
      # Control whether this cache should be mostly inclusive or mostly
      # exclusive with respect to upstream caches. The behaviour on a
 diff --git a/src/mem/cache/base.cc b/src/mem/cache/base.cc
-index cb6861045d..184642d943 100644
+index cb6861045d..c3074148cb 100644
 --- a/src/mem/cache/base.cc
 +++ b/src/mem/cache/base.cc
-@@ -91,6 +91,18 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
+@@ -91,6 +91,21 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
        prefetcher(p.prefetcher),
        writeAllocator(p.write_allocator),
        writebackClean(p.writeback_clean),
@@ -1121,6 +1151,9 @@ index cb6861045d..184642d943 100644
 +      fillDelay(p.fill_delay),
 +      fenceFlushesDcache(p.fence_flushes_dcache),
 +      refillWindowBlocks(p.refill_window_blocks),
++      windowAcceptAndCharge(p.window_accept_and_charge),
++      victimReadoutWindowEnd(0),
++      refillWindowEnd(0),
 +      fenceFlushClearEvent([this]{ clearFenceFlushBlocked(); }, name()),
 +      deferredFillEvent([this]{ processDeferredFills(); }, name()),
 +      victimReadoutClearEvent([this]{ clearVictimReadoutBlocked(); }, name()),
@@ -1128,7 +1161,7 @@ index cb6861045d..184642d943 100644
        tempBlockWriteback(nullptr),
        writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
                                      name(), false,
-@@ -196,6 +208,12 @@ BaseCache::regenerateBlkAddr(CacheBlk* blk)
+@@ -196,6 +211,12 @@ BaseCache::regenerateBlkAddr(CacheBlk* blk)
  void
  BaseCache::init()
  {
@@ -1141,7 +1174,7 @@ index cb6861045d..184642d943 100644
      if (!cpuSidePort.isConnected() || !memSidePort.isConnected())
          fatal("Cache ports on %s are not connected\n", name());
      cpuSidePort.sendRangeChange();
-@@ -399,7 +417,14 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
+@@ -399,7 +420,14 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
              // Here we are using forward_time, modelling the latency of
              // a miss (outbound) just as forwardLatency, neglecting the
              // lookupLatency component.
@@ -1157,19 +1190,70 @@ index cb6861045d..184642d943 100644
          }
      }
  }
-@@ -489,6 +514,32 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
+@@ -434,6 +462,19 @@ BaseCache::recvTimingReq(PacketPtr pkt)
+         // access() will set the lat value.
+         satisfied = access(pkt, blk, lat, writebacks);
+ 
++        const Cycles overlap = openWindowOverlap();
++        if (overlap > 0) {
++            // Accept-and-charge: the request is taken now and pays the
++            // rest of the open window as its own latency, as the HPDcache
++            // stalls it in stage 0 (hpdcache_ctrl_pe.sv lines 338 to 348).
++            lat += overlap;
++            forward_time += cyclesToTicks(overlap);
++            stats.windowOverlapCharges++;
++            stats.windowOverlapCycles += overlap;
++            DPRINTF(Cache, "Window overlap charged %d cycles to %s addr %#x\n",
++                    uint64_t(overlap), pkt->cmdString(), pkt->getAddr());
++        }
++
+         // After the evicted blocks are selected, they must be forwarded
+         // to the write buffer to ensure they logically precede anything
+         // happening below
+@@ -489,6 +530,63 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
      cpuSidePort.schedTimingResp(pkt, completion_time);
  }
  
-+void
-+BaseCache::scheduleDeferredFill(PacketPtr pkt)
++Cycles
++BaseCache::openWindowOverlap() const
 +{
-+    const Tick ready = clockEdge(fillDelay);
-+    deferredFills.emplace_back(ready, pkt);
-+    // Every response waits the same number of cycles, so arrival order
-+    // is release order and one event suffices for the whole queue.
++    if (!windowAcceptAndCharge) {
++        return Cycles(0);
++    }
++    const Tick end = std::max(victimReadoutWindowEnd, refillWindowEnd);
++    return end > curTick() ? ticksToCycles(end - curTick()) : Cycles(0);
++}
++
++Cycles
++BaseCache::fillHold(const PacketPtr pkt) const
++{
++    Cycles hold = fillDelay;
++    if (windowAcceptAndCharge) {
++        // A miss response carries its MSHR as the top sender state. Write
++        // responses carry a write-queue entry, which casts to null.
++        const MSHR *mshr = dynamic_cast<const MSHR*>(pkt->senderState);
++        if (mshr) {
++            hold += mshr->windowCharge;
++        }
++    }
++    return hold;
++}
++
++void
++BaseCache::scheduleDeferredFill(PacketPtr pkt, Cycles hold)
++{
++    const Tick ready = clockEdge(hold);
++    // Holds differ per response under accept-and-charge, so the queue is
++    // kept ordered by release tick, arrival order among equals.
++    auto pos = deferredFills.begin();
++    while (pos != deferredFills.end() && pos->first <= ready) {
++        ++pos;
++    }
++    deferredFills.emplace(pos, ready, pkt);
 +    if (!deferredFillEvent.scheduled()) {
-+        schedule(deferredFillEvent, ready);
++        schedule(deferredFillEvent, deferredFills.front().first);
++    } else if (deferredFillEvent.when() > deferredFills.front().first) {
++        reschedule(deferredFillEvent, deferredFills.front().first);
 +    }
 +}
 +
@@ -1190,10 +1274,21 @@ index cb6861045d..184642d943 100644
  void
  BaseCache::recvTimingResp(PacketPtr pkt)
  {
-@@ -559,8 +610,20 @@ BaseCache::recvTimingResp(PacketPtr pkt)
+@@ -559,8 +657,31 @@ BaseCache::recvTimingResp(PacketPtr pkt)
  
          const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
              writeAllocator->allocate() : mshr->allocOnFill();
++        if (victimReadableUntilFill && !blk && allocate &&
++            mshr->reservedBlk && mshr->reservedBlk->isReservedVictim() &&
++            mshrQueue.findMatch(regenerateBlkAddr(mshr->reservedBlk),
++                                mshr->reservedBlk->isSecure())) {
++            // A store hit the flushed victim and its upgrade is still
++            // out. Consuming now would leave that upgrade blockless, so
++            // release the reservation and fill in the stock way instead.
++            mshr->reservedBlk->clearReservedVictim();
++            mshr->reservedBlk = nullptr;
++            stats.reservationUpgradeFallbacks++;
++        }
 +        if (victimReadableUntilFill && !blk && allocate &&
 +            mshr->reservedBlk && mshr->reservedBlk->isReservedVictim()) {
 +            // Turn the in-place reservation into the incoming block,
@@ -1211,7 +1306,7 @@ index cb6861045d..184642d943 100644
          ppFill->notify(CacheAccessProbeArg(pkt, accessor));
      }
  
-@@ -957,7 +1020,19 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
+@@ -957,7 +1078,19 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
  
              const MSHR* mshr =
                  mshrQueue.findMatch(regenerateBlkAddr(blk), blk->isSecure());
@@ -1231,7 +1326,7 @@ index cb6861045d..184642d943 100644
                  // Must be an outstanding upgrade or clean request on a block
                  // we're about to replace
                  assert((!blk->isSet(CacheBlk::WritableBit) &&
-@@ -983,6 +1058,178 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
+@@ -983,6 +1116,189 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
      return true;
  }
  
@@ -1386,7 +1481,18 @@ index cb6861045d..184642d943 100644
 +            (store_trig ? uint64_t(victimReadoutStoreExtra) :
 +             first_load ? uint64_t(victimReadoutFirstLoadExtra) : 0));
 +        const Tick until = clockEdge(readout);
-+        if (victimReadoutClearEvent.scheduled()) {
++        if (windowAcceptAndCharge) {
++            // The trigger takes the whole window on its own fill and the
++            // window stays open for the overlap of anything arriving
++            // before it closes. The cpu side is never blocked.
++            mshr->windowCharge = readout;
++            stats.windowTriggerCharges++;
++            stats.windowTriggerCycles += readout;
++            DPRINTF(Cache, "Window trigger charged %d cycles to %s addr %#x\n",
++                    uint64_t(readout), store_trig ? "store" : "load",
++                    mshr->blkAddr);
++            victimReadoutWindowEnd = std::max(victimReadoutWindowEnd, until);
++        } else if (victimReadoutClearEvent.scheduled()) {
 +            reschedule(victimReadoutClearEvent, until);
 +        } else {
 +            setBlocked(Blocked_VictimReadout);
@@ -1410,7 +1516,7 @@ index cb6861045d..184642d943 100644
  bool
  BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                   PacketList &writebacks)
-@@ -1525,6 +1772,20 @@ CacheBlk*
+@@ -1525,6 +1841,23 @@ CacheBlk*
  BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        bool allocate)
  {
@@ -1420,7 +1526,10 @@ index cb6861045d..184642d943 100644
 +        // (hpdcache_ctrl_pe.sv lines 336 to 341).
 +        const Cycles wr(blkSize / 8);
 +        const Tick until = clockEdge(wr);
-+        if (refillWindowClearEvent.scheduled()) {
++        if (windowAcceptAndCharge) {
++            // Open the window for the overlap charge, no block.
++            refillWindowEnd = std::max(refillWindowEnd, until);
++        } else if (refillWindowClearEvent.scheduled()) {
 +            reschedule(refillWindowClearEvent, until);
 +        } else {
 +            setBlocked(Blocked_RefillWindow);
@@ -1431,7 +1540,7 @@ index cb6861045d..184642d943 100644
      assert(pkt->isResponse());
      Addr addr = pkt->getAddr();
      bool is_secure = pkt->isSecure();
-@@ -1802,6 +2063,46 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
+@@ -1802,6 +2135,46 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
  }
  
  
@@ -1478,7 +1587,7 @@ index cb6861045d..184642d943 100644
  void
  BaseCache::memWriteback()
  {
-@@ -1915,6 +2216,13 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
+@@ -1915,6 +2288,13 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
  
      CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
  
@@ -1492,19 +1601,19 @@ index cb6861045d..184642d943 100644
      // either a prefetch that is not present upstream, or a normal
      // MSHR request, proceed to get the packet to send downstream
      PacketPtr pkt = createMissPacket(tgt_pkt, blk, mshr->needsWritable(),
-@@ -2234,6 +2542,11 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
+@@ -2234,6 +2614,11 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
               "number of overall miss ticks"),
      ADD_STAT(demandAccesses, statistics::units::Count::get(),
               "number of demand (read+write) accesses"),
 +    ADD_STAT(preemptionBlockedCycles, statistics::units::Cycle::get(),
 +             "cycles blocked by CVA6-preemption causes (new counter)"),
 +    ADD_STAT(cva6ComparableDemandAccesses, statistics::units::Count::get(),
-+             "demand accesses plus preemption-blocked cycles, the "
-+             "HPDcache-comparable count"),
++             "demand accesses plus the cycles the cache held a request "
++             "off, blocked or charged, the HPDcache-comparable count"),
      ADD_STAT(overallAccesses, statistics::units::Count::get(),
               "number of overall (read+write) accesses"),
      ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
-@@ -2286,6 +2599,19 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
+@@ -2286,6 +2671,30 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
               "average overall mshr uncacheable latency"),
      ADD_STAT(replacements, statistics::units::Count::get(),
               "number of replacements"),
@@ -1517,14 +1626,25 @@ index cb6861045d..184642d943 100644
 +             "evict-at-allocate reservations that kept the victim readable"),
 +    ADD_STAT(reservationRedirties, statistics::units::Count::get(),
 +             "in-place victims dirtied again before their refill landed"),
++    ADD_STAT(reservationUpgradeFallbacks, statistics::units::Count::get(),
++             "in-place reservations released at fill time because an "
++             "upgrade on the victim was still outstanding"),
 +    ADD_STAT(fenceFlushes, statistics::units::Count::get(),
 +             "full cache flushes triggered by a memory fence"),
 +    ADD_STAT(fenceFlushWritebacks, statistics::units::Count::get(),
 +             "dirty lines written back by fence flushes"),
++    ADD_STAT(windowTriggerCharges, statistics::units::Count::get(),
++             "accept-and-charge: misses charged their own readout window"),
++    ADD_STAT(windowTriggerCycles, statistics::units::Cycle::get(),
++             "accept-and-charge: cycles charged to triggering misses"),
++    ADD_STAT(windowOverlapCharges, statistics::units::Count::get(),
++             "accept-and-charge: requests charged a window overlap"),
++    ADD_STAT(windowOverlapCycles, statistics::units::Cycle::get(),
++             "accept-and-charge: overlap cycles charged to requests"),
      ADD_STAT(dataExpansions, statistics::units::Count::get(),
               "number of data expansions"),
      ADD_STAT(dataContractions, statistics::units::Count::get(),
-@@ -2375,6 +2701,13 @@ BaseCache::CacheStats::regStats()
+@@ -2375,6 +2784,14 @@ BaseCache::CacheStats::regStats()
          demandAccesses.subname(i, system->getRequestorName(i));
      }
  
@@ -1533,12 +1653,13 @@ index cb6861045d..184642d943 100644
 +    // charged it once per slot. sum() folds the vector first.
 +    cva6ComparableDemandAccesses.flags(nozero | nonan);
 +    cva6ComparableDemandAccesses = sum(demandAccesses)
-+        + preemptionBlockedCycles;
++        + preemptionBlockedCycles + windowOverlapCycles
++        + windowTriggerCycles;
 +
      overallAccesses.flags(total | nozero | nonan);
      overallAccesses = overallHits + overallMisses;
      for (int i = 0; i < max_requestors; i++) {
-@@ -2409,6 +2742,9 @@ BaseCache::CacheStats::regStats()
+@@ -2409,6 +2826,9 @@ BaseCache::CacheStats::regStats()
      blockedCycles
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -1548,7 +1669,7 @@ index cb6861045d..184642d943 100644
          ;
  
  
-@@ -2416,11 +2752,17 @@ BaseCache::CacheStats::regStats()
+@@ -2416,11 +2836,17 @@ BaseCache::CacheStats::regStats()
      blockedCauses
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -1566,7 +1687,7 @@ index cb6861045d..184642d943 100644
          ;
      avgBlocked = blockedCycles / blockedCauses;
  
-@@ -2601,6 +2943,16 @@ BaseCache::CpuSidePort::recvAtomic(PacketPtr pkt)
+@@ -2601,6 +3027,16 @@ BaseCache::CpuSidePort::recvAtomic(PacketPtr pkt)
  void
  BaseCache::CpuSidePort::recvFunctional(PacketPtr pkt)
  {
@@ -1583,16 +1704,17 @@ index cb6861045d..184642d943 100644
      if (cache.system->bypassCaches()) {
          // The cache should be flushed if we are in cache bypass mode,
          // so we don't need to check if we need to update anything.
-@@ -2634,7 +2986,14 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
+@@ -2634,7 +3070,15 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
  bool
  BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
  {
 -    cache->recvTimingResp(pkt);
-+    if (cache->fillDelay > 0) {
-+        // Hold the response for fillDelay cycles so the fill instant matches
-+        // the RTL. Flow control is unaffected: the MSHR simply stays in
-+        // service a little longer.
-+        cache->scheduleDeferredFill(pkt);
++    const Cycles hold = cache->fillHold(pkt);
++    if (hold > 0) {
++        // Hold the response so the fill instant matches the RTL, fillDelay
++        // plus the trigger's own window under accept-and-charge. Flow
++        // control is unaffected: the MSHR stays in service a little longer.
++        cache->scheduleDeferredFill(pkt, hold);
 +    } else {
 +        cache->recvTimingResp(pkt);
 +    }
@@ -1600,7 +1722,7 @@ index cb6861045d..184642d943 100644
  }
  
 diff --git a/src/mem/cache/base.hh b/src/mem/cache/base.hh
-index 8c4c3f32da..e975712196 100644
+index 8c4c3f32da..4b29f159ba 100644
 --- a/src/mem/cache/base.hh
 +++ b/src/mem/cache/base.hh
 @@ -48,7 +48,9 @@
@@ -1623,7 +1745,7 @@ index 8c4c3f32da..e975712196 100644
          NUM_BLOCKED_CAUSES
      };
  
-@@ -680,6 +685,74 @@ class BaseCache : public ClockedObject
+@@ -680,6 +685,90 @@ class BaseCache : public ClockedObject
       */
      const bool writebackClean;
  
@@ -1651,6 +1773,22 @@ index 8c4c3f32da..e975712196 100644
 +    const bool fenceFlushesDcache;
 +    const bool refillWindowBlocks;
 +
++    /** Accept-and-charge form of the two windows, see Cache.py. */
++    const bool windowAcceptAndCharge;
++
++    /** Ends of the open windows under accept-and-charge, absolute ticks.
++     * Zero when no window has opened yet. */
++    Tick victimReadoutWindowEnd;
++    Tick refillWindowEnd;
++
++    /** Cycles left on the widest open window at the current tick, the
++     * latency a request arriving now is charged. Zero under the block form. */
++    Cycles openWindowOverlap() const;
++
++    /** Cycles a response waits before its fill: fillDelay, plus the
++     * trigger's own readout window under accept-and-charge. */
++    Cycles fillHold(const PacketPtr pkt) const;
++
 +    /** Clears the fence-flush blocking cause. */
 +    void clearFenceFlushBlocked();
 +    EventFunctionWrapper fenceFlushClearEvent;
@@ -1660,12 +1798,12 @@ index 8c4c3f32da..e975712196 100644
 +     * flush is a control wire, not a request-port transaction. */
 +    void fenceFlush();
 +
-+    /** Responses waiting out fillDelay, in arrival order. */
++    /** Responses waiting out their hold, ordered by release tick. */
 +    std::deque<std::pair<Tick, PacketPtr>> deferredFills;
 +    EventFunctionWrapper deferredFillEvent;
 +
-+    /** Queue a response and arm the event, see fillDelay. */
-+    void scheduleDeferredFill(PacketPtr pkt);
++    /** Queue a response for hold cycles and arm the event, see fillHold. */
++    void scheduleDeferredFill(PacketPtr pkt, Cycles hold);
 +
 +    /** Hand every matured response to recvTimingResp. */
 +    void processDeferredFills();
@@ -1698,7 +1836,7 @@ index 8c4c3f32da..e975712196 100644
      /**
       * Writebacks from the tempBlock, resulting on the response path
       * in atomic mode, must happen after the call to recvAtomic has
-@@ -841,6 +914,11 @@ class BaseCache : public ClockedObject
+@@ -841,6 +930,11 @@ class BaseCache : public ClockedObject
       */
      PacketPtr writebackBlk(CacheBlk *blk);
  
@@ -1710,21 +1848,21 @@ index 8c4c3f32da..e975712196 100644
      /**
       * Create a writeclean request for the given block.
       *
-@@ -1078,6 +1156,13 @@ class BaseCache : public ClockedObject
+@@ -1078,6 +1172,13 @@ class BaseCache : public ClockedObject
  
          /** The number of demand accesses. */
          statistics::Formula demandAccesses;
 +        /** Blocked cycles of the CVA6-preemption causes.
 +         *  New counter, the stock stats stay untouched. */
 +        statistics::Scalar preemptionBlockedCycles;
-+        /** demandAccesses summed over requestors plus
-+         *  preemptionBlockedCycles, the HPDcache-comparable demand
-+         *  count. Scalar: the preemption term is per cache. */
++        /** demandAccesses summed over requestors plus the preemption
++         *  cycles of both window forms, the HPDcache-comparable demand
++         *  count. Scalar: the preemption terms are per cache. */
 +        statistics::Formula cva6ComparableDemandAccesses;
          /** The number of overall accesses. */
          statistics::Formula overallAccesses;
  
-@@ -1139,6 +1224,21 @@ class BaseCache : public ClockedObject
+@@ -1139,6 +1240,33 @@ class BaseCache : public ClockedObject
          /** Number of replacements of valid blocks. */
          statistics::Scalar replacements;
  
@@ -1737,16 +1875,28 @@ index 8c4c3f32da..e975712196 100644
 +         *  refill landed and so written back a second time. */
 +        statistics::Scalar inPlaceReservations;
 +        statistics::Scalar reservationRedirties;
++        /** In-place reservations released at fill time because the
++         *  victim carried an outstanding upgrade (a store hit it after
++         *  its flush cleared the writable bit). */
++        statistics::Scalar reservationUpgradeFallbacks;
 +
 +        /** Fence flushes performed, and the lines written back by
 +         *  them. */
 +        statistics::Scalar fenceFlushes;
 +        statistics::Scalar fenceFlushWritebacks;
 +
++        /** Accept-and-charge: misses charged their own readout window
++         *  and the cycles so charged, requests charged the overlap of
++         *  a window they arrived inside and the cycles so charged. */
++        statistics::Scalar windowTriggerCharges;
++        statistics::Scalar windowTriggerCycles;
++        statistics::Scalar windowOverlapCharges;
++        statistics::Scalar windowOverlapCycles;
++
          /** Number of data expansions. */
          statistics::Scalar dataExpansions;
  
-@@ -1265,6 +1365,14 @@ class BaseCache : public ClockedObject
+@@ -1265,6 +1393,14 @@ class BaseCache : public ClockedObject
          DPRINTF(Cache,"Unblocking for cause %d, mask=%d\n", cause, blocked);
          if (blocked == 0) {
              stats.blockedCycles[cause] += curCycle() - blockedCycle;
@@ -1811,19 +1961,20 @@ index a2027f25f1..9b1471068c 100644
  
  /**
 diff --git a/src/mem/cache/mshr.cc b/src/mem/cache/mshr.cc
-index b7e9357029..5e95aa3e5e 100644
+index b7e9357029..8c3f129086 100644
 --- a/src/mem/cache/mshr.cc
 +++ b/src/mem/cache/mshr.cc
-@@ -315,6 +315,7 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
+@@ -315,6 +315,8 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
      _isUncacheable = target->req->isUncacheable();
      inService = false;
      downstreamPending = false;
 +    reservedBlk = nullptr;
++    windowCharge = Cycles(0);
  
      targets.init(blkAddr, blkSize);
      deferredTargets.init(blkAddr, blkSize);
 diff --git a/src/mem/cache/mshr.hh b/src/mem/cache/mshr.hh
-index 4d5c3b6a2c..0e2b5b00d3 100644
+index 4d5c3b6a2c..a99e2a3682 100644
 --- a/src/mem/cache/mshr.hh
 +++ b/src/mem/cache/mshr.hh
 @@ -64,6 +64,8 @@
@@ -1835,7 +1986,7 @@ index 4d5c3b6a2c..0e2b5b00d3 100644
  class BaseCache;
  
  /**
-@@ -126,6 +128,11 @@ class MSHR : public QueueEntry, public Printable
+@@ -126,6 +128,15 @@ class MSHR : public QueueEntry, public Printable
      /** True if the entry is just a simple forward from an upper level */
      bool isForward;
  
@@ -1843,6 +1994,10 @@ index 4d5c3b6a2c..0e2b5b00d3 100644
 +     * time (rule E1). Null when no reservation is live. Reset in allocate()
 +     * because MSHR objects are recycled from a free list. */
 +    CacheBlk *reservedBlk = nullptr;
++
++    /** Accept-and-charge: the readout window this miss opened, charged on
++     * its own fill. Reset in allocate() with reservedBlk. */
++    Cycles windowCharge = Cycles(0);
 +
      class Target : public QueueEntry::Target
      {
@@ -2465,10 +2620,10 @@ index 0000000000..83721639cc
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
 diff --git a/src/mem/cache/replacement_policies/hpdcache_random_rp.cc b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
 new file mode 100644
-index 0000000000..58ec8a76ab
+index 0000000000..63ff3908cf
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,187 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2519,7 +2674,24 @@ index 0000000000..58ec8a76ab
 +HPDcacheRandom::HPDcacheRandom(const Params &p)
 +    : Base(p),
 +      // R5: reset value all ones (hpdcache_lfsr.sv line 79)
-+      lfsr(0xFF)
++      lfsr(0xFF),
++      hpdcacheRandomStats(this)
++{
++}
++
++HPDcacheRandom::HPDcacheRandomStats::HPDcacheRandomStats(
++    statistics::Group *parent)
++    : statistics::Group(parent),
++      ADD_STAT(unusedTier, statistics::units::Count::get(),
++               "victims taken from the unused tier, no LFSR shift"),
++      ADD_STAT(randomTier, statistics::units::Count::get(),
++               "victims taken from the random tier, one LFSR shift"),
++      ADD_STAT(cleanTier, statistics::units::Count::get(),
++               "victims taken from the clean tier"),
++      ADD_STAT(dirtyTier, statistics::units::Count::get(),
++               "victims taken from the dirty tier"),
++      ADD_STAT(noVictim, statistics::units::Count::get(),
++               "selections with every way in flight, the RTL replay arm")
 +{
 +}
 +
@@ -2597,6 +2769,7 @@ index 0000000000..58ec8a76ab
 +    // R1: unused first. The LFSR does not shift in this case
 +    // (shift_i carries ~unused_available).
 +    if (unused_way) {
++        hpdcacheRandomStats.unusedTier++;
 +        return unused_way;
 +    }
 +
@@ -2604,6 +2777,7 @@ index 0000000000..58ec8a76ab
 +    // shifts exactly on this firing (Galois right, polynomial 0xE1,
 +    // hpdcache_lfsr.sv lines 50 and 63 to 71).
 +    if (rand_way) {
++        hpdcacheRandomStats.randomTier++;
 +        const uint8_t lsb = lfsr & 0x1;
 +        lfsr = lfsr >> 1;
 +        if (lsb) {
@@ -2614,15 +2788,18 @@ index 0000000000..58ec8a76ab
 +
 +    // R3 then R4.
 +    if (clean_way) {
++        hpdcacheRandomStats.cleanTier++;
 +        return clean_way;
 +    }
 +    if (dirty_way) {
++        hpdcacheRandomStats.dirtyTier++;
 +        return dirty_way;
 +    }
 +
 +    // Every way has a fill in flight. The RTL outputs no victim and replays
 +    // (default arm, line 123). Nominating way 0 lets the guard refuse it,
 +    // driving the counted graceful fallback, as in the PLRU sibling.
++    hpdcacheRandomStats.noVictim++;
 +    return candidates[0];
 +}
 +
@@ -2636,10 +2813,10 @@ index 0000000000..58ec8a76ab
 +} // namespace gem5
 diff --git a/src/mem/cache/replacement_policies/hpdcache_random_rp.hh b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
 new file mode 100644
-index 0000000000..f998f56f1c
+index 0000000000..096024df2f
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,127 @@
 +/*
 + * Copyright (c) 2026 Manuel Nieto
 + * All rights reserved.
@@ -2703,6 +2880,8 @@ index 0000000000..f998f56f1c
 +
 +#include <cstdint>
 +
++#include "base/statistics.hh"
++#include "base/stats/group.hh"
 +#include "mem/cache/replacement_policies/base.hh"
 +#include "params/HPDcacheRandomRP.hh"
 +
@@ -2724,6 +2903,18 @@ index 0000000000..f998f56f1c
 +     * in the base interface while a selection can shift the register,
 +     * exactly as in hardware. */
 +    mutable uint8_t lfsr;
++
++    /** Which tier of hpdcache_victim_random.sv line 115 to 121 supplied
++     * the victim, and how often no way was eligible. */
++    struct HPDcacheRandomStats : public statistics::Group
++    {
++        HPDcacheRandomStats(statistics::Group *parent);
++        statistics::Scalar unusedTier;
++        statistics::Scalar randomTier;
++        statistics::Scalar cleanTier;
++        statistics::Scalar dirtyTier;
++        statistics::Scalar noVictim;
++    } mutable hpdcacheRandomStats;
 +
 +  public:
 +    typedef HPDcacheRandomRPParams Params;
