@@ -40,7 +40,7 @@ gem5 NET against CVA6 NET, both harnesses removing their own marker instructions
 
 Mean absolute error 2.01 percent, and 1.05 excluding the one footnoted row, `basic_test`, whose owners are named and priced in the limitations below. Mispredict counts sit within tens of the hardware on every row, `icache_pressure` at 4,104 against 4,113, and the demand miss counts match to a handful everywhere except `daxpy`'s documented 6,595 against 6,147.
 
-The stock configuration on an unpatched gem5 reads 14.07 percent on the same pairs. That figure is itself lower than the 21.4 the calibration started from, because three of this work's findings, the fetch cadence, the divider turnaround and the second instruction MSHR, are stock parameters and improve the unpatched baseline too. The distance from 14.07 to 2.01 is the transcribed mechanisms: the fence flush walk alone is `atomic_fence` at -94 percent without it, and `fetch2_probe` reads +27.9 against +0.18.
+The stock configuration on an unpatched gem5 reads 14.02 percent on the same pairs. That figure is itself lower than the 21.4 the calibration started from, because three of this work's findings, the fetch cadence, the divider turnaround and the second instruction MSHR, are stock parameters and improve the unpatched baseline too. The distance from 14.02 to 2.01 is the transcribed mechanisms: the fence flush walk alone is `atomic_fence` at -94 percent without it, and `fetch2_probe` reads +27.9 against +0.18.
 
 The two divider probes, `fp_divsqrt_probe` and `fp_divsqrt_probe2`, are diagnostic rows rather than suite members, and their errors, +10.9 and +40.9 percent, are the divider limitation measuring itself: probe2's 1,316-cycle gap against a fast-path arithmetic of 1,312.
 
