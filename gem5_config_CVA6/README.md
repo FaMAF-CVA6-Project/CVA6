@@ -17,6 +17,33 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 
 The comparison runs over the fourteen benchmarks `DEFAULT_ALL_TESTS` names in the sweep: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`. They live in [benchmarks/gem5/](../benchmarks/gem5/) and [benchmarks/CVA6/](../benchmarks/CVA6/).
 
+## Results
+
+gem5 NET against CVA6 NET, both harnesses removing their own marker instructions, from the production configuration on the verified patch. Eleven of the fourteen rows sit inside 2 percent.
+
+| Benchmark | gem5 | CVA6 | Error |
+| --- | --- | --- | --- |
+| `basic_test` | 14,378 | 12,557 | +14.50% |
+| `fp_addmul` | 87,541 | 87,262 | +0.32% |
+| `store_fwd` | 1,604 | 1,602 | +0.12% |
+| `fp_divsqrt` | 2,834 | 2,828 | +0.21% |
+| `int_div` | 11,343 | 11,558 | -1.86% |
+| `btb_pressure` | 21,557 | 21,945 | -1.77% |
+| `atomic_fence` | 34,792 | 35,838 | -2.92% |
+| `fetch2_probe` | 45,052 | 44,970 | +0.18% |
+| `daxpy_unrolling_4` | 71,741 | 70,844 | +1.27% |
+| `daxpy` | 87,113 | 86,566 | +0.63% |
+| `icache_pressure` | 363,619 | 358,907 | +1.31% |
+| `matmul_small` | 454,723 | 445,958 | +1.97% |
+| `full_test` | 523,208 | 525,326 | -0.40% |
+| `branch_full_test` | 545,999 | 542,216 | +0.70% |
+
+Mean absolute error 2.01 percent, and 1.05 excluding the one footnoted row, `basic_test`, whose owners are named and priced in the limitations below. Mispredict counts sit within tens of the hardware on every row, `icache_pressure` at 4,104 against 4,113, and the demand miss counts match to a handful everywhere except `daxpy`'s documented 6,595 against 6,147.
+
+The stock configuration on an unpatched gem5 reads 14.07 percent on the same pairs. That figure is itself lower than the 21.4 the calibration started from, because three of this work's findings, the fetch cadence, the divider turnaround and the second instruction MSHR, are stock parameters and improve the unpatched baseline too. The distance from 14.07 to 2.01 is the transcribed mechanisms: the fence flush walk alone is `atomic_fence` at -94 percent without it, and `fetch2_probe` reads +27.9 against +0.18.
+
+The two divider probes, `fp_divsqrt_probe` and `fp_divsqrt_probe2`, are diagnostic rows rather than suite members, and their errors, +10.9 and +40.9 percent, are the divider limitation measuring itself: probe2's 1,316-cycle gap against a fast-path arithmetic of 1,312.
+
 ## The matched configuration
 
 It comes in two versions. `gem5_config_CVA6.py` runs on a **stock gem5**, using only what upstream already provides, so it works against an unmodified build. `gem5_config_CVA6_Patch.py` runs on a **patched gem5** and adds the mechanisms the patch makes available. Each has a `_testing` twin carrying the calibration table.
