@@ -76,7 +76,7 @@ CODE_END_BANNER = [RULE, "END OF DISASSEMBLED CODE", RULE]
 ERROR_TAIL_LINES = 40
 
 # ==============================================================================
-# OVERHEAD PROFILES (CVA6 configuration)
+# OVERHEAD PROFILES (CVA6 configuration, measured on our benchmarks) 
 # ==============================================================================
 # The scaffolding around the measured region, subtracted to get the NET
 # figures. Measured per build, because the patched mechanisms can charge the
