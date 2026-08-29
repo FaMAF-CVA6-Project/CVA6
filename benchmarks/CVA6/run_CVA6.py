@@ -17,7 +17,7 @@ import datetime
 import subprocess
 
 # ==============================================================================
-# OVERHEAD PROFILES (cv64a6_imafdc_sv39_hpdcache_wb)
+# OVERHEAD PROFILES (cv64a6_imafdc_sv39_hpdcache_wb, measured on our benchmarks)
 # ==============================================================================
 OVERHEAD_PROFILES = {
     "c": {
