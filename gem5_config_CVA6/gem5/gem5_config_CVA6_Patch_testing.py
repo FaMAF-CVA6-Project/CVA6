@@ -1276,7 +1276,7 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
             self.l1icaches[i].response_latency = 0
-            self.l1icaches[i].mshrs = 2
+            self.l1icaches[i].mshrs = 1
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False
