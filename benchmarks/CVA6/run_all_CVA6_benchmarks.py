@@ -6,6 +6,7 @@ Verilator build, the rest reuse it. --rebuild-each rebuilds every time.
 import argparse
 import datetime
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,9 +36,25 @@ TEMPLATE_MARKER = "template"
 # What run_CVA6.py writes above its metrics table, and where the batch
 # gathers every one of those tables once the runs are done.
 METRICS_MARKER = "RESULTS TABLE"
-METRICS_FILE = "metrics.txt"
 
 SEP = "=" * 70
+
+
+def slug(text, limit=40):
+    """Turn a value into something safe for a file name: word characters and
+    single dashes, trimmed."""
+    out = re.sub(r"[^A-Za-z0-9]+", "-", str(text)).strip("-")
+    return out[:limit].strip("-")
+
+
+def metrics_filename(parts):
+    """The gathered metrics file, named after the run that produced it.
+
+    A batch used to write a bare metrics.txt, so two runs of different targets
+    landed on the same name and nothing inside the file told them apart.
+    """
+    tags = [slug(p) for p in parts if p]
+    return "metrics" + ("_" if tags else "") + "_".join(tags) + ".txt"
 
 
 def find_runner():
@@ -204,7 +221,7 @@ def extract_metrics(report_path):
     return None
 
 
-def write_metrics_file(out_dir, entries, info):
+def write_metrics_file(out_dir, entries, info, filename):
     """Gather every run's metrics table into one metrics.txt. entries is
     [(label, report file)] in the order the runs were listed, so the file reads
     like the summary. A run with no table is named, not skipped."""
@@ -219,10 +236,10 @@ def write_metrics_file(out_dir, entries, info):
     if missing:
         print(f"[WARN] No metrics table for: {', '.join(missing)}")
     if not blocks:
-        print(f"[WARN] No metrics tables found, so no {METRICS_FILE} written")
+        print(f"[WARN] No metrics tables found, so no {filename} written")
         return None
 
-    path = os.path.join(out_dir, METRICS_FILE)
+    path = os.path.join(out_dir, filename)
     try:
         with open(path, "w") as f:
             f.write(f"{SEP}\nALL METRICS\n{SEP}\n")
@@ -288,6 +305,12 @@ def main():
     parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR,
                         help=f"Where to gather the results. Defaults to "
                              f"{DEFAULT_OUT_DIR}/")
+    parser.add_argument("--suite", choices=["config", "viewer"], default=None,
+                        help="Forwarded to run_CVA6.py: which overhead table "
+                             "to subtract")
+    parser.add_argument("--cva6-root", default=None, metavar="DIR",
+                        help="Forwarded to run_CVA6.py: the CVA6 checkout to "
+                             "run")
     parser.add_argument("--no-vcd", action="store_true",
                         help="Forwarded to run_CVA6.py: no .vcd trace, "
                              "metrics only")
@@ -367,6 +390,10 @@ def main():
         clear_stale_outputs(results_dir, test_name)
 
         cmd = [sys.executable, runner, args.target, path]
+        if args.suite:
+            cmd.extend(["--suite", args.suite])
+        if args.cva6_root:
+            cmd.extend(["--cva6-root", args.cva6_root])
         if args.no_vcd:
             cmd.append("--no-vcd")
         # The Verilated model does not depend on the test, and the target and
@@ -405,9 +432,12 @@ def main():
         [(name, os.path.join(out_dir,
                              f"{os.path.splitext(name)[0]}_report.txt"))
          for name, code, _ in results if code == 0],
-        [f"Folder : {folder}",
-         f"Target : {args.target}",
-         f"Runs   : {len(results)}, {len(results) - failed} passed"])
+        [f"Folder    : {folder}",
+         f"Target    : {args.target}",
+         f"CVA6 root : {args.cva6_root or '(run_CVA6.py default)'}",
+         f"Suite     : {args.suite or '(run_CVA6.py default)'}",
+         f"Runs      : {len(results)}, {len(results) - failed} passed"],
+        metrics_filename([args.target, args.suite]))
 
     print(f"[INFO] Results in {out_dir}")
     if failed:
