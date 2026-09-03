@@ -1,23 +1,39 @@
 #!/usr/bin/env python3
-"""Remove the heavy run artefacts from this project's own folders: every
-.list, .vcd, .fst and debug trace, and every __pycache__. Only PROJECT_DIRS is
-looked at, since upstream CVA6 keeps hand-written .list manifests the build
-reads. The CARLA 2026 folder is kept whole.
+"""Remove the heavy run artefacts from THIS repository's own folders: every
+.list, .vcd, .fst and debug trace, and every __pycache__.
 
-  python3 clean_repo.py             # list, then ask
-  python3 clean_repo.py -y          # delete without asking
-  python3 clean_repo.py --dry-run   # list only
+Only PROJECT_DIRS is looked at, since upstream CVA6 keeps hand-written .list
+manifests the build reads.
+
+The two viewers are separate repositories with their own artefacts and their
+own rules, so this script does not reach into them. It offers to run their
+scripts afterwards instead, and those decide what to keep on their own side.
+
+  python3 clean_CVA6_repo.py               # list, then ask
+  python3 clean_CVA6_repo.py -y            # delete without asking
+  python3 clean_CVA6_repo.py --dry-run     # list only
+  python3 clean_CVA6_repo.py --no-viewers  # skip the submodule offer
+
+See also clean_gem5_runs.py and clean_CVA6_runs.py, which delete what a run
+leaves behind rather than what is committed.
 """
 import os
 import sys
 import shutil
 import argparse
+import subprocess
 
-# The folders this project owns, relative to this script.
+# The folders this repository owns, relative to this script.
 PROJECT_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
-    "viewers",
+    "benchmarks",
+]
+
+# The submodules this script offers to clean after itself.
+SUBMODULE_CLEANERS = [
+    (os.path.join("viewers", "MinorFlow"), "clean_MinorFlow_repo.py"),
+    (os.path.join("viewers", "CVA6Flow"), "clean_CVA6Flow_repo.py"),
 ]
 
 # Files removed, matched on the end of the name.
@@ -30,8 +46,7 @@ TRACE_END = ".txt"
 DIR_NAMES = {"__pycache__"}
 
 # Kept, whatever is in them, relative to this script.
-KEEP_DIRS = [os.path.join("viewers", "MinorFlow", "docs"),
-             os.path.join("viewers", "CVA6Flow", "docs")]
+KEEP_DIRS = []
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
@@ -123,6 +138,53 @@ def group(targets):
     return sorted(rows.items())
 
 
+def clean_submodules(args):
+    """Offer to run each viewer's own cleaner. They are separate repositories
+    and decide what to keep, which is how the CARLA 2026 set stays put."""
+    if args.no_viewers:
+        return
+
+    present = [(sub, script) for sub, script in SUBMODULE_CLEANERS
+               if os.path.isfile(os.path.join(REPO_ROOT, sub, script))]
+    missing = [(sub, script) for sub, script in SUBMODULE_CLEANERS
+               if not os.path.isfile(os.path.join(REPO_ROOT, sub, script))]
+    for sub, script in missing:
+        print(f"[WARN] {sub}/{script} not found, so that submodule is not "
+              f"cleaned. Run 'git submodule update --init' if it is empty.")
+    if not present:
+        return
+
+    print()
+    for sub, script in present:
+        print(f"[INFO] {sub}/ is its own repository, cleaned by {script}")
+
+    if not args.yes:
+        try:
+            reply = input("Clean the viewer submodules too? [y/N] ")
+        except (EOFError, KeyboardInterrupt):
+            print("\n[INFO] Submodules left alone")
+            return
+        if reply.strip().lower() not in ("y", "yes"):
+            print("[INFO] Submodules left alone")
+            return
+
+    for sub, script in present:
+        cmd = [sys.executable, script]
+        if args.yes and not args.dry_run:
+            cmd.append("-y")
+        if args.dry_run:
+            cmd.append("--dry-run")
+        if args.verbose:
+            cmd.append("-v")
+        print("\n" + "=" * 70)
+        print(f"{sub}/{script}")
+        print("=" * 70)
+        try:
+            subprocess.run(cmd, cwd=os.path.join(REPO_ROOT, sub))
+        except OSError as e:
+            print(f"[WARN] Could not run {sub}/{script}: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Delete the .list, .vcd, .fst and trace files and "
@@ -133,6 +195,8 @@ def main():
                         help="List what would be deleted and stop")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="List every path instead of one row per folder")
+    parser.add_argument("--no-viewers", action="store_true",
+                        help="Do not offer to clean the viewer submodules")
     args = parser.parse_args()
 
     searched = [d for d in PROJECT_DIRS
@@ -142,13 +206,14 @@ def main():
               f"{REPO_ROOT}. Run this from the repository it lives in.")
         sys.exit(1)
 
-    print(f"[INFO] Searching in: " +
-          ", ".join(f"{d}/" for d in searched))
-    print(f"[INFO] Keeping: " + ", ".join(f"{k}/" for k in KEEP_DIRS))
+    print("[INFO] Searching in: " + ", ".join(f"{d}/" for d in searched))
+    if KEEP_DIRS:
+        print("[INFO] Keeping: " + ", ".join(f"{k}/" for k in KEEP_DIRS))
 
     targets = find_targets()
     if not targets:
-        print("[INFO] Nothing to clean")
+        print("[INFO] Nothing to clean in this repository")
+        clean_submodules(args)
         return
 
     print("\n" + "=" * 70)
@@ -171,6 +236,7 @@ def main():
 
     if args.dry_run:
         print("[INFO] Dry run, nothing was deleted")
+        clean_submodules(args)
         return
 
     if not args.yes:
@@ -181,6 +247,7 @@ def main():
             return
         if reply not in ("y", "yes"):
             print("[INFO] Cancelled")
+            clean_submodules(args)
             return
 
     deleted = 0
@@ -196,6 +263,8 @@ def main():
 
     print(f"[INFO] Deleted {deleted} of {len(targets)} item(s), "
           f"{human(total)} freed")
+
+    clean_submodules(args)
 
 
 if __name__ == "__main__":
