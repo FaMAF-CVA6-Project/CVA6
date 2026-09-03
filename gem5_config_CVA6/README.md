@@ -9,15 +9,21 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 | `gem5/gem5_config_CVA6.py` | The matched configuration, for a **stock** gem5 |
 | `gem5/gem5_config_CVA6_Patch.py` | The matched configuration, for a **patched** gem5 |
 | `gem5/gem5_config_CVA6_testing.py` | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39` |
-| `gem5/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch. This is the sweep's `DEFAULT_CONFIG` |
+| `gem5/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 88` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
 | `gem5/run_CVA6_testing_sweep.py` | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep) |
 | `gem5/MinorCPU_CVA6.patch` | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file |
 | `gem5/tests/` | The gem5 tests side |
 | `CVA6/tests/` | The CVA6 tests side |
 
-The comparison runs over the fourteen benchmarks `DEFAULT_ALL_TESTS` names in the sweep: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`. They live in [benchmarks/gem5/](../benchmarks/gem5/) and [benchmarks/CVA6/](../benchmarks/CVA6/).
+`DEFAULT_ALL_TESTS` in the sweep names **sixteen** programs, and every entry whose workload is `all` runs all sixteen. Fourteen of them are the comparison suite: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`.
+
+The other two, `fp_divsqrt_probe` and `fp_divsqrt_probe2`, are **not** suite members and are left out of every figure below. They are diagnostic programs written to measure one limitation rather than to be matched: each drives the FP divider with operands chosen so the hardware's short path fires and the model's general law does not, which is what turns that divergence into a number instead of a suspicion.
+
+They all live in [benchmarks/gem5/](../benchmarks/gem5/) and [benchmarks/CVA6/](../benchmarks/CVA6/).
 
 ## Results
+
+> **TO DO** The figures below were measured with `l1icaches.mshrs = 2`.
 
 gem5 NET against CVA6 NET, both harnesses removing their own marker instructions, from the production configuration on the verified patch. Eleven of the fourteen rows sit inside 2 percent.
 
@@ -41,8 +47,6 @@ gem5 NET against CVA6 NET, both harnesses removing their own marker instructions
 Mean absolute error 2.01 percent, and 1.05 excluding the one footnoted row, `basic_test`, whose owners are named and priced in the limitations below. Mispredict counts sit within tens of the hardware on every row, `icache_pressure` at 4,104 against 4,113, and the demand miss counts match to a handful everywhere except `daxpy`'s documented 6,595 against 6,147.
 
 The stock configuration on an unpatched gem5 reads 14.02 percent on the same pairs. That figure is itself lower than the 21.4 the calibration started from, because three of this work's findings, the fetch cadence, the divider turnaround and the second instruction MSHR, are stock parameters and improve the unpatched baseline too. The distance from 14.02 to 2.01 is the transcribed mechanisms: the fence flush walk alone is `atomic_fence` at -94 percent without it, and `fetch2_probe` reads +27.9 against +0.18.
-
-The two divider probes, `fp_divsqrt_probe` and `fp_divsqrt_probe2`, are diagnostic rows rather than suite members, and their errors, +10.9 and +40.9 percent, are the divider limitation measuring itself: probe2's 1,316-cycle gap against a fast-path arithmetic of 1,312.
 
 ## The matched configuration
 
@@ -73,7 +77,7 @@ In the patched version every transcribed mechanism is on by default and each has
 | `--no-window-charge` | The accept-and-charge form of the readout window and its class extras, back to the flat fill split |
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
 | `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
-| `--no-ras-decay` | The unrecovered speculative RAS, back to gem5's repair on squash. Implied by `--no-cva6-direct-targets` |
+| `--no-ras-decay` | The unrecovered speculative RAS, back to gem5's repair on squash. Independent of the switches above |
 | `--no-store-forwarding-model` | CVA6 having no store-to-load forwarding, and the replay delay with it |
 
 ### The calibration table
@@ -135,7 +139,7 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | | **core-wide** | |
 | 39 | threadPolicy -> RoundRobin | daxpy |
 
-**TESTS 40 to 87 and TEST 99 need the patch.**
+**TESTS 40 to 88 and TEST 99 need the patch.**
 
 | # | What it changes | Workload |
 | --- | --- | --- |
@@ -199,6 +203,7 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 85 | L1I mshrs 1 -> 2, the I-side retry tax | all |
 | 86 | fetch limit 3, fetch2 buffer 3 | all |
 | 87 | fetch limit 4, fetch2 buffer 3 | all |
+| 88 | L1I reopen at ready | all |
 | | **full patch baseline** | |
 | 99 | full production | all |
 
@@ -239,6 +244,11 @@ That rebuild turns `build/RISCV_PATCH` back into a stock binary, which is rarely
 [`run_gem5.py`](../benchmarks/gem5/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
 
 Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert. `gem5_config_CVA6_Patch.py --no-patch` is the same test from the other direction, holding the configuration fixed and turning the mechanisms off.
+
+### TO DO
+
+- **No entry isolates the direct-target knob against today's stack.** `TEST 58`, "production minus direct targets", was written before the RAS model existed, so its era's production stack had no unrecovered RAS and its empty `bp_overrides` was right then. `--no-cva6-direct-targets` no longer implies `--no-ras-decay`, so measuring that switch against the current stack needs a row carrying `rasNoRecovery` without `directTargetsFromDecode`. Nothing is wrong in the table as it stands, it just no longer covers that one ablation.
+- **Measure the assembly overhead profile on a patched build.** `OVERHEAD_SUITES["config"]["patch"]` in [run_gem5.py](../benchmarks/gem5/run_gem5.py) has identical numbers for C and assembly, on all eight entries. The stock profile differs between the two languages on four of them, and the two paths link different startup code, so one measurement was most likely copied rather than two taken. It moves the NET figures on every assembly benchmark if it is wrong.
 
 ### New parameters
 
@@ -291,7 +301,9 @@ The patch leaves every stock counter untouched and adds its own beside them.
 | `passThrough` | Axi2MemPort | Packets with no AXI equivalent, forwarded without occupancy |
 | `readWaitCycles`, `writeWaitCycles` | Axi2MemPort | Admission wait histograms, by class |
 
-The metrics table uses three of these: `preemptionBlockedCycles`, `windowTriggerCycles` and `windowOverlapCycles`. Both `run_gem5.py` scripts add them to the cache-access rows and print the result as a third column, `NET (CVA6)`, next to `NET`, so a gem5 table reads against a CVA6 one row for row. The two forms are exclusive, blocking charging the first and accept-and-charge the other two, so summing all three covers either and matches `cva6ComparableDemandAccesses`.
+The metrics table uses three of these: `preemptionBlockedCycles`, `windowTriggerCycles` and `windowOverlapCycles`. `run_gem5.py` adds them to the cache-access rows and prints the result as a third column, `NET (CVA6)`, next to `NET`, so a gem5 table reads against a CVA6 one row for row.
+
+The three count disjoint cycles, so summing them is right whichever form is configured, and the sum is what `cva6ComparableDemandAccesses` reports. Accept-and-charge replaces the **readout and refill-window** blocks specifically, causes 3 and 5. The other blocking causes, no-MSHRs, no-write-buffers, no-targets and the fence flush, still block under either form, so a single run carries both kinds.
 
 ### What each change models, briefly
 
