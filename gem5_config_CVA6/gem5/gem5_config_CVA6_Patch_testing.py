@@ -176,6 +176,7 @@ from m5.objects import (  # type: ignore
 #  85   L1I mshrs 1 -> 2, the I-side retry tax    workload: all
 #  86   fetch limit 3, fetch2 buffer 3,           workload: all
 #  87   fetch limit 4, fetch2 buffer 3            workload: all
+#  88   L1I reopen at ready                       workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -732,6 +733,22 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
+    88: ("adopted stack, L1I reopen at ready",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 2,
+          "reopen_at_ready": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
     99: ("full production",
          {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
@@ -1276,7 +1293,7 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
             self.l1icaches[i].response_latency = 0
-            self.l1icaches[i].mshrs = 1
+            self.l1icaches[i].mshrs = 2
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False

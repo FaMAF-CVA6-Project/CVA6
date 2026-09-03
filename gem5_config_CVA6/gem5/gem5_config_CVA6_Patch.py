@@ -372,8 +372,11 @@ class CVA6CPU(RiscvMinorCPU):
             self.branchPred.directTargetsFromDecode = True
             self.branchPred.indirectBranchPred = NULL
             self.branchPred.btb.tagBits = 0
-            if ras_no_recovery:
-                self.branchPred.rasNoRecovery = True
+
+        # A separate BranchPredictor parameter, so it is set on its own rather
+        # than inside the branch above.
+        if ras_no_recovery:
+            self.branchPred.rasNoRecovery = True
 
 
 class CVA6Processor(BaseCPUProcessor):
@@ -550,7 +553,7 @@ parser.add_argument("--no-window-charge", action="store_true",
 parser.add_argument("--no-ras-decay", action="store_true",
                     help="Repair the RAS on squash, the stock gem5 "
                          "behaviour, instead of CVA6's unrecovered "
-                         "stack")
+                         "stack. Independent of --no-cva6-direct-targets")
 args = parser.parse_args()
 
 if args.no_patch:
@@ -583,10 +586,12 @@ if not evict_on_allocate:
 
 binary = BinaryResource(args.binary)
 
+ras_no_recovery = not args.no_ras_decay
+
 processor = CVA6Processor(direct_targets=direct_targets,
                           store_forwarding_model=store_forwarding_model,
                           fence_signal=fence_flush,
-                          ras_no_recovery=not args.no_ras_decay,
+                          ras_no_recovery=ras_no_recovery,
                           fence_squash=not args.no_fence_squash)
 
 cache_hierarchy = CVA6CacheHierarchy(
@@ -642,6 +647,7 @@ active = [n for n, on in (
     ("fence-flush", fence_flush),
     ("cva6-icache-policy", icache_policy),
     ("cva6-direct-targets", direct_targets),
+    ("ras-decay", ras_no_recovery),
     ("store-forwarding-model", store_forwarding_model)) if on]
 print("Starting CVA6 simulation with: " +
       (", ".join(active) if active else "no transcribed mechanisms"))
