@@ -105,6 +105,18 @@ def path_for(pattern):
     return re.sub(r"\\(.)", r"\1", pattern.lstrip("/"))
 
 
+def owns(pattern):
+    """Whether this line is one this script could have written: a rooted path
+    to a single tracer file that is not a directory. Everything else in the
+    block was put there by hand, and --prune leaves it alone."""
+    if not pattern.startswith("/") or pattern.endswith("/"):
+        return False
+    path = path_for(pattern)
+    if not path.endswith(SUFFIXES):
+        return False
+    return not os.path.isdir(os.path.join(REPO_ROOT, path))
+
+
 def human(size):
     for unit in ("B", "KiB", "MiB", "GiB"):
         if size < 1024 or unit == "GiB":
@@ -207,9 +219,13 @@ def main():
             added.append(pattern)
         rows.append((size, rel, state))
 
-    dropped = []
+    dropped, hand_written = [], []
     if args.prune:
         for pattern in entries:
+            # A hand-written line, a directory above all, is not ours to drop
+            if not owns(pattern):
+                hand_written.append(pattern)
+                continue
             full = os.path.join(REPO_ROOT, path_for(pattern))
             try:
                 if os.lstat(full).st_size >= limit:
@@ -249,6 +265,13 @@ def main():
         print("[INFO] The viewers keep their own .gitignore. For those, run:")
         for sub in here:
             print(f"           python3 {sub}/ignore_big_json.py")
+        print()
+
+    if hand_written:
+        print(f"[INFO] {len(hand_written)} line(s) were written by hand, "
+              f"not by this script, so --prune leaves them alone:")
+        for pattern in hand_written:
+            print(f"           {pattern}")
         print()
 
     if not added and not dropped:
