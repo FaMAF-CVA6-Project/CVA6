@@ -47,15 +47,15 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `corev_apu/`                                    | The SoC wrapper and testbench infrastructure.                                                      |
 | `verif/`                                        | Verification and simulation harness (Verilator under `verif/sim`).                                 |
 | `vendor/`                                       | Vendored upstream dependencies, pinned so nothing is fetched.                                      |
-| `benchmarks/CVA6/`                              | The CVA6 tests, `run_CVA6.py`, `run_all_CVA6_benchmarks.py` and `clean_CVA6.py`.                    |
-| `benchmarks/gem5/`                              | The gem5 tests, `run_gem5.py`, `run_all_gem5_benchmarks.py` and `clean_gem5.py`.                    |
+| `benchmarks/CVA6/`                              | The CVA6 tests, `run_CVA6.py`, `run_all_CVA6_benchmarks.py` and `clean_CVA6_runs.py`.               |
+| `benchmarks/gem5/`                              | The gem5 tests, `run_gem5.py`, `run_all_gem5_benchmarks.py` and `clean_gem5_runs.py`.               |
 | `viewers/MinorFlow`                             | The MinorFlow visualizer, as a submodule.                                                          |
 | `viewers/CVA6Flow`                              | The CVA6Flow visualizer, as a submodule.                                                           |
 | `gem5_config_CVA6/`                             | The gem5 configuration matched to CVA6, and the gem5 patch it depends on.                          |
 | `verilator_changes/`                            | Local changes to the Verilator harness.                                                            |
-| `verilator_changes/ddr3_memory/`                | DDR3-1600 main memory for the Verilated harness, matched to gem5 `SingleChannelDDR3_1600`, with a standalone testbench and the gem5 side of the comparison. |
-| `dockerfiles/`                                  | Docker files used to create the images.                                                                   |
-| `clean_repo.py`                                 | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this project's folders.       |
+| `verilator_changes/ddr3_memory/`                | DDR3-1600 main memory for the Verilated harness, matched to gem5 `SingleChannelDDR3_1600`, with a standalone testbench and the gem5 side of the comparison. **Not tracked**, so a fresh clone does not have it. |
+| `dockerfiles/`                                  | The two image recipes, plus `serve_viewers.py`, the small HTTP server that puts a viewer in the host's browser. |
+| `clean_CVA6_repo.py`                            | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this repository, then offers to run each viewer's own cleaner. |
 | `ignore_big_json.py`                            | Lists the tracer JSONs too big for GitHub in `.gitignore`.                                         |
 | `LICENSE.FaMAF`                                 | MIT licence covering this project's own work.                                                      |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                      |
@@ -104,7 +104,7 @@ python3 run_all_gem5_benchmarks.py <config>.py [folder] [-j N] [--variant patch|
 
 They collect the C and assembly tests in the folder, skip the templates, run each through the matching driver, and print a pass/fail summary. Tests sharing a name are warned about up front, since outputs are named after the test. `-r` includes subfolders, `--dry-run` lists without running.
 
-Every test that passes has its files moved into `batch_results/` and its leftovers deleted, so the batch lands in one folder rather than a trace per test across the tree, `--out-dir` picks another. It also writes a `metrics.txt` there with every run's table and clean arrays, in the order the tests were listed.
+Every test that passes has its files moved into `batch_results/` and its leftovers deleted, so the batch lands in one folder rather than a trace per test across the tree, `--out-dir` picks another. It also gathers every run's table and clean arrays into one file there, in the order the tests were listed. The file is named after the run that produced it, `metrics_<config>_<variant>_<build>_<flags>.txt`, so two batches of different builds cannot land on the same name and be mistaken for each other later. Each table inside carries a `Build:` line naming the binary and the overhead table subtracted from it.
 
 A test that **fails** keeps everything, and the closing lines say where.
 
@@ -128,7 +128,7 @@ Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a t
 python3 run_CVA6_testing_sweep.py [-j N] [--configs 1,4-6] [--tests daxpy,full_test] [--variant patch|stock] [--no-trace] [--list]
 ```
 
-It defaults to `--variant patch`, since `DEFAULT_CONFIG` sets parameters only the patch provides. For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `CVA6_testing_sweep_results/` tagged `.config<N>`, plus one `metrics.txt` gathering every table. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
+It defaults to `--variant patch`, since `DEFAULT_CONFIG` sets parameters only the patch provides. For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `CVA6_testing_sweep_results/` tagged `.config<N>`, plus one gathered metrics file named after the sweep, `metrics_<config>_<variant>...txt`. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
 
 The sweep runs `-j` at once, 4 by default, each in its own folder under `m5out/` and `run_results/`, deleted once collected. A run that **fails** keeps its folder, under `m5out/config<N>_<test>/`, together with the configuration copy it ran. Both parent folders are removed only if the sweep leaves them empty, since a plain `run_gem5.py` run writes into them too.
 
@@ -139,21 +139,31 @@ The sweep never edits the file you point it at: it writes one temporary copy per
 A VCD or a gem5 trace runs to hundreds of megabytes, and a sweep writes one per configuration per test. Each side has a script that deletes everything its run scripts generate, and nothing else:
 
 ```bash
-python3 clean_gem5.py [folders...] [-y] [--dry-run]
-python3 clean_CVA6.py [folders...] [-y] [--dry-run] [--keep-build]
+python3 clean_gem5_runs.py [folders...] [-y] [--dry-run]
+python3 clean_CVA6_runs.py [folders...] [-y] [--dry-run] [--keep-build]
 ```
 
-`clean_gem5.py` takes `m5out/`, `batch_results/`, the sweep result folders, the `run_results/` beside each runner, and `__pycache__/`. `clean_CVA6.py` takes `verif/sim/out_<date>/`, `work-ver/`, `batch_results/`, `CVA6Flow_sweep_results`, `run_results/`, and `__pycache__/`. Extra folders can be named on the command line, for a run made with a custom `--gem5-out-dir` or `--out-dir`.
+`clean_gem5_runs.py` takes `m5out/`, `batch_results/`, the sweep result folders, the `run_results/` beside each runner, and `__pycache__/`. `clean_CVA6_runs.py` takes `verif/sim/out_<date>/`, `work-ver/`, `batch_results/`, `CVA6Flow_sweep_results`, `run_results/`, and `__pycache__/`. Extra folders can be named on the command line, for a run made with a custom `--gem5-out-dir` or `--out-dir`.
 
 Both list what they found with its size and ask before deleting. `-y` skips the question, `--dry-run` only lists, and `--keep-build` spares `work-ver/`. Only those fixed names are matched, so nothing tracked in git is ever caught, and cleaning one side never touches the other's results.
 
-Those two clear a run tree. `clean_repo.py`, in the repository root, clears what piles up in the project's own folders afterwards: every `.list`, `.vcd`, `.fst` and debug trace, and every `__pycache__`. A trace is matched on `_trace`, so a sweep's `<test>_trace.config<N>.txt` goes with the plain `<test>_trace.txt`. The `_report.txt` and `_stats.txt` beside them are the summaries and stay.
+Those two clear a run tree. `clean_CVA6_repo.py`, in the repository root, clears what piles up in this repository's own folders afterwards: every `.list`, `.vcd`, `.fst` and debug trace, and every `__pycache__`. A trace is matched on `_trace`, so a sweep's `<test>_trace.config<N>.txt` goes with the plain `<test>_trace.txt`. The `_report.txt` and `_stats.txt` beside them are the summaries and stay.
 
 ```bash
-python3 clean_repo.py [-y] [--dry-run] [-v]
+python3 clean_CVA6_repo.py [-y] [--dry-run] [-v] [--no-viewers]
 ```
 
-It only ever opens `gem5_config_CVA6/`, `verilator_changes/` and `viewers/`, and keeps each viewer's `docs/` whole.
+It only ever opens `gem5_config_CVA6/`, `verilator_changes/` and `benchmarks/`. The two viewers are separate repositories with their own artefacts and their own rules, so it does not walk into them: it offers to run their cleaners afterwards instead, and each decides what to keep on its own side. `--no-viewers` skips the offer.
+
+There are five cleaning scripts in all, and the names say which tree each one touches:
+
+| Script | Where | What it deletes |
+| --- | --- | --- |
+| `clean_CVA6_repo.py` | repository root | Committed-tree artefacts here, then offers the two below it |
+| `viewers/MinorFlow/clean_MinorFlow_repo.py` | MinorFlow checkout | The same, in that repository, keeping `docs/` whole |
+| `viewers/CVA6Flow/clean_CVA6Flow_repo.py` | CVA6Flow checkout | The same, in that repository, keeping `docs/` whole |
+| `clean_gem5_runs.py` | gem5 root | What a gem5 run leaves: `m5out/`, `batch_results/`, sweep folders, `run_results/` |
+| `clean_CVA6_runs.py` | CVA6 root | What a CVA6 run leaves: `out_<date>/`, `work-ver/`, `batch_results/`, `run_results/` |
 
 A tracer JSON survives all of that, since it is what the viewers read, but it is too big to commit: GitHub warns above 50 MiB and refuses above 100 MiB, and a full run leaves several over 200.
 
@@ -178,7 +188,14 @@ It comes in two versions, so the same core can be run on either gem5 build:
 
 Each has a `_testing` twin, `gem5_config_CVA6_testing.py` and `gem5_config_CVA6_Patch_testing.py`, which is the same core wrapped in the calibration table of single-knob perturbations that `run_CVA6_testing_sweep.py` replays.
 
-#### TO DO: Explain the patch and its purpose
+#### Why there is a patch
+
+Some of what CVA6 does has no counterpart in stock gem5, and no parameter that comes close. A fence that walks the data cache writing back every dirty line, a load-store unit with no store-to-load forwarding, a cache that picks its victim and starts its writeback at miss time rather than at fill, direct branch targets computed in the fetch path instead of read from a BTB: each is a rule in the RTL, and each changes the cycle count by more than the calibration's error bar.
+
+`gem5/MinorCPU_CVA6.patch` adds them, one gem5 parameter per rule, every one defaulting to the stock behaviour so a patched binary runs an unpatched configuration unchanged. That is what makes the difference measurable: the same binary runs with a mechanism on and off, and the gap is what that rule is worth.
+
+The config [README](gem5_config_CVA6/README.md#the-patch) has the whole of it: what each change models and which RTL line it comes from, the new parameters, SimObjects and statistics, how to apply and revert the patch, and the six divergences that remain.
+
 ---
 
 ## Docker setup
@@ -243,6 +260,10 @@ sudo systemctl stop docker # stop
 
 ## Getting the images
 
+Two ways: pull the published image, or build it from this working tree.
+
+### Pulling
+
 Two images are published on Docker Hub. Check the tags and pull the latest.
 
 **CVA6 + Verilator** ([manuel313/cva6](https://hub.docker.com/r/manuel313/cva6/tags)):
@@ -263,6 +284,36 @@ Verify:
 docker images
 ```
 
+### Building
+
+The recipes in [dockerfiles/](dockerfiles/) build the same images from **this working tree**, which is the point: both drivers hardcode the container's root, `/cva6` and `/gem5`, so an RTL file or a configuration edited on the host only reaches the simulation by being copied in. Building is how you run a modified core rather than the one the published image was made from.
+
+Both build from the repository **root**, not from the recipe's own folder:
+
+```bash
+docker build -f dockerfiles/CVA6/Dockerfile -t famaf/cva6 .
+docker build -f dockerfiles/gem5/Dockerfile -t famaf/gem5 .
+```
+
+`.dockerignore` keeps the traces, VCDs, JSONs and git history out of the build context, so what is uploaded to the daemon is a few tens of megabytes rather than the whole tree.
+
+**These are heavy builds.** The cost is the RISC-V toolchain on the CVA6 side and two full gem5 builds on the gem5 side.
+
+| | Disk while building | Finished image | Time | Memory per job |
+| --- | --- | --- | --- | --- |
+| `famaf/cva6` | ~30 GB | ~14 GB | 2 to 4 h | ~2 GB |
+| `famaf/gem5` | ~25 GB | ~12 GB | 1 to 3 h | ~4 GB |
+
+Memory is what actually fails a build, and it fails as a compiler killed with no useful message. Both recipes take a `JOBS` argument, and it should be no higher than your RAM in GB divided by the per-job figure above:
+
+```bash
+docker build --build-arg JOBS=2 -f dockerfiles/gem5/Dockerfile -t famaf/gem5 .
+```
+
+On Docker Desktop the VM has its own memory cap, in Settings, Resources, and it is what the build sees rather than the host's. The Linux engine has no such cap. `docker system prune` frees the space earlier attempts left behind.
+
+The two images carry different halves of the project on purpose. `famaf/cva6` has the RTL, the CVA6 benchmarks and CVA6Flow, with the gem5 configurations, the gem5 benchmarks and MinorFlow removed. `famaf/gem5` has gem5 built twice, the two configurations, the gem5 benchmarks and MinorFlow. Both put the drivers at the root, which is where the commands below are run from.
+
 ---
 
 ## Moving files in and out
@@ -271,14 +322,16 @@ The images carry their own copy of the repository, `/cva6` in the CVA6 image and
 
 ```bash
 # host -> container: a test and the scripts that run it
-docker cp benchmarks/CVA6/daxpy.S            <container_name>:/cva6/benchmarks/CVA6/
-docker cp benchmarks/gem5/run_gem5.py        <container_name>:/gem5/
-docker cp gem5_config_CVA6/gem5/.            <container_name>:/gem5/
+docker cp benchmarks/CVA6/daxpy.S       cva6:/cva6/benchmarks/
+docker cp benchmarks/CVA6/run_CVA6.py   cva6:/cva6/
+docker cp benchmarks/gem5/daxpy.S       gem5:/gem5/benchmarks/
+docker cp benchmarks/gem5/run_gem5.py   gem5:/gem5/
+docker cp gem5_config_CVA6/gem5/.       gem5:/gem5/
 
 # container -> host: what a run produced
-docker cp <container_name>:/cva6/benchmarks/CVA6/run_results/  ./run_results/
-docker cp <container_name>:/gem5/batch_results/               ./batch_results/
-docker cp <container_name>:/gem5/CVA6_testing_sweep_results/  ./
+docker cp cva6:/cva6/run_results/                ./run_results/
+docker cp gem5:/gem5/batch_results/              ./batch_results/
+docker cp gem5:/gem5/CVA6_testing_sweep_results/ ./
 ```
 
 A trailing `/.` on the source copies the contents of a folder rather than the folder itself.
@@ -287,20 +340,24 @@ A trailing `/.` on the source copies the contents of a folder rather than the fo
 
 ### Create the container
 
-Create a container (replace `<container_name>`) with a Bash terminal and permission to run graphical applications:
+Create a container named `cva6` with a Bash terminal and permission to run graphical applications:
 
 ```bash
-docker run -it --name <container_name> -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix manuel313/cva6:latest bash
+docker run -it --name cva6 -p 8000:8000 \
+           -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
+           manuel313/cva6:latest bash
 ```
+
+`-p 8000:8000` is what lets `serve_viewers.py` put CVA6Flow in the host's browser later.
 
 Type `exit` to leave.
 
 ### Start, enter and stop
 
 ```bash
-docker start <container_name> # start
-docker exec -e DISPLAY=host.docker.internal:0 -it <container_name> bash # enter
-docker stop <container_name> # stop
+docker start cva6 # start
+docker exec -e DISPLAY=host.docker.internal:0 -it cva6 bash # enter
+docker stop cva6 # stop
 ```
 
 ### Run a test
@@ -327,7 +384,22 @@ It compiles the test, runs it on the Verilated CVA6, disassembles it, and prints
 
 The simulation writes to `verif/sim/out_<date>/` as usual, and the three files worth keeping, the VCD, the `.list` and the `<test>_report.txt` with the measured region and the table, are copied to a `run_results/` folder next to the script.
 
-A VCD is written by default. Load it in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow).
+A VCD is written by default. **The viewer does not read it directly.** Turn it into a viewer JSON first, passing the `.list` beside it, which is where the instruction text comes from:
+
+```bash
+python3 viewers/CVA6Flow/CVA6Flow_tracer.py run_results/daxpy.vcd \
+        --disasm-list run_results/daxpy.list -o daxpy.json
+```
+
+Then open `daxpy.json` in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow). The tracer finds the listing on its own when it sits beside the VCD under the same name, so `--disasm-list` is only needed when it does not. `tests/CVA6Flow_create_all_jsons.py` does a whole folder at a time.
+
+To use the viewer from inside the container, serve it and open the page on the host:
+
+```bash
+python3 serve_viewers.py            # then open http://localhost:8000/
+```
+
+The container has to be started with the port published, `docker run -p 8000:8000 ...`.
 
 ### Limitations and considerations
 
@@ -346,10 +418,10 @@ A VCD is written by default. Load it in [CVA6Flow](https://github.com/FaMAF-CVA6
 
 ### Create the container
 
-Create a container (replace `<container_name>`) with a Bash terminal
+Create a container named `gem5` with a Bash terminal
 
 ```bash
-docker run -it --name <container_name> manuel313/gem5_v25 bash
+docker run -it --name gem5 -p 8000:8000 manuel313/gem5_v25 bash
 ```
 
 Type `exit` to leave.
@@ -357,9 +429,9 @@ Type `exit` to leave.
 ### Start, enter and stop
 
 ```bash
-docker start <container_name> # start
-docker exec -e DISPLAY=$DISPLAY -it <container_name> bash # enter
-docker stop <container_name> # stop
+docker start gem5 # start
+docker exec -e DISPLAY=$DISPLAY -it gem5 bash # enter
+docker stop gem5 # stop
 ```
 
 ### Run a test
@@ -384,16 +456,32 @@ On a patched build the table carries a third column, `NET (CVA6)`, beside `NET`.
 
 gem5 writes to `m5out/`, and the test is compiled there too, so a run is self-contained. The four keepers, the trace, the `.list`, `<test>_report.txt` and `<test>_stats.txt`, are copied to `run_results/` next to the script. `--gem5-out-dir` and `--results-dir` move either folder, which is how concurrent runs stay apart.
 
-The trace is `run_results/<test>_trace.txt`. Load it in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow).
+The trace is `run_results/<test>_trace.txt`. **The viewer does not read it directly.** Turn it into a viewer JSON first, which is what MinorFlow loads:
+
+```bash
+python3 viewers/MinorFlow/MinorFlow_tracer.py run_results/daxpy_trace.txt -o daxpy.json
+```
+
+Then open `daxpy.json` in [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow). Parsing the trace once on disk is what lets a multi-gigabyte run open in a browser at all. `tests/MinorFlow_create_all_jsons.py` does a whole folder at a time.
+
+To use the viewer from inside the container, serve it and open the page on the host, which needs no browser in the image and no X11:
+
+```bash
+python3 serve_viewers.py            # then open http://localhost:8000/
+```
+
+The container has to be started with the port published, `docker run -p 8000:8000 ...`.
 
 ---
 
 ## The visualizers
 
-Both are single, dependency-free HTML files with a live demo on GitHub Pages and a "Load sample" button, so you can try them without building anything:
+Both are single, dependency-free HTML files with a live demo on GitHub Pages:
 
-- [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow): for the VCD produced by `run_CVA6.py`.
-- [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow): for the trace produced by `run_gem5.py`.
+- [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow): renders the VCD `run_CVA6.py` produces, after `CVA6Flow_tracer.py` has turned it into JSON.
+- [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow): renders the debug trace `run_gem5.py` produces, after `MinorFlow_tracer.py` has turned it into JSON.
+
+Neither reads the raw trace: a run leaves gigabytes and a browser cannot hold that, so the tracer does the parsing once on disk and the viewer loads the result.
 
 ---
 
@@ -406,6 +494,6 @@ Everything added by this project is the work of the FaMAF CVA6 Project and remai
 - the benchmarks and run scripts under `benchmarks/`,
 - the dockerfiles under `dockerfiles/`,
 - the gem5 configuration that matches CVA6 under `gem5_config_CVA6`,
-- the verilator changes under `verilator_changes`, 
+- the verilator changes under `verilator_changes`,
 - the documentation written for this fork, starting with this README,
 - and the two visualizer submodules, [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow) and [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow), which carry the same MIT licence in their own repositories.
