@@ -1,0 +1,57 @@
+# Kept out of the build context, so a 50 GB working tree does not become a
+# 50 GB upload to the docker daemon before the first instruction runs.
+#
+# Both images build from the repository ROOT:
+#   docker build -f dockerfiles/gem5/Dockerfile      -t famaf/gem5 .
+#   docker build -f dockerfiles/CVA6/Dockerfile -t famaf/cva6 .
+
+# History and tooling state.
+.git
+.github
+.gitlab-ci
+.claude
+.vscode
+**/__pycache__
+*.pyc
+
+# Run artefacts. Every one of these is produced inside the container anyway,
+# and the traces alone run to tens of gigabytes.
+**/*_trace.txt
+**/*_trace.*.txt
+**/*.vcd
+**/*.vcd.*
+**/*.fst
+**/*.log
+# Objdump listings from a run, but NOT the hand-written manifests upstream
+# CVA6 keeps in ci/ and corev_apu/tb/, which the build reads.
+benchmarks/**/*.list
+gem5_config_CVA6/**/*.list
+viewers/**/*.list
+m5out/
+work-ver/
+work-dpi/
+build/
+tools/
+run_results/
+batch_results/
+CVA6_testing_sweep_results/
+MinorFlow_sweep_results/
+CVA6Flow_sweep_results/
+
+# The tracer JSONs, which are large and regenerated from a trace.
+gem5_config_CVA6/gem5/tests/
+gem5_config_CVA6/CVA6/tests/
+viewers/*/tests/*.json
+viewers/*/tests/*.js
+# except the committed sample, which is what the viewer's button loads.
+!viewers/*/tests/daxpy.config1.json
+!viewers/*/tests/daxpy.config1.js
+
+# Local scratch and the vendored RTL copies get_cva6_files.py makes.
+temp/
+cva6_files/
+
+# The paper sources and their images, which no image needs.
+viewers/*/docs/CARLA2026/
+viewers/*/docs/old_versions/
+viewers/*/docs/parser_phases/
