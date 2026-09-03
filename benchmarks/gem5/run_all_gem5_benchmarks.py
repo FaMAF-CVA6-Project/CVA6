@@ -7,6 +7,7 @@ import argparse
 import concurrent.futures
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -46,9 +47,21 @@ TEMPLATE_MARKER = "template"
 # What run_gem5.py writes above its metrics table, and where the batch gathers
 # every one of those tables once the runs are done.
 METRICS_MARKER = "RESULTS TABLE"
-METRICS_FILE = "metrics.txt"
 
 SEP = "=" * 70
+
+
+def slug(text, limit=40):
+    """Turn a value into something safe for a file name: word characters and
+    single dashes, trimmed."""
+    out = re.sub(r"[^A-Za-z0-9]+", "-", str(text)).strip("-")
+    return out[:limit].strip("-")
+
+
+def metrics_filename(parts):
+    """The gathered metrics file, named after the run that produced it."""
+    tags = [slug(p) for p in parts if p]
+    return "metrics" + ("_" if tags else "") + "_".join(tags) + ".txt"
 
 
 def find_runner():
@@ -204,7 +217,7 @@ def extract_metrics(report_path):
     return None
 
 
-def write_metrics_file(out_dir, entries, info):
+def write_metrics_file(out_dir, entries, info, filename):
     """Gather every run's metrics table into one metrics.txt. entries is
     [(label, report file)] in the order the runs were listed, so the file reads
     like the summary. A run with no table is named, not skipped."""
@@ -219,10 +232,10 @@ def write_metrics_file(out_dir, entries, info):
     if missing:
         print(f"[WARN] No metrics table for: {', '.join(missing)}")
     if not blocks:
-        print(f"[WARN] No metrics tables found, so no {METRICS_FILE} written")
+        print(f"[WARN] No metrics tables found, so no {filename} written")
         return None
 
-    path = os.path.join(out_dir, METRICS_FILE)
+    path = os.path.join(out_dir, filename)
     try:
         with open(path, "w") as f:
             f.write(f"{SEP}\nALL METRICS\n{SEP}\n")
@@ -309,6 +322,9 @@ def main():
     parser.add_argument("--no-trace", action="store_true",
                         help="Forwarded to run_gem5.py: no debug trace, "
                              "metrics only")
+    parser.add_argument("--suite", choices=["config", "viewer"], default=None,
+                        help="Forwarded to run_gem5.py: which overhead table "
+                             "to subtract")
     parser.add_argument("--variant", choices=["patch", "stock"], default=None,
                         help="Forwarded to run_gem5.py: which build to run "
                              "and whose overhead profile to subtract")
@@ -409,6 +425,8 @@ def main():
     batch_start = time.time()
 
     def run_one(index, path):
+        if stop.is_set():
+            return
         name = os.path.basename(path)
         test_name = os.path.splitext(name)[0]
         job_gem5_out, job_results = job_dirs(runner, test_name)
@@ -420,6 +438,8 @@ def main():
                "--results-dir", job_results]
         if args.no_trace:
             cmd.append("--no-trace")
+        if args.suite:
+            cmd.extend(["--suite", args.suite])
         if args.variant:
             cmd.extend(["--variant", args.variant])
         if args.build:
@@ -465,18 +485,28 @@ def main():
                 discard_run(job_gem5_out, job_results)
             results.append((index, name, code, elapsed))
 
+    stop = threading.Event()
+    pool = None
     try:
         if jobs == 1:
             for index, path in enumerate(tests, 1):
+                if stop.is_set():
+                    break
                 run_one(index, path)
         else:
             print(f"[INFO] Running {jobs} tests at a time.\n")
-            with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
-                for future in [pool.submit(run_one, i, p)
-                               for i, p in enumerate(tests, 1)]:
-                    future.result()
+            pool = concurrent.futures.ThreadPoolExecutor(jobs)
+            futures = [pool.submit(run_one, i, p)
+                       for i, p in enumerate(tests, 1)]
+            for future in futures:
+                future.result()
     except KeyboardInterrupt:
-        print("\n[WARN] Interrupted. Stopping the batch.")
+        stop.set()
+        print("\n[WARN] Interrupted. Cancelling the runs that have not "
+              "started. The ones already running finish first.")
+    finally:
+        if pool is not None:
+            pool.shutdown(wait=True, cancel_futures=True)
 
     # Report in the order the tests were listed, not the order they finished.
     ordered = [(n, c, e) for _, n, c, e in sorted(results)]
@@ -490,8 +520,16 @@ def main():
          for name, code, _ in ordered if code == 0],
         [f"Folder   : {folder}",
          f"Config   : {args.config_file}",
+         f"Variant  : {args.variant or '(run_gem5.py default)'}",
+         f"Build    : {args.build or '(from --variant)'}"
+         + ("  [--skip-build-check]" if args.skip_build_check else ""),
+         f"Suite    : {args.suite or '(run_gem5.py default)'}",
          f"Cfg flags: {' '.join(config_args) if config_args else '(none)'}",
-         f"Runs     : {len(ordered)}, {len(ordered) - failed} passed"])
+         f"Runs     : {len(ordered)}, {len(ordered) - failed} passed"],
+        metrics_filename([os.path.splitext(
+            os.path.basename(args.config_file))[0],
+            args.variant, args.build, args.suite,
+            " ".join(config_args)]))
 
     print(f"[INFO] Results in {out_dir}")
     if failed:
