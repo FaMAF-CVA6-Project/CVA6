@@ -57,12 +57,17 @@ temp/
 cva6_files
 verilator_changes/ddr3_memory
 
-# Files too big to be tracked
-*.vcd*
-*.list*
-*_trace*
+# Files too big to be tracked.
+*.vcd
+*.fst
+*.list
+*_trace.txt
+*_trace.*.txt
 
 ## BEGIN oversized JSONs
+
+## END oversized JSONs
+
+# Temporal
 /gem5_config_CVA6/CVA6/tests/
 /gem5_config_CVA6/gem5/tests/
-## END oversized JSONs
