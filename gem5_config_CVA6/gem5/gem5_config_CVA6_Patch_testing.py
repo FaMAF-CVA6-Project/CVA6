@@ -177,6 +177,8 @@ from m5.objects import (  # type: ignore
 #  86   fetch limit 3, fetch2 buffer 3,           workload: all
 #  87   fetch limit 4, fetch2 buffer 3            workload: all
 #  88   L1I reopen at ready                       workload: all
+#  89   structural I-side, mshrs 1 with           workload: all
+#  90   ablation of 89 without reopen at ready    workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -747,6 +749,39 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 2,
           "reopen_at_ready": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    89: ("structural I-side: mshrs 1, reopen at ready, fetch1 holds",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "reopen_at_ready": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    90: ("ablation: mshrs 1, fetch1 holds, no reopen at ready",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
     99: ("full production",
