@@ -179,9 +179,7 @@ OVERHEAD_SUITES = {
 
 # Profiles above that are a copy rather than their own measurement.
 # Profiles that do not match the build they are subtracted from, and why.
-UNCALIBRATED = {
-    ("viewer", "patch"): "a copy of the stock entry, not its own measurement",
-}
+UNCALIBRATED = {}
 
 
 def default_suite():
