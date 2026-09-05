@@ -1,8 +1,27 @@
 diff --git a/src/cpu/minor/BaseMinorCPU.py b/src/cpu/minor/BaseMinorCPU.py
-index 545dfeaee5..e67023dd86 100644
+index 545dfea..c2facaf 100644
 --- a/src/cpu/minor/BaseMinorCPU.py
 +++ b/src/cpu/minor/BaseMinorCPU.py
-@@ -398,6 +398,33 @@ class BaseMinorCPU(BaseCPU):
+@@ -307,6 +307,18 @@ class BaseMinorCPU(BaseCPU):
+     fetch1FetchLimit = Param.Unsigned(
+         1, "Number of line fetches allowable in flight at once"
+     )
++    fetch1WaitsForIcache = Param.Bool(
++        False,
++        "Hold a line fetch while the instruction cache cannot accept "
++        "it instead of sending into a refusal and waiting for a retry, "
++        "the frontend side of cva6_icache.sv's dreq_o.ready",
++    )
++    fetch1KillsOnRedirect = Param.Bool(
++        False,
++        "On a stream change, release the fetch slots of every line in "
++        "flight at once instead of when its response returns, the "
++        "frontend side of cva6_icache.sv's kill_s1 and kill_s2",
++    )
+     fetch1LineSnapWidth = Param.Unsigned(
+         0,
+         "Fetch1 'line' fetch snap size in bytes"
+@@ -398,6 +410,33 @@ class BaseMinorCPU(BaseCPU):
          2, "Size of LSQ transfers queue (memory transaction queue)"
      )
      executeLSQStoreBufferSize = Param.Unsigned(5, "Size of LSQ store buffer")
@@ -37,7 +56,7 @@ index 545dfeaee5..e67023dd86 100644
          1,
          "Delay from Execute deciding to branch and Fetch1 reacting"
 diff --git a/src/cpu/minor/execute.cc b/src/cpu/minor/execute.cc
-index ba4032e39c..a434b72d6c 100644
+index ba4032e..a434b72 100644
 --- a/src/cpu/minor/execute.cc
 +++ b/src/cpu/minor/execute.cc
 @@ -79,6 +79,7 @@ Execute::Execute(const std::string &name_,
@@ -85,7 +104,7 @@ index ba4032e39c..a434b72d6c 100644
              if (inst->traceData) {
                  if (debug::ExecFaulting) {
 diff --git a/src/cpu/minor/execute.hh b/src/cpu/minor/execute.hh
-index 0a1dde1424..87d7056feb 100644
+index 0a1dde1..87d7056 100644
 --- a/src/cpu/minor/execute.hh
 +++ b/src/cpu/minor/execute.hh
 @@ -114,6 +114,9 @@ class Execute : public Named
@@ -98,8 +117,218 @@ index 0a1dde1424..87d7056feb 100644
      /** The FU index of the non-existent costless FU for instructions
       *  which pass the MinorDynInst::isNoCostInst test */
      unsigned int noCostFUIndex;
+diff --git a/src/cpu/minor/fetch1.cc b/src/cpu/minor/fetch1.cc
+index dd427b7..6993739 100644
+--- a/src/cpu/minor/fetch1.cc
++++ b/src/cpu/minor/fetch1.cc
+@@ -74,11 +74,16 @@ Fetch1::Fetch1(const std::string &name_,
+     lineSnap(params.fetch1LineSnapWidth),
+     maxLineWidth(params.fetch1LineWidth),
+     fetchLimit(params.fetch1FetchLimit),
++    waitsForIcache(params.fetch1WaitsForIcache),
++    killsOnRedirect(params.fetch1KillsOnRedirect),
+     fetchInfo(params.numThreads),
+     threadPriority(0),
+-    requests(name_ + ".requests", "lines", params.fetch1FetchLimit),
+-    transfers(name_ + ".transfers", "lines", params.fetch1FetchLimit),
++    requests(name_ + ".requests", "lines", params.fetch1KillsOnRedirect ?
++        2 * params.fetch1FetchLimit : params.fetch1FetchLimit),
++    transfers(name_ + ".transfers", "lines", params.fetch1KillsOnRedirect ?
++        2 * params.fetch1FetchLimit : params.fetch1FetchLimit),
+     icacheState(IcacheRunning),
++    killedInFlight(0),
+     lineSeqNum(InstId::firstLineSeqNum),
+     numFetchesInMemorySystem(0),
+     numFetchesInITLB(0)
+@@ -117,6 +122,15 @@ Fetch1::Fetch1(const std::string &name_,
+         fatal("%s: fetch1FetchLimit must be >= 1 (%d)\n", name_,
+             fetchLimit);
+     }
++
++    /* killedInFlight is one counter for the shared queues, so a redirect on
++     * one thread would release another thread's slots. CVA6 is single hart
++     * and the transcription is only claimed there. */
++    if (killsOnRedirect && params.numThreads > 1) {
++        fatal("%s: fetch1KillsOnRedirect models a single-hart front end "
++            "and its kill accounting is not per-thread (numThreads %d)\n",
++            name_, params.numThreads);
++    }
+ }
+ 
+ inline ThreadID
+@@ -327,11 +341,31 @@ Fetch1::moveFromRequestsToTransfers(FetchRequestPtr request)
+     transfers.push(request);
+ }
+ 
++bool
++Fetch1::icacheReady()
++{
++    auto *peer = dynamic_cast<ResponsePort *>(&icachePort.getPeer());
++    return !peer || peer->acceptsTimingReq();
++}
++
+ bool
+ Fetch1::tryToSend(FetchRequestPtr request)
+ {
+     bool ret = false;
+ 
++    if (waitsForIcache && !icacheReady()) {
++        // The frontend keeps its line until the cache leaves MISS
++        // (cva6_icache.sv asserts dreq_o.ready only in IDLE and READ),
++        // so the wait lands before the request and no retry occurs.
++        DPRINTF(Fetch, "Line fetch held, icache busy: %s\n",
++            request->id);
++        /* Nothing was refused, so no recvReqRetry will arrive to wake the
++         * stage. Ask for the next cycle here or a held line can sit while
++         * the rest of the pipeline goes idle. */
++        cpu.wakeupOnEvent(Pipeline::Fetch1StageId);
++        return false;
++    }
++
+     if (icachePort.sendTimingReq(request->packet)) {
+         /* Invalidate the fetch_requests packet so we don't
+          *  accidentally fail to deallocate it (or use it!)
+@@ -381,18 +415,33 @@ void
+ Fetch1::popAndDiscard(FetchQueue &queue)
+ {
+     if (!queue.empty()) {
++        if (killsOnRedirect && killedInFlight > 0 &&
++            queue.front()->isDiscardable())
++        {
++            killedInFlight--;
++        }
+         delete queue.front();
+         queue.pop();
+     }
+ }
+ 
+ unsigned int
+-Fetch1::numInFlightFetches()
++Fetch1::numQueuedFetches()
+ {
+     return requests.occupiedSpace() +
+         transfers.occupiedSpace();
+ }
+ 
++unsigned int
++Fetch1::numInFlightFetches()
++{
++    /* A killed line holds its queue slot until it drains but has already
++     * given its Fetch2 reservation back, so it must not count against the
++     * fetch limit. Wrapping here would wedge the front end silently. */
++    assert(killedInFlight <= numQueuedFetches());
++    return numQueuedFetches() - killedInFlight;
++}
++
+ /** Print the appropriate MinorLine line for a fetch response */
+ void
+ Fetch1::minorTraceResponseLine(const std::string &name,
+@@ -492,6 +541,16 @@ Fetch1::changeStream(const BranchData &branch)
+ 
+     updateExpectedSeqNums(branch);
+ 
++    if (killsOnRedirect) {
++        // Every line in flight now belongs to the old stream. Free its
++        // slot at once, cva6_icache.sv 327 to 348 killing the request in
++        // flight, so the new stream's first line is not held behind it.
++        unsigned int live = numInFlightFetches();
++        for (unsigned int i = 0; i < live; i++)
++            nextStageReserve[branch.threadId].freeReservation();
++        killedInFlight += live;
++    }
++
+     /* Start fetching again if we were stopped */
+     switch (branch.reason) {
+       case BranchData::SuspendThread:
+@@ -645,7 +704,10 @@ Fetch1::evaluate()
+         }
+     }
+ 
+-    if (numInFlightFetches() < fetchLimit) {
++    if (numInFlightFetches() < fetchLimit &&
++        (!killsOnRedirect ||
++         (requests.canReserve() && transfers.canReserve())))
++    {
+         ThreadID fetch_tid = getScheduledThread();
+ 
+         if (fetch_tid != InvalidThreadID) {
+@@ -673,7 +735,9 @@ Fetch1::evaluate()
+         Fetch1::FetchRequestPtr response = transfers.front();
+ 
+         if (response->isDiscardable()) {
+-            nextStageReserve[response->id.threadId].freeReservation();
++            // A redirect already released the slot when killsOnRedirect.
++            if (!killsOnRedirect)
++                nextStageReserve[response->id.threadId].freeReservation();
+ 
+             DPRINTF(Fetch, "Discarding translated fetch as it's for"
+                 " an old stream\n");
+@@ -730,13 +794,13 @@ Fetch1::wakeupFetch(ThreadID tid)
+ bool
+ Fetch1::isDrained()
+ {
+-    bool drained = numInFlightFetches() == 0 && (*out.inputWire).isBubble();
++    bool drained = numQueuedFetches() == 0 && (*out.inputWire).isBubble();
+     for (ThreadID tid = 0; tid < cpu.numThreads; tid++) {
+         Fetch1ThreadInfo &thread = fetchInfo[tid];
+         DPRINTF(Drain, "isDrained[tid:%d]: %s %s%s\n",
+                 tid,
+                 thread.state == FetchHalted,
+-                (numInFlightFetches() == 0 ? "" : "inFlightFetches "),
++                (numQueuedFetches() == 0 ? "" : "inFlightFetches "),
+                 ((*out.inputWire).isBubble() ? "" : "outputtingLine"));
+ 
+         drained = drained && (thread.state != FetchRunning);
+diff --git a/src/cpu/minor/fetch1.hh b/src/cpu/minor/fetch1.hh
+index b65bb70..33ad324 100644
+--- a/src/cpu/minor/fetch1.hh
++++ b/src/cpu/minor/fetch1.hh
+@@ -224,6 +224,12 @@ class Fetch1 : public Named
+     /** Maximum number of fetches allowed in flight (in queues or memory) */
+     unsigned int fetchLimit;
+ 
++    /** Hold a line at the icache's ready line rather than being refused */
++    const bool waitsForIcache;
++
++    /** Release killed lines' slots at the redirect, not at their return */
++    const bool killsOnRedirect;
++
+   protected:
+     /** Cycle-by-cycle state */
+ 
+@@ -305,6 +311,9 @@ class Fetch1 : public Named
+     /** Retry state of icache_port */
+     IcacheState icacheState;
+ 
++    /** Lines still queued whose slots a redirect already released */
++    unsigned int killedInFlight;
++
+     /** Sequence number for line fetch used for ordering lines to flush */
+     InstSeqNum lineSeqNum;
+ 
+@@ -357,6 +366,9 @@ class Fetch1 : public Named
+      *  sent to memory */
+     bool tryToSend(FetchRequestPtr request);
+ 
++    /** The icache's ready line, true when a request sent now is accepted */
++    bool icacheReady();
++
+     /** Move a request between queues */
+     void moveFromRequestsToTransfers(FetchRequestPtr request);
+ 
+@@ -370,6 +382,10 @@ class Fetch1 : public Named
+     /** Handle pushing a TLB response onto the right queue */
+     void handleTLBResponse(FetchRequestPtr response);
+ 
++    /** Lines occupying the request and transfer queues, killed ones
++     *  included. This is the drain question */
++    unsigned int numQueuedFetches();
++
+     /** Returns the total number of queue occupancy, in-ITLB and
+      *  in-memory system fetches */
+     unsigned int numInFlightFetches();
 diff --git a/src/cpu/minor/lsq.cc b/src/cpu/minor/lsq.cc
-index 4b31b26577..a194a150a5 100644
+index 4b31b26..a194a15 100644
 --- a/src/cpu/minor/lsq.cc
 +++ b/src/cpu/minor/lsq.cc
 @@ -69,6 +69,7 @@ LSQ::LSQRequest::LSQRequest(LSQ &port_, MinorDynInstPtr inst_, bool isLoad_,
@@ -189,7 +418,7 @@ index 4b31b26577..a194a150a5 100644
  LSQ::LSQRequest::makePacket()
  {
 diff --git a/src/cpu/minor/lsq.hh b/src/cpu/minor/lsq.hh
-index e30a615803..c647361492 100644
+index e30a615..c647361 100644
 --- a/src/cpu/minor/lsq.hh
 +++ b/src/cpu/minor/lsq.hh
 @@ -166,6 +166,11 @@ class LSQ : public Named
@@ -217,9 +446,9 @@ index e30a615803..c647361492 100644
 +     *  LSU re-request of a core without store-to-load forwarding */
 +    const Cycles storeCollisionReplayDelay;
 +
-+    /** Signal the data cache on every memory fence.  Models a dedicated flush
++    /** Signal the data cache on every memory fence. Models a dedicated flush
 +     *  wire from the core to its cache (CVA6 controller.sv flush_dcache_o).
-+     *  Whether the cache acts on the signal is its own fence_flushes_dcache. */
++     *  Whether the cache acts on it is its own fence_flushes_dcache. */
 +    const bool fenceSignalsDcache;
 +
    public:
@@ -248,7 +477,7 @@ index e30a615803..c647361492 100644
      InstSeqNum getLastMemBarrier(ThreadID thread_id) const
      { return lastMemBarrier[thread_id]; }
 diff --git a/src/cpu/pred/BranchPredictor.py b/src/cpu/pred/BranchPredictor.py
-index 47b985242d..02b0569bd5 100644
+index 47b9852..02b0569 100644
 --- a/src/cpu/pred/BranchPredictor.py
 +++ b/src/cpu/pred/BranchPredictor.py
 @@ -65,6 +65,7 @@ class TargetProvider(Enum):
@@ -284,7 +513,7 @@ index 47b985242d..02b0569bd5 100644
          SimpleIndirectPredictor(),
          "Indirect branch predictor, set to NULL to disable "
 diff --git a/src/cpu/pred/bpred_unit.cc b/src/cpu/pred/bpred_unit.cc
-index 4580cd702d..957594d33f 100644
+index 4580cd7..957594d 100644
 --- a/src/cpu/pred/bpred_unit.cc
 +++ b/src/cpu/pred/bpred_unit.cc
 @@ -59,10 +59,12 @@ BPredUnit::BPredUnit(const Params &params)
@@ -356,7 +585,7 @@ index 4580cd702d..957594d33f 100644
  
              if (!hist->btbHit) {
 diff --git a/src/cpu/pred/bpred_unit.hh b/src/cpu/pred/bpred_unit.hh
-index 9523b7e851..f7ead16645 100644
+index 9523b7e..f7ead16 100644
 --- a/src/cpu/pred/bpred_unit.hh
 +++ b/src/cpu/pred/bpred_unit.hh
 @@ -470,6 +470,11 @@ class BPredUnit : public SimObject
@@ -381,7 +610,7 @@ index 9523b7e851..f7ead16645 100644
  
      /** Statistics */
 diff --git a/src/cpu/pred/ras.cc b/src/cpu/pred/ras.cc
-index f29b265657..b1f2baa7c3 100644
+index f29b265..b1f2baa 100644
 --- a/src/cpu/pred/ras.cc
 +++ b/src/cpu/pred/ras.cc
 @@ -247,6 +247,18 @@ ReturnAddrStack::squash(ThreadID tid, void * &ras_history)
@@ -404,7 +633,7 @@ index f29b265657..b1f2baa7c3 100644
  ReturnAddrStack::commit(ThreadID tid, bool misp,
                          const BranchType brType, void * &ras_history)
 diff --git a/src/cpu/pred/ras.hh b/src/cpu/pred/ras.hh
-index 294055965e..d0a647c3c9 100644
+index 2940559..d0a647c 100644
 --- a/src/cpu/pred/ras.hh
 +++ b/src/cpu/pred/ras.hh
 @@ -170,6 +170,11 @@ class ReturnAddrStack : public SimObject
@@ -421,7 +650,7 @@ index 294055965e..d0a647c3c9 100644
       * @param misp Whether the branch was mispredicted.
 diff --git a/src/mem/Axi2MemPort.py b/src/mem/Axi2MemPort.py
 new file mode 100644
-index 0000000000..06d23876d9
+index 0000000..06d2387
 --- /dev/null
 +++ b/src/mem/Axi2MemPort.py
 @@ -0,0 +1,45 @@
@@ -471,7 +700,7 @@ index 0000000000..06d23876d9
 +        "Sends requests to the memory controller and receives responses"
 +    )
 diff --git a/src/mem/SConscript b/src/mem/SConscript
-index 70a5c43758..54e91f2a95 100644
+index 70a5c43..54e91f2 100644
 --- a/src/mem/SConscript
 +++ b/src/mem/SConscript
 @@ -46,6 +46,7 @@ Source('comm_monitor.cc')
@@ -500,7 +729,7 @@ index 70a5c43758..54e91f2a95 100644
  DebugFlag('DRAMPower')
 diff --git a/src/mem/axi2mem_port.cc b/src/mem/axi2mem_port.cc
 new file mode 100644
-index 0000000000..16c9475ffc
+index 0000000..16c9475
 --- /dev/null
 +++ b/src/mem/axi2mem_port.cc
 @@ -0,0 +1,316 @@
@@ -822,7 +1051,7 @@ index 0000000000..16c9475ffc
 +} // namespace gem5
 diff --git a/src/mem/axi2mem_port.hh b/src/mem/axi2mem_port.hh
 new file mode 100644
-index 0000000000..2b93503162
+index 0000000..2b93503
 --- /dev/null
 +++ b/src/mem/axi2mem_port.hh
 @@ -0,0 +1,241 @@
@@ -1068,10 +1297,10 @@ index 0000000000..2b93503162
 +
 +#endif // __MEM_AXI2MEM_PORT_HH__
 diff --git a/src/mem/cache/Cache.py b/src/mem/cache/Cache.py
-index fdc1d8fc0f..e30c3bdae0 100644
+index fdc1d8f..45a55f7 100644
 --- a/src/mem/cache/Cache.py
 +++ b/src/mem/cache/Cache.py
-@@ -151,6 +151,63 @@ class BaseCache(ClockedObject):
+@@ -151,6 +151,77 @@ class BaseCache(ClockedObject):
      # In case of the downstream cache is mostly inclusive, this should be
      # set to False.
      writeback_clean = Param.Bool(False, "Writeback clean lines")
@@ -1126,6 +1355,20 @@ index fdc1d8fc0f..e30c3bdae0 100644
 +        "the remaining overlap as latency, the HPDcache stall and replay "
 +        "paths (hpdcache_ctrl_pe.sv lines 338 to 348)",
 +    )
++    reopen_at_ready = Param.Bool(
++        False,
++        "Defer the retry after a full-MSHR refusal until the block the "
++        "freeing fill wrote is readable, so a retried request meets a "
++        "ready block instead of being charged the payload residue",
++    )
++
++    fill_ready_at_fill = Param.Bool(
++        False,
++        "A filled block is readable the cycle after the fill lands, "
++        "without the response's header and payload delays, as "
++        "cva6_icache.sv writes the line in the fill-ack cycle",
++    )
++
 +    fence_flushes_dcache = Param.Bool(
 +        False,
 +        "A full memory fence flushes this cache, writing back "
@@ -1136,7 +1379,7 @@ index fdc1d8fc0f..e30c3bdae0 100644
      # Control whether this cache should be mostly inclusive or mostly
      # exclusive with respect to upstream caches. The behaviour on a
 diff --git a/src/mem/cache/base.cc b/src/mem/cache/base.cc
-index cb6861045d..c3074148cb 100644
+index cb68610..3965d5d 100644
 --- a/src/mem/cache/base.cc
 +++ b/src/mem/cache/base.cc
 @@ -91,6 +91,21 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
@@ -1161,7 +1404,20 @@ index cb6861045d..c3074148cb 100644
        tempBlockWriteback(nullptr),
        writebackTempBlockAtomicEvent([this]{ writebackTempBlockAtomic(); },
                                      name(), false,
-@@ -196,6 +211,12 @@ BaseCache::regenerateBlkAddr(CacheBlk* blk)
+@@ -100,9 +115,12 @@ BaseCache::BaseCache(const BaseCacheParams &p, unsigned blk_size)
+       dataLatency(p.data_latency),
+       forwardLatency(p.tag_latency),
+       fillLatency(p.data_latency),
++      fillReadyAtFill(p.fill_ready_at_fill),
+       responseLatency(p.response_latency),
+       sequentialAccess(p.sequential_access),
+       numTarget(p.tgts_per_mshr),
++      reopenAtReady(p.reopen_at_ready),
++      deferredUnblockEvent([this]{ processDeferredUnblock(); }, name()),
+       forwardSnoops(true),
+       clusivity(p.clusivity),
+       isReadOnly(p.is_read_only),
+@@ -196,6 +214,12 @@ BaseCache::regenerateBlkAddr(CacheBlk* blk)
  void
  BaseCache::init()
  {
@@ -1174,7 +1430,7 @@ index cb6861045d..c3074148cb 100644
      if (!cpuSidePort.isConnected() || !memSidePort.isConnected())
          fatal("Cache ports on %s are not connected\n", name());
      cpuSidePort.sendRangeChange();
-@@ -399,7 +420,14 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
+@@ -399,7 +423,14 @@ BaseCache::handleTimingReqMiss(PacketPtr pkt, MSHR *mshr, CacheBlk *blk,
              // Here we are using forward_time, modelling the latency of
              // a miss (outbound) just as forwardLatency, neglecting the
              // lookupLatency component.
@@ -1190,7 +1446,7 @@ index cb6861045d..c3074148cb 100644
          }
      }
  }
-@@ -434,6 +462,19 @@ BaseCache::recvTimingReq(PacketPtr pkt)
+@@ -434,6 +465,19 @@ BaseCache::recvTimingReq(PacketPtr pkt)
          // access() will set the lat value.
          satisfied = access(pkt, blk, lat, writebacks);
  
@@ -1210,7 +1466,7 @@ index cb6861045d..c3074148cb 100644
          // After the evicted blocks are selected, they must be forwarded
          // to the write buffer to ensure they logically precede anything
          // happening below
-@@ -489,6 +530,63 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
+@@ -489,6 +533,63 @@ BaseCache::handleUncacheableWriteResp(PacketPtr pkt)
      cpuSidePort.schedTimingResp(pkt, completion_time);
  }
  
@@ -1274,7 +1530,7 @@ index cb6861045d..c3074148cb 100644
  void
  BaseCache::recvTimingResp(PacketPtr pkt)
  {
-@@ -559,8 +657,31 @@ BaseCache::recvTimingResp(PacketPtr pkt)
+@@ -559,8 +660,31 @@ BaseCache::recvTimingResp(PacketPtr pkt)
  
          const bool allocate = (writeAllocator && mshr->wasWholeLineWrite) ?
              writeAllocator->allocate() : mshr->allocOnFill();
@@ -1306,7 +1562,26 @@ index cb6861045d..c3074148cb 100644
          ppFill->notify(CacheAccessProbeArg(pkt, accessor));
      }
  
-@@ -957,7 +1078,19 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
+@@ -607,7 +731,17 @@ BaseCache::recvTimingResp(PacketPtr pkt)
+             const bool was_full = mshrQueue.isFull();
+             mshrQueue.deallocate(mshr);
+             if (was_full && !mshrQueue.isFull()) {
+-                clearBlocked(Blocked_NoMSHRs);
++                // The freeing fill's block turns readable at whenReady, so
++                // a retry sent now meets tag-hit data that has not landed.
++                Tick ready = (reopenAtReady && blk) ? blk->getWhenReady()
++                                                    : curTick();
++                if (ready > curTick()) {
++                    if (!deferredUnblockEvent.scheduled()) {
++                        schedule(deferredUnblockEvent, ready);
++                    }
++                } else {
++                    clearBlocked(Blocked_NoMSHRs);
++                }
+             }
+ 
+             // Request the bus for a prefetch if this deallocation freed enough
+@@ -957,7 +1091,19 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
  
              const MSHR* mshr =
                  mshrQueue.findMatch(regenerateBlkAddr(blk), blk->isSecure());
@@ -1326,7 +1601,7 @@ index cb6861045d..c3074148cb 100644
                  // Must be an outstanding upgrade or clean request on a block
                  // we're about to replace
                  assert((!blk->isSet(CacheBlk::WritableBit) &&
-@@ -983,6 +1116,189 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
+@@ -983,6 +1129,189 @@ BaseCache::handleEvictions(std::vector<CacheBlk*> &evict_blks,
      return true;
  }
  
@@ -1516,7 +1791,7 @@ index cb6861045d..c3074148cb 100644
  bool
  BaseCache::updateCompressionData(CacheBlk *&blk, const uint64_t* data,
                                   PacketList &writebacks)
-@@ -1525,6 +1841,23 @@ CacheBlk*
+@@ -1525,6 +1854,23 @@ CacheBlk*
  BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
                        bool allocate)
  {
@@ -1540,7 +1815,23 @@ index cb6861045d..c3074148cb 100644
      assert(pkt->isResponse());
      Addr addr = pkt->getAddr();
      bool is_secure = pkt->isSecure();
-@@ -1802,6 +2135,46 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
+@@ -1610,9 +1956,12 @@ BaseCache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks,
+ 
+         updateBlockData(blk, pkt, has_old_data);
+     }
+-    // The block will be ready when the payload arrives and the fill is done
+-    blk->setWhenReady(clockEdge(fillLatency) + pkt->headerDelay +
+-                      pkt->payloadDelay);
++    // The block will be ready when the payload arrives and the fill is done,
++    // or at the fill instant when the port model already delivered the
++    // whole line at its last beat (fillReadyAtFill).
++    blk->setWhenReady(fillReadyAtFill ? clockEdge(fillLatency)
++                                      : clockEdge(fillLatency) +
++                                        pkt->headerDelay + pkt->payloadDelay);
+ 
+     return blk;
+ }
+@@ -1802,6 +2151,46 @@ BaseCache::writecleanBlk(CacheBlk *blk, Request::Flags dest, PacketId id)
  }
  
  
@@ -1587,7 +1878,7 @@ index cb6861045d..c3074148cb 100644
  void
  BaseCache::memWriteback()
  {
-@@ -1915,6 +2288,13 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
+@@ -1915,6 +2304,13 @@ BaseCache::sendMSHRQueuePacket(MSHR* mshr)
  
      CacheBlk *blk = tags->findBlock({mshr->blkAddr, mshr->isSecure});
  
@@ -1601,7 +1892,7 @@ index cb6861045d..c3074148cb 100644
      // either a prefetch that is not present upstream, or a normal
      // MSHR request, proceed to get the packet to send downstream
      PacketPtr pkt = createMissPacket(tgt_pkt, blk, mshr->needsWritable(),
-@@ -2234,6 +2614,11 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
+@@ -2234,6 +2630,11 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
               "number of overall miss ticks"),
      ADD_STAT(demandAccesses, statistics::units::Count::get(),
               "number of demand (read+write) accesses"),
@@ -1613,7 +1904,7 @@ index cb6861045d..c3074148cb 100644
      ADD_STAT(overallAccesses, statistics::units::Count::get(),
               "number of overall (read+write) accesses"),
      ADD_STAT(demandMissRate, statistics::units::Ratio::get(),
-@@ -2286,6 +2671,30 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
+@@ -2286,6 +2687,30 @@ BaseCache::CacheStats::CacheStats(BaseCache &c)
               "average overall mshr uncacheable latency"),
      ADD_STAT(replacements, statistics::units::Count::get(),
               "number of replacements"),
@@ -1644,7 +1935,7 @@ index cb6861045d..c3074148cb 100644
      ADD_STAT(dataExpansions, statistics::units::Count::get(),
               "number of data expansions"),
      ADD_STAT(dataContractions, statistics::units::Count::get(),
-@@ -2375,6 +2784,14 @@ BaseCache::CacheStats::regStats()
+@@ -2375,6 +2800,14 @@ BaseCache::CacheStats::regStats()
          demandAccesses.subname(i, system->getRequestorName(i));
      }
  
@@ -1659,7 +1950,7 @@ index cb6861045d..c3074148cb 100644
      overallAccesses.flags(total | nozero | nonan);
      overallAccesses = overallHits + overallMisses;
      for (int i = 0; i < max_requestors; i++) {
-@@ -2409,6 +2826,9 @@ BaseCache::CacheStats::regStats()
+@@ -2409,6 +2842,9 @@ BaseCache::CacheStats::regStats()
      blockedCycles
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -1669,7 +1960,7 @@ index cb6861045d..c3074148cb 100644
          ;
  
  
-@@ -2416,11 +2836,17 @@ BaseCache::CacheStats::regStats()
+@@ -2416,11 +2852,17 @@ BaseCache::CacheStats::regStats()
      blockedCauses
          .subname(Blocked_NoMSHRs, "no_mshrs")
          .subname(Blocked_NoTargets, "no_targets")
@@ -1687,7 +1978,7 @@ index cb6861045d..c3074148cb 100644
          ;
      avgBlocked = blockedCycles / blockedCauses;
  
-@@ -2601,6 +3027,16 @@ BaseCache::CpuSidePort::recvAtomic(PacketPtr pkt)
+@@ -2601,6 +3043,16 @@ BaseCache::CpuSidePort::recvAtomic(PacketPtr pkt)
  void
  BaseCache::CpuSidePort::recvFunctional(PacketPtr pkt)
  {
@@ -1704,7 +1995,7 @@ index cb6861045d..c3074148cb 100644
      if (cache.system->bypassCaches()) {
          // The cache should be flushed if we are in cache bypass mode,
          // so we don't need to check if we need to update anything.
-@@ -2634,7 +3070,15 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
+@@ -2634,7 +3086,15 @@ CpuSidePort::CpuSidePort(const std::string &_name, BaseCache& _cache,
  bool
  BaseCache::MemSidePort::recvTimingResp(PacketPtr pkt)
  {
@@ -1722,7 +2013,7 @@ index cb6861045d..c3074148cb 100644
  }
  
 diff --git a/src/mem/cache/base.hh b/src/mem/cache/base.hh
-index 8c4c3f32da..4b29f159ba 100644
+index 8c4c3f3..3e28d99 100644
 --- a/src/mem/cache/base.hh
 +++ b/src/mem/cache/base.hh
 @@ -48,7 +48,9 @@
@@ -1745,7 +2036,20 @@ index 8c4c3f32da..4b29f159ba 100644
          NUM_BLOCKED_CAUSES
      };
  
-@@ -680,6 +685,90 @@ class BaseCache : public ClockedObject
+@@ -266,6 +271,12 @@ class BaseCache : public ClockedObject
+ 
+         bool isBlocked() const { return blocked; }
+ 
++        bool
++        acceptsTimingReq() const override
++        {
++            return !blocked && !mustSendRetry;
++        }
++
+       protected:
+ 
+         CacheResponsePort(const std::string &_name, BaseCache& _cache,
+@@ -680,6 +691,90 @@ class BaseCache : public ClockedObject
       */
      const bool writebackClean;
  
@@ -1836,7 +2140,7 @@ index 8c4c3f32da..4b29f159ba 100644
      /**
       * Writebacks from the tempBlock, resulting on the response path
       * in atomic mode, must happen after the call to recvAtomic has
-@@ -841,6 +930,11 @@ class BaseCache : public ClockedObject
+@@ -841,6 +936,11 @@ class BaseCache : public ClockedObject
       */
      PacketPtr writebackBlk(CacheBlk *blk);
  
@@ -1848,7 +2152,42 @@ index 8c4c3f32da..4b29f159ba 100644
      /**
       * Create a writeclean request for the given block.
       *
-@@ -1078,6 +1172,13 @@ class BaseCache : public ClockedObject
+@@ -915,6 +1015,11 @@ class BaseCache : public ClockedObject
+     /** The latency to fill a cache block */
+     const Cycles fillLatency;
+ 
++    /** Readiness at the fill instant: cva6_icache.sv 316 to 325 writes
++     * the line and returns its data in the fill-ack cycle, so the port
++     * model's delivery is the last beat and the bus terms double count. */
++    const bool fillReadyAtFill;
++
+     /**
+      * The latency of sending reponse to its upper level cache/core on
+      * a linefill. The responseLatency parameter captures this
+@@ -930,6 +1035,22 @@ class BaseCache : public ClockedObject
+     /** The number of targets for each MSHR. */
+     const int numTarget;
+ 
++    /** Hold the full-MSHR retry until the freeing fill is readable
++     * (cva6_icache.sv asserts ready only in IDLE, so the wait lands
++     * before the request rather than inside it). */
++    const bool reopenAtReady;
++    EventFunctionWrapper deferredUnblockEvent;
++
++    void
++    processDeferredUnblock()
++    {
++        // A new miss may have refilled the queue while the event was
++        // pending, in which case the reopen waits for its deallocation.
++        if ((blocked & (1 << Blocked_NoMSHRs)) && !mshrQueue.isFull()) {
++            clearBlocked(Blocked_NoMSHRs);
++        }
++    }
++
+     /** Do we forward snoops from mem side port through to cpu side port? */
+     bool forwardSnoops;
+ 
+@@ -1078,6 +1199,13 @@ class BaseCache : public ClockedObject
  
          /** The number of demand accesses. */
          statistics::Formula demandAccesses;
@@ -1862,7 +2201,7 @@ index 8c4c3f32da..4b29f159ba 100644
          /** The number of overall accesses. */
          statistics::Formula overallAccesses;
  
-@@ -1139,6 +1240,33 @@ class BaseCache : public ClockedObject
+@@ -1139,6 +1267,33 @@ class BaseCache : public ClockedObject
          /** Number of replacements of valid blocks. */
          statistics::Scalar replacements;
  
@@ -1896,7 +2235,7 @@ index 8c4c3f32da..4b29f159ba 100644
          /** Number of data expansions. */
          statistics::Scalar dataExpansions;
  
-@@ -1265,6 +1393,14 @@ class BaseCache : public ClockedObject
+@@ -1265,6 +1420,14 @@ class BaseCache : public ClockedObject
          DPRINTF(Cache,"Unblocking for cause %d, mask=%d\n", cause, blocked);
          if (blocked == 0) {
              stats.blockedCycles[cause] += curCycle() - blockedCycle;
@@ -1912,7 +2251,7 @@ index 8c4c3f32da..4b29f159ba 100644
          }
      }
 diff --git a/src/mem/cache/cache.hh b/src/mem/cache/cache.hh
-index dfc583b9d6..57aaf1ccc2 100644
+index dfc583b..57aaf1c 100644
 --- a/src/mem/cache/cache.hh
 +++ b/src/mem/cache/cache.hh
 @@ -145,7 +145,7 @@ class Cache : public BaseCache
@@ -1925,7 +2264,7 @@ index dfc583b9d6..57aaf1ccc2 100644
      PacketPtr createMissPacket(PacketPtr cpu_pkt, CacheBlk *blk,
                                 bool needs_writable,
 diff --git a/src/mem/cache/cache_blk.hh b/src/mem/cache/cache_blk.hh
-index a2027f25f1..9b1471068c 100644
+index a2027f2..9b14710 100644
 --- a/src/mem/cache/cache_blk.hh
 +++ b/src/mem/cache/cache_blk.hh
 @@ -204,6 +204,7 @@ class CacheBlk : public TaggedEntry
@@ -1961,7 +2300,7 @@ index a2027f25f1..9b1471068c 100644
  
  /**
 diff --git a/src/mem/cache/mshr.cc b/src/mem/cache/mshr.cc
-index b7e9357029..8c3f129086 100644
+index b7e9357..8c3f129 100644
 --- a/src/mem/cache/mshr.cc
 +++ b/src/mem/cache/mshr.cc
 @@ -315,6 +315,8 @@ MSHR::allocate(Addr blk_addr, unsigned blk_size, PacketPtr target,
@@ -1974,7 +2313,7 @@ index b7e9357029..8c3f129086 100644
      targets.init(blkAddr, blkSize);
      deferredTargets.init(blkAddr, blkSize);
 diff --git a/src/mem/cache/mshr.hh b/src/mem/cache/mshr.hh
-index 4d5c3b6a2c..a99e2a3682 100644
+index 4d5c3b6..a99e2a3 100644
 --- a/src/mem/cache/mshr.hh
 +++ b/src/mem/cache/mshr.hh
 @@ -64,6 +64,8 @@
@@ -2003,7 +2342,7 @@ index 4d5c3b6a2c..a99e2a3682 100644
      {
        public:
 diff --git a/src/mem/cache/replacement_policies/ReplacementPolicies.py b/src/mem/cache/replacement_policies/ReplacementPolicies.py
-index 47eaabf5f5..02f5fc1950 100644
+index 47eaabf..02f5fc1 100644
 --- a/src/mem/cache/replacement_policies/ReplacementPolicies.py
 +++ b/src/mem/cache/replacement_policies/ReplacementPolicies.py
 @@ -175,3 +175,20 @@ class WeightedLRURP(LRURP):
@@ -2028,7 +2367,7 @@ index 47eaabf5f5..02f5fc1950 100644
 +    cxx_header = ("mem/cache/replacement_policies/"
 +                  "cva6_icache_random_rp.hh")
 diff --git a/src/mem/cache/replacement_policies/SConscript b/src/mem/cache/replacement_policies/SConscript
-index 027093fd8f..5e6cec238f 100644
+index 027093f..5e6cec2 100644
 --- a/src/mem/cache/replacement_policies/SConscript
 +++ b/src/mem/cache/replacement_policies/SConscript
 @@ -31,12 +31,16 @@ Import('*')
@@ -2051,7 +2390,7 @@ index 027093fd8f..5e6cec238f 100644
  Source('mru_rp.cc')
 diff --git a/src/mem/cache/replacement_policies/cva6_icache_random_rp.cc b/src/mem/cache/replacement_policies/cva6_icache_random_rp.cc
 new file mode 100644
-index 0000000000..b86bdf7fb1
+index 0000000..b86bdf7
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.cc
 @@ -0,0 +1,122 @@
@@ -2179,7 +2518,7 @@ index 0000000000..b86bdf7fb1
 +} // namespace gem5
 diff --git a/src/mem/cache/replacement_policies/cva6_icache_random_rp.hh b/src/mem/cache/replacement_policies/cva6_icache_random_rp.hh
 new file mode 100644
-index 0000000000..8a90a14e3d
+index 0000000..8a90a14
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/cva6_icache_random_rp.hh
 @@ -0,0 +1,119 @@
@@ -2304,7 +2643,7 @@ index 0000000000..8a90a14e3d
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_CVA6_ICACHE_RANDOM_RP_HH__
 diff --git a/src/mem/cache/replacement_policies/hpdcache_plru_rp.cc b/src/mem/cache/replacement_policies/hpdcache_plru_rp.cc
 new file mode 100644
-index 0000000000..e31154cd2a
+index 0000000..e31154c
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.cc
 @@ -0,0 +1,172 @@
@@ -2482,7 +2821,7 @@ index 0000000000..e31154cd2a
 +} // namespace gem5
 diff --git a/src/mem/cache/replacement_policies/hpdcache_plru_rp.hh b/src/mem/cache/replacement_policies/hpdcache_plru_rp.hh
 new file mode 100644
-index 0000000000..83721639cc
+index 0000000..8372163
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_plru_rp.hh
 @@ -0,0 +1,132 @@
@@ -2620,7 +2959,7 @@ index 0000000000..83721639cc
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_PLRU_RP_HH__
 diff --git a/src/mem/cache/replacement_policies/hpdcache_random_rp.cc b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
 new file mode 100644
-index 0000000000..63ff3908cf
+index 0000000..63ff390
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.cc
 @@ -0,0 +1,187 @@
@@ -2813,7 +3152,7 @@ index 0000000000..63ff3908cf
 +} // namespace gem5
 diff --git a/src/mem/cache/replacement_policies/hpdcache_random_rp.hh b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
 new file mode 100644
-index 0000000000..096024df2f
+index 0000000..096024d
 --- /dev/null
 +++ b/src/mem/cache/replacement_policies/hpdcache_random_rp.hh
 @@ -0,0 +1,127 @@
@@ -2945,7 +3284,7 @@ index 0000000000..096024df2f
 +
 +#endif // __MEM_CACHE_REPLACEMENT_POLICIES_HPDCACHE_RANDOM_RP_HH__
 diff --git a/src/mem/cache/tags/base.hh b/src/mem/cache/tags/base.hh
-index 71b50f6e6b..c05ac41203 100644
+index 71b50f6..c05ac41 100644
 --- a/src/mem/cache/tags/base.hh
 +++ b/src/mem/cache/tags/base.hh
 @@ -325,6 +325,11 @@ class BaseTags : public ClockedObject
@@ -2961,7 +3300,7 @@ index 71b50f6e6b..c05ac41203 100644
       * Regenerate the block address.
       *
 diff --git a/src/mem/cache/tags/base_set_assoc.hh b/src/mem/cache/tags/base_set_assoc.hh
-index fbc525f9e6..c7f807d5e4 100644
+index fbc525f..c7f807d 100644
 --- a/src/mem/cache/tags/base_set_assoc.hh
 +++ b/src/mem/cache/tags/base_set_assoc.hh
 @@ -214,6 +214,12 @@ class BaseSetAssoc : public BaseTags
@@ -2977,3 +3316,19 @@ index fbc525f9e6..c7f807d5e4 100644
      void moveBlock(CacheBlk *src_blk, CacheBlk *dest_blk) override;
  
      /**
+diff --git a/src/mem/port.hh b/src/mem/port.hh
+index 5f977aa..7ca29c7 100644
+--- a/src/mem/port.hh
++++ b/src/mem/port.hh
+@@ -374,6 +374,11 @@ class ResponsePort : public Port, public AtomicResponseProtocol,
+      */
+     bool isSnooping() const { return _requestPort->isSnooping(); }
+ 
++    /** Whether a timing request sent now would be accepted, read
++     * without side effects. Ports that never refuse leave the
++     * default. Transcribes an RTL ready line (cva6_icache.sv). */
++    virtual bool acceptsTimingReq() const { return true; }
++
+     /**
+      * Called by the owner to send a range change
+      */

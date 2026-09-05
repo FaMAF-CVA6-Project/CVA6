@@ -9,7 +9,7 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 | `gem5/gem5_config_CVA6.py` | The matched configuration, for a **stock** gem5 |
 | `gem5/gem5_config_CVA6_Patch.py` | The matched configuration, for a **patched** gem5 |
 | `gem5/gem5_config_CVA6_testing.py` | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39` |
-| `gem5/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 88` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
+| `gem5/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 95` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
 | `gem5/run_CVA6_testing_sweep.py` | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep) |
 | `gem5/MinorCPU_CVA6.patch` | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file |
 | `gem5/tests/` | The gem5 tests side |
@@ -61,7 +61,7 @@ python3 run_gem5.py gem5_config_CVA6.py <test>         # stock gem5
 python3 run_gem5.py gem5_config_CVA6_Patch.py <test>   # patched gem5
 ```
 
-In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. `--no-patch` is all of them at once, which reproduces the stock MinorCPU behaviour the calibration started from. The stock configuration takes no switches, since it carries none of these mechanisms.
+In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. `--no-patch` is all of them at once, which reproduces the stock MinorCPU behaviour the calibration started from. It turns the mechanisms off, not the geometry: the fetch queues stay at 3 where the stock configuration uses 2. The stock configuration takes no switches, since it carries none of these mechanisms.
 
 | Switch | Turns off |
 | --- | --- |
@@ -74,6 +74,9 @@ In the patched version every transcribed mechanism is on by default and each has
 | `--no-fill-phase` | The L1D fill-instant correction |
 | `--no-fence-flush` | A fence flushing the L1D, both the core's signal and the cache acting on it |
 | `--no-fence-squash` | The rule F5 pipeline squash on a committed full fence |
+| `--no-icache-hold` | Fetch1 holding a line at the ready line, back to a refusal and a retry |
+| `--no-kill-on-redirect` | Killed lines freeing their fetch slots at the redirect, back to holding them until their responses return |
+| `--no-icache-structure` | The L1I fill being readable at the fill instant and the full-MSHR retry waiting for it |
 | `--no-window-charge` | The accept-and-charge form of the readout window and its class extras, back to the flat fill split |
 | `--no-cva6-icache-policy` | The transcribed L1I policy, back to gem5 RandomRP |
 | `--no-cva6-direct-targets` | Decode-computed direct targets, and with them the JALR-only tagless BTB |
@@ -139,7 +142,7 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | | **core-wide** | |
 | 39 | threadPolicy -> RoundRobin | daxpy |
 
-**TESTS 40 to 88 and TEST 99 need the patch.**
+**TESTS 40 to 95 and TEST 99 need the patch.**
 
 | # | What it changes | Workload |
 | --- | --- | --- |
@@ -200,10 +203,18 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 83 | adopted stack plus the divsqrt format law | all |
 | 84 | adopted stack plus all | all |
 | | **the final-check probes, on the adopted stack** | |
-| 85 | L1I mshrs 1 -> 2, the I-side retry tax | all |
+| 85 | L1I mshrs 2 -> 1, the I-side retry tax | all |
 | 86 | fetch limit 3, fetch2 buffer 3 | all |
 | 87 | fetch limit 4, fetch2 buffer 3 | all |
 | 88 | L1I reopen at ready | all |
+| | **the structural I-side** | |
+| 89 | mshrs 1, reopen at ready, fetch1 holds | all |
+| 90 | ablation of 89 without reopen at ready | all |
+| 91 | the 89 with fetch limit 3 and buffer 3 | all |
+| 92 | the 90 with fetch limit 3 and buffer 3 | all |
+| 93 | the 92 with the fill readable at the fill | all |
+| 94 | the 93 with kill on redirect | all |
+| 95 | the whole structural I-side, TEST 99's stack | all |
 | | **full patch baseline** | |
 | 99 | full production | all |
 
@@ -307,7 +318,9 @@ The three count disjoint cycles, so summing them is right whichever form is conf
 
 ### What each change models, briefly
 
-**Instruction-side miss acceptance.** The L1I holds two MSHRs, a stock parameter. With one, the line Fetch1 requests during a miss is refused and retried off the clock edge, a tax CVA6 never pays: its icache takes no request during a miss and the frontend presents the next line the cycle the first returns (`cva6_icache.sv` MISS state). With two, the request coalesces or queues at the memory port, and miss chains land at CVA6's one fill per five cycles. The harness reads `overallMshrMisses` on both caches, the refill count the PMU counts.
+**Instruction-side miss acceptance.** The L1I holds two MSHRs, a stock parameter. With one, the line Fetch1 requests during a miss is refused and retried off the clock edge, a tax CVA6 never pays: its icache takes no request during a miss and the frontend presents the next line the cycle the first returns (`cva6_icache.sv` MISS state). With two, the request coalesces or queues at the memory port, and miss chains land at CVA6's one fill per five cycles. Two was a stand-in for structure the model lacked, replaced below. The harness reads `overallMshrMisses` on both caches, the refill count the PMU counts.
+
+**The structural instruction side.** Four parameters replace that MSHR count with the shape the RTL has, all four on by default. `fetch1WaitsForIcache` holds a line at the ready line instead of paying a refusal and a retry, since `cva6_icache.sv` asserts `dreq_o.ready` only in IDLE and READ. `fetch1KillsOnRedirect` frees every in-flight line's fetch slot at the redirect, the frontend side of `kill_s1` and `kill_s2` (327 to 348). `fill_ready_at_fill` makes a block readable at the fill instant, since the icache writes the line in the fill-ack cycle (316 to 325), so the bus terms are not charged twice. `reopen_at_ready` defers the full-MSHR retry until that block is readable. The L1I then runs at one MSHR, the hardware's number, and `TESTS 89` to `95` separate the four.
 
 **Fetch cadence.** CVA6's icache accepts a hit request every cycle in its READ state (`cva6_icache.sv` 263 to 287). Minor's Fetch2 with `fetch2CycleInput` false takes the next line a cycle after exhausting one (`fetch2.cc` 526), half the rate. The configuration sets it true. A stock parameter, not a patch, and the published empirical configuration already carried it.
 
@@ -343,7 +356,7 @@ Six divergences remain, each with a named mechanism and priced where a fix exist
 
 **The FP divider's short path.** The hardware divides and takes square roots of small-mantissa operands in 10 cycles where full-mantissa operands take 15 and 22, the general law the model carries. The trigger is the mantissa length of both divide operands and of the radicand for the root, and a seven-bit radicand still runs short, by 5 and 4. Two probes measured it across fifteen chain blocks, and it is absent from `control_mvp.sv` and `preprocess_mvp.sv` at cvfpu revision 272e6e5, the one the hardware runs, so it is not transcribed.
 
-**The fetch-cadence residue, a priced queue depth.** `basic_test`'s uncompressed sections recovered about 38 of the 49 cycles per pass the cadence fix predicted. The remaining 11 are a second beat: the fetch round trip is 3 cycles, and with `fetch1FetchLimit` and `fetch2InputBufferSize` both at 2 the requests go out two lines every three cycles. Depth 3 was tested and declined: `basic_test` recovered 835 cycles while `btb_pressure` paid 3,505 and the run-ahead gauge moved 4,100 fetches past the hardware. The queues stay at 2 and the row keeps the residue.
+**The fetch-cadence residue, a priced queue depth.** `basic_test`'s uncompressed sections recovered about 38 of the 49 cycles per pass the cadence fix predicted. The remaining 11 are a second beat: the fetch round trip is 3 cycles, and with `fetch1FetchLimit` and `fetch2InputBufferSize` both at 2 the requests go out two lines every three cycles. Depth 3 was tested and declined on the stack of the day: `basic_test` recovered 835 cycles while `btb_pressure` paid 3,505 and the run-ahead gauge moved 4,100 fetches past the hardware. The structural I-side reopened it, since holding at the ready line and killing on a redirect both bound the run-ahead that reading paid for, and the adopted depth is now 3. `TEST 86` and `TEST 91` separate the depth from the mechanisms, and this residue needs re-reading against them.
 
 **daxpy's miss count under the fill split.** With the readout window charging the trigger's own fill instead of a flat delay on every fill, the relative phase of the three streams inside a set changes and the transcribed random policy names a different way on its third visit to each set: 6,595 misses against the hardware's 6,147, worth 379 cycles because Minor's single outstanding miss overlaps most of each with the FP chain. The tier probe shows the same tiers firing at the same rates, so the difference is the LFSR phase.
 
