@@ -98,7 +98,7 @@ Each folder carries a `test_template.c` and a `test_template.S` to start from. B
 Each folder also has a batch runner, for when you want the whole set instead of a single test:
 
 ```bash
-python3 run_all_CVA6_benchmarks.py <target> [folder] [--no-vcd]   # defaults to /cva6/benchmarks/
+python3 run_all_CVA6_benchmarks.py [folder] [--target T] [--no-vcd]   # defaults to /cva6/benchmarks/
 python3 run_all_gem5_benchmarks.py <config>.py [folder] [-j N] [--variant patch|stock] [--no-trace]   # defaults to /gem5/benchmarks/
 ```
 
@@ -372,10 +372,10 @@ gcc -Wall -Wextra -O3 -g -std=c99 -o <executable_name> <program_name>.c
 Then run it on the Verilated CVA6 to produce the VCD trace and the metrics table:
 
 ```bash
-python3 run_CVA6.py <target> <test> [--lang c|asm] [--no-vcd] [--keep-build]
+python3 run_CVA6.py [target] <test> [--lang c|asm] [--no-vcd] [--keep-build]
 ```
 
-- `<target>`: the CVA6 configuration, for example `cv64a6_imafdc_sv39_hpdcache_wb`, the one this fork targets. The cache geometry printed in the table's title is read from that target's `core/include/<target>_config_pkg.sv`.
+- `[target]`: the CVA6 configuration. Optional, and defaults to `cv64a6_imafdc_sv39_hpdcache_wb`, the one this fork targets and the one the overhead tables were measured on. The cache geometry printed in the table's title is read from that target's `core/include/<target>_config_pkg.sv`.
 - `<test>`: a `.c` or `.S/.s/.asm` file. The type is auto-detected from the extension, and `--lang` forces it.
 - `--no-vcd`: skip the trace and report metrics only.
 - `--keep-build`: reuse the Verilated model in `work-ver` instead of rebuilding it. The model does not depend on the test, so this turns a rebuild into a plain run. Only reuse it across runs with the same target and the same trace setting, since both are compiled into the model.

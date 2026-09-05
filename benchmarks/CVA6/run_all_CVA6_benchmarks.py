@@ -21,6 +21,10 @@ DEFAULT_TESTS_DIR = "/cva6/benchmarks"
 # The driver this script delegates to, looked up next to it and then in cwd.
 RUNNER_NAME = "run_CVA6.py"
 
+# Matches run_CVA6.py's own default, the target the overhead tables were
+# measured on.
+DEFAULT_TARGET = "cv64a6_imafdc_sv39_hpdcache_wb"
+
 CVA6_ROOT = "/cva6"
 
 # Where the batch gathers what it keeps, one folder for the whole run.
@@ -296,9 +300,9 @@ def main():
         epilog=f"Templates (any file with '{TEMPLATE_MARKER}' in its name) "
                f"are skipped.\nWith no folder given, "
                f"{DEFAULT_TESTS_DIR} is used.")
-    parser.add_argument("target",
-                        help="Architecture target passed to run_CVA6.py "
-                             "(e.g. cv64a6_imafdc_sv39_hpdcache_wb)")
+    parser.add_argument("--target", default=DEFAULT_TARGET,
+                        help=f"Architecture target passed to run_CVA6.py. "
+                             f"Defaults to {DEFAULT_TARGET}")
     parser.add_argument("folder", nargs="?", default=DEFAULT_TESTS_DIR,
                         help=f"Folder holding the tests. "
                              f"Defaults to {DEFAULT_TESTS_DIR}")
@@ -336,6 +340,12 @@ def main():
     folder = os.path.abspath(args.folder)
     if not os.path.isdir(folder):
         print(f"[ERROR] The folder {folder} does not exist")
+        root = args.cva6_root or CVA6_ROOT
+        if os.path.isfile(os.path.join(root, "core", "include",
+                                       f"{args.folder}_config_pkg.sv")):
+            print(f"[ERROR] '{args.folder}' is a target. It is --target now, "
+                  f"and the only positional is the folder, so leaving both "
+                  f"out runs {DEFAULT_TESTS_DIR} on {DEFAULT_TARGET}.")
         sys.exit(2)
 
     runner = find_runner()
