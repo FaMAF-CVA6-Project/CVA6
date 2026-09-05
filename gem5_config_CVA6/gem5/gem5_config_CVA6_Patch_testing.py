@@ -54,7 +54,7 @@ from m5.objects import (  # type: ignore
 #
 # The table is ordered by what a TEST needs to run. TESTS 1 to 39 use nothing
 # the patch adds, and are the same entries, under the same numbers, as in
-# gem5_config_CVA6_testing.py. TESTS 40 to 70 and TEST 99 need
+# gem5_config_CVA6_testing.py. TESTS 40 to 95 and TEST 99 need
 # MinorCPU_CVA6.patch.
 #
 # TEST table fields (unchanged shape):
@@ -173,7 +173,7 @@ from m5.objects import (  # type: ignore
 #  83   adopted stack plus the divsqrt format law workload: all
 #  84   adopted stack plus all                    workload: all
 #   --- the final-check probes, on the adopted stack ---
-#  85   L1I mshrs 1 -> 2, the I-side retry tax    workload: all
+#  85   L1I mshrs 2 -> 1, the I-side retry tax    workload: all
 #  86   fetch limit 3, fetch2 buffer 3,           workload: all
 #  87   fetch limit 4, fetch2 buffer 3            workload: all
 #  88   L1I reopen at ready                       workload: all
@@ -181,6 +181,9 @@ from m5.objects import (  # type: ignore
 #  90   ablation of 89 without reopen at ready    workload: all
 #  91   the 89 with fetch limit 3 and buffer 3    workload: all
 #  92   the 90 with fetch limit 3 and buffer 3    workload: all
+#  93   the 92 with the fill readable at the fill workload: all
+#  94   the 93 with kill on redirect              workload: all
+#  95   the whole structural I-side, TEST 99      workload: all
 #   --- full patch baseline ---
 #  99   full production                           workload: all
 
@@ -690,7 +693,7 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
     # --- full patch baseline ---
-    85: ("adopted stack, L1I mshrs 2",
+    85: ("adopted stack, L1I mshrs 1, the retry tax",
          {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -702,7 +705,7 @@ TESTS = {
           "victim_readout_first_load_extra": 1,
           "window_accept_and_charge": True,
           "fence_flushes_dcache": True},
-         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 2}, "50MHz", "0ns",
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
     86: ("adopted stack, fetch limit 3, buffer 3",
@@ -821,9 +824,11 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    99: ("full production",
+    93: ("the 92 stack with the fill readable at the fill",
          {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
-          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -833,7 +838,65 @@ TESTS = {
           "victim_readout_first_load_extra": 1,
           "window_accept_and_charge": True,
           "fence_flushes_dcache": True},
-         {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    94: ("the 93 stack with kill on redirect",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3,
+          "fetch1KillsOnRedirect": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    95: ("the 94 stack with reopen at ready, the full shape",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3,
+          "fetch1KillsOnRedirect": True}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True, "reopen_at_ready": True}, "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True}),
+    99: ("full production",
+         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True, "reopen_at_ready": True},
+         "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
 }
@@ -1177,7 +1240,6 @@ class CVA6CPU(RiscvMinorCPU):
 
         self.executeFuncUnits = CVA6FUPool(variant=fu_variant)
 
-        # Adopted baseline, identical to gem5_config_CVA6_Patch.py.
         self.fetch1FetchLimit = 2
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
@@ -1360,7 +1422,6 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
                 self.l1dcaches[i].writeback_clean = True
                 continue
 
-            # Adopted baseline, identical to gem5_config_CVA6_Patch.py.
             self.l1icaches[i].assoc = 4
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1

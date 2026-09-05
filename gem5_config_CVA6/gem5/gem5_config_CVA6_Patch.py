@@ -305,18 +305,17 @@ class CVA6FUPool(MinorFUPool):
 class CVA6CPU(RiscvMinorCPU):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
                  fence_signal=True, ras_no_recovery=True,
-                 fence_squash=True):
+                 fence_squash=True, icache_hold=True, kill_on_redirect=True):
         super().__init__()
 
         self.executeFuncUnits = CVA6FUPool()
 
-        # Pipeline.
-        self.fetch1FetchLimit = 2
+        self.fetch1FetchLimit = 3
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
         self.fetch1ToFetch2BackwardDelay = 0
-        self.fetch2InputBufferSize = 2
+        self.fetch2InputBufferSize = 3
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = True
         self.decodeInputBufferSize = 1
@@ -342,8 +341,9 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeAllowEarlyMemoryIssue = True
         self.threadPolicy = 'SingleThreaded'
         self.enableIdling = False
-        # Requires the MinorCPU patch. Each defaults to the stock behaviour,
-        # so switching a mechanism off here leaves nothing of it behind.
+        # Requires the MinorCPU patch.
+        self.fetch1WaitsForIcache = icache_hold
+        self.fetch1KillsOnRedirect = kill_on_redirect
         self.executeLSQNoStoreForwarding = store_forwarding_model
         self.executeLSQStoreCollisionReplayDelay = (
             STORE_COLLISION_REPLAY_DELAY if store_forwarding_model else 0)
@@ -373,8 +373,6 @@ class CVA6CPU(RiscvMinorCPU):
             self.branchPred.indirectBranchPred = NULL
             self.branchPred.btb.tagBits = 0
 
-        # A separate BranchPredictor parameter, so it is set on its own rather
-        # than inside the branch above.
         if ras_no_recovery:
             self.branchPred.rasNoRecovery = True
 
@@ -382,12 +380,14 @@ class CVA6CPU(RiscvMinorCPU):
 class CVA6Processor(BaseCPUProcessor):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
                  fence_signal=True, ras_no_recovery=True,
-                 fence_squash=True):
+                 fence_squash=True, icache_hold=True, kill_on_redirect=True):
         cpu = CVA6CPU(direct_targets=direct_targets,
                       store_forwarding_model=store_forwarding_model,
                       fence_signal=fence_signal,
                       fence_squash=fence_squash,
-                      ras_no_recovery=ras_no_recovery)
+                      ras_no_recovery=ras_no_recovery,
+                      icache_hold=icache_hold,
+                      kill_on_redirect=kill_on_redirect)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
 
@@ -397,8 +397,9 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
                  victim_readout_stall=True, cva6_victim_policy=True,
                  victim_readable_until_fill=True, fill_phase=True,
                  fence_flush=True, icache_policy=True,
-                 window_charge=True):
+                 window_charge=True, icache_structure=True):
         super().__init__(l1d_size=l1d_size, l1i_size=l1i_size)
+        self._icache_structure = icache_structure
         self._evict_on_allocate = evict_on_allocate
         self._victim_readout_stall = victim_readout_stall
         self._cva6_victim_policy = cva6_victim_policy
@@ -426,6 +427,9 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].data_latency = 1
             self.l1icaches[i].response_latency = 0
             self.l1icaches[i].mshrs = 1
+            if self._icache_structure:
+                self.l1icaches[i].fill_ready_at_fill = True
+                self.l1icaches[i].reopen_at_ready = True
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False
@@ -547,13 +551,23 @@ parser.add_argument("--no-fill-phase", action="store_true",
 parser.add_argument("--no-fence-squash", action="store_true",
                     help="Drop the rule F5 pipeline squash on a committed "
                          "full fence")
+parser.add_argument("--no-icache-hold", action="store_true",
+                    help="Let Fetch1 send into a busy icache and pay the "
+                         "refuse-and-retry round trip instead of holding")
+parser.add_argument("--no-kill-on-redirect", action="store_true",
+                    help="Keep killed lines' fetch slots until their "
+                         "responses return")
+parser.add_argument("--no-icache-structure", action="store_true",
+                    help="Drop fill readiness at the fill and the reopen "
+                         "at readiness on the L1I")
 parser.add_argument("--no-window-charge", action="store_true",
                     help="Drop the accept-and-charge window mechanism and "
                          "its class extras, leaving the flat fill split")
 parser.add_argument("--no-ras-decay", action="store_true",
                     help="Repair the RAS on squash, the stock gem5 "
                          "behaviour, instead of CVA6's unrecovered "
-                         "stack. Independent of --no-cva6-direct-targets")
+                         "stack. Independent of "
+                         "--no-cva6-direct-targets")
 args = parser.parse_args()
 
 if args.no_patch:
@@ -592,7 +606,9 @@ processor = CVA6Processor(direct_targets=direct_targets,
                           store_forwarding_model=store_forwarding_model,
                           fence_signal=fence_flush,
                           ras_no_recovery=ras_no_recovery,
-                          fence_squash=not args.no_fence_squash)
+                          fence_squash=not args.no_fence_squash,
+                          icache_hold=not args.no_icache_hold,
+                          kill_on_redirect=not args.no_kill_on_redirect)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
@@ -605,6 +621,7 @@ cache_hierarchy = CVA6CacheHierarchy(
     window_charge=window_charge,
     fence_flush=fence_flush,
     icache_policy=icache_policy,
+    icache_structure=not args.no_icache_structure,
 )
 
 if args.ddr3:
@@ -644,6 +661,9 @@ active = [n for n, on in (
     ("fill-phase", fill_phase),
     ("window-charge", window_charge),
     ("fence-squash", not args.no_fence_squash),
+    ("icache-hold", not args.no_icache_hold),
+    ("kill-on-redirect", not args.no_kill_on_redirect),
+    ("icache-structure", not args.no_icache_structure),
     ("fence-flush", fence_flush),
     ("cva6-icache-policy", icache_policy),
     ("cva6-direct-targets", direct_targets),
