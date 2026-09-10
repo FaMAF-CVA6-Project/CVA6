@@ -49,6 +49,10 @@ DEFAULT_OUT_DIR = "container_results"
 # runs to gigabytes, so it never reaches the menu.
 NEVER_PULL = {"work-ver", "work-dpi", "build", "__pycache__"}
 
+# Echoed by the probe when the container root is absent, which reads very
+# differently from a root that is simply empty.
+NOROOT = "__no_such_root__"
+
 # What each container holds. The push lists are the two folders the images are
 # meant to look like: drivers and sweeps at the root, both benchmark sets in
 # benchmarks/, the viewer under viewers/ with the server that serves it.
@@ -84,32 +88,32 @@ CONTAINERS = {
             ("viewers/MinorFlow/benchmarks", "/gem5/MinorFlow_benchmarks"),
         ],
     },
-    "cva6": {
-        "root": "/cva6",
+    "CVA6": {
+        "root": "/CVA6",
         "cleaner": "viewers/CVA6Flow/scripts/clean_CVA6_runs.py",
         "tracer": "viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
         "push": [
-            ("viewers/CVA6Flow/scripts/run_CVA6.py", "/cva6/"),
-            ("viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py", "/cva6/"),
-            ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/cva6/"),
-            ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py", "/cva6/"),
+            ("viewers/CVA6Flow/scripts/run_CVA6.py", "/CVA6/"),
+            ("viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py", "/CVA6/"),
+            ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/CVA6/"),
+            ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py", "/CVA6/"),
             # Straight to where the build reads it. This is the CVA6Flow
             # package, the one carrying the configuration table and
             # CVA6_CONFIG_SEL, and it replaces the live one.
             ("viewers/CVA6Flow/configs/"
              "cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv",
-             "/cva6/core/include/"),
+             "/CVA6/core/include/"),
             # The viewer, and the server that puts it in the host's browser.
-            ("viewers/CVA6Flow/CVA6Flow.html", "/cva6/viewers/CVA6Flow/"),
-            ("viewers/CVA6Flow/CVA6Flow_tracer.py", "/cva6/viewers/CVA6Flow/"),
-            ("viewers/CVA6Flow/index.html", "/cva6/viewers/CVA6Flow/"),
+            ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/viewers/CVA6Flow/"),
+            ("viewers/CVA6Flow/CVA6Flow_tracer.py", "/CVA6/viewers/CVA6Flow/"),
+            ("viewers/CVA6Flow/index.html", "/CVA6/viewers/CVA6Flow/"),
             ("viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
-             "/cva6/viewers/CVA6Flow/scripts/"),
-            ("scripts/serve_viewers.py", "/cva6/"),
+             "/CVA6/viewers/CVA6Flow/scripts/"),
+            ("scripts/serve_viewers.py", "/CVA6/"),
         ],
         "push_dirs": [
-            ("gem5_config_CVA6/CVA6/benchmarks", "/cva6/benchmarks"),
-            ("viewers/CVA6Flow/benchmarks", "/cva6/CVA6Flow_benchmarks"),
+            ("gem5_config_CVA6/CVA6/benchmarks", "/CVA6/benchmarks"),
+            ("viewers/CVA6Flow/benchmarks", "/CVA6/CVA6Flow_benchmarks"),
         ],
     },
 }
@@ -190,12 +194,19 @@ def present(name):
     if not paths:
         return []
     # The trailing exit 0 matters: the loop's status is that of its last test,
-    # so a run whose last candidate is absent would look like a failure.
-    script = (f"cd {spec['root']} 2>/dev/null || exit 0; "
+    # so a run whose last candidate is absent would look like a failure. The
+    # marker separates a root that is not there from one that is empty.
+    script = (f"[ -d {spec['root']} ] || {{ echo {NOROOT}; exit 0; }}; "
+              f"cd {spec['root']} || exit 0; "
               "for d in " + " ".join(paths) + "; do "
               "[ -e \"$d\" ] && du -sh \"$d\" 2>/dev/null; done; exit 0")
     r = docker(["exec", name, "sh", "-c", script],
                capture_output=True, text=True)
+    if NOROOT in r.stdout:
+        print(f"[ERROR] '{name}' has no {spec['root']}. An image built "
+              f"before the root was renamed carries the old one, so pull "
+              f"anything wanted out by hand before rebuilding.")
+        return None
     if r.returncode != 0:
         print(f"[ERROR] Could not look inside '{name}'"
               + (f": {r.stderr.strip().splitlines()[0]}" if r.stderr.strip()
@@ -386,12 +397,16 @@ def main():
         print("[ERROR] docker is not on PATH")
         return 2
 
-    unknown = [n for n in args.container if n not in CONTAINERS]
+    # One container is named CVA6 and the other gem5, so the case typed
+    # at the prompt is not held against the reader.
+    folded = {name.lower(): name for name in CONTAINERS}
+    asked = [folded.get(n.lower(), n) for n in args.container]
+    unknown = [n for n in asked if n not in CONTAINERS]
     if unknown:
         print(f"[ERROR] No such container: {', '.join(unknown)}. "
               f"Known: {', '.join(sorted(CONTAINERS))}")
         return 2
-    names = args.container or sorted(CONTAINERS)
+    names = asked or sorted(CONTAINERS)
 
     missing = [n for n in names if container_exists(n) is False]
     if missing:
