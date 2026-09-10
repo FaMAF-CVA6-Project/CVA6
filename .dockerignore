@@ -47,9 +47,9 @@ viewers/*/tests/*.js
 !viewers/*/tests/daxpy.config1.json
 !viewers/*/tests/daxpy.config1.js
 
-# Local scratch and the vendored RTL copies get_cva6_files.py makes.
+# Local scratch and the vendored RTL copies get_CVA6_files.py makes.
 temp/
-cva6_files/
+CVA6_files/
 
 # The paper sources and their images, which no image needs.
 viewers/*/docs/CARLA2026/
