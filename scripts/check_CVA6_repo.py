@@ -642,13 +642,66 @@ def check_script_names():
     return sorted(set(bad))
 
 
+def ignore_rules():
+    """The .dockerignore patterns, in file order, as (negated, pattern).
+
+    Order matters: the last pattern that matches a path is the one that
+    decides, which is how Docker reads the file."""
+    rules = []
+    if not os.path.isfile(os.path.join(REPO, ".dockerignore")):
+        return rules
+    for line in read(".dockerignore").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            negated = line.startswith("!")
+            rules.append((negated, line.lstrip("!").strip().strip("/")))
+    return rules
+
+
+def ignore_match(rel, pattern):
+    """Whether one .dockerignore pattern covers a path or a parent of it.
+
+    A single star stops at a separator and a double star crosses it, unlike
+    fnmatch, where both cross and a top-level pattern would appear to cover
+    everything below it."""
+    out, i = [], 0
+    while i < len(pattern):
+        if pattern.startswith("**", i):
+            out.append(".*")
+            i += 2
+        elif pattern[i] in "*?":
+            out.append("[^/]*" if pattern[i] == "*" else "[^/]")
+            i += 1
+        else:
+            out.append(re.escape(pattern[i]))
+            i += 1
+    expression = re.compile("^" + "".join(out) + "$")
+    parts = rel.split("/")
+    # A pattern naming a folder excludes everything under it, so every parent
+    # is tried as well as the path itself.
+    return any(expression.match("/".join(parts[:n + 1]))
+               for n in range(len(parts)))
+
+
+def in_context(rel, rules):
+    """Whether a path reaches the build context, and the rule that decided."""
+    keep, why = True, None
+    for negated, pattern in rules:
+        if ignore_match(rel, pattern):
+            keep, why = negated, pattern
+    return keep, why
+
+
 def check_dockerfiles():
-    """Every COPY source in the images exists.
+    """Every COPY source exists and survives .dockerignore.
 
     A Dockerfile only fails at build time, which is an hour into the build, so
-    a moved folder is worth catching here."""
+    a moved folder is worth catching here. Existing on disk is not enough: an
+    excluded path is absent from the context, and the COPY then ships nothing
+    without failing, which is the worse of the two."""
     import glob
     bad = []
+    rules = ignore_rules()
     for rel in owned("Dockerfile"):
         text = read(rel).replace("\\\n", " ")
         for line in text.splitlines():
@@ -657,8 +710,22 @@ def check_dockerfiles():
             for src in line.split()[1:-1]:
                 if src.startswith("--"):
                     continue
-                if not glob.glob(os.path.join(REPO, src)):
+                hits = glob.glob(os.path.join(REPO, src))
+                if not hits:
                     bad.append(f"{rel}: COPY {src} matches nothing")
+                    continue
+                # One surviving path is enough: a folder whose excluded
+                # parts are meant to stay out still reaches the context.
+                blame = None
+                for hit in hits:
+                    keep, why = in_context(os.path.relpath(hit, REPO), rules)
+                    if keep:
+                        blame = None
+                        break
+                    blame = why
+                if blame:
+                    bad.append(f"{rel}: COPY {src} is excluded from the "
+                               f"build context by .dockerignore '{blame}'")
     return bad
 
 
