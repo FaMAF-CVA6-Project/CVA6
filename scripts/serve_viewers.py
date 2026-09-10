@@ -15,8 +15,8 @@ a viewer page actually is, and --root overrides it.
 
 Start the container with the port published, or nothing outside it can connect:
 
-    docker run -it --name gem5 -p 8000:8000 manuel313/gem5_v25 bash
-    docker run -it --name cva6 -p 8000:8000 manuel313/cva6 bash
+    docker run -it --name gem5 -p 8000:8000 famafcva6/gem5 bash
+    docker run -it --name CVA6 -p 8000:8000 famafcva6/cva6 bash
 """
 import argparse
 import functools

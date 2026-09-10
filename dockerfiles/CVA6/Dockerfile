@@ -6,7 +6,7 @@
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/CVA6/Dockerfile -t famaf/cva6 .
+#     docker build -f dockerfiles/CVA6/Dockerfile -t famafcva6/cva6:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # The RISC-V toolchain is the expensive step: ~30 GB while building, ~14 GB in
@@ -36,22 +36,22 @@ RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.9/cmake-3.2
     && for b in cmake ccmake cpack ctest; do \
     ln -sf /opt/cmake-3.27.9/bin/$b /usr/local/bin/$b; done
 
-ENV RISCV=/cva6/tools
-ENV PATH=/cva6/tools/bin:${PATH}
+ENV RISCV=/CVA6/tools
+ENV PATH=/CVA6/tools/bin:${PATH}
 
 # ---- the RISC-V toolchain ---------------------------------------------------
 # Only the builder is copied at this point, so editing the RTL or a benchmark
 # does not rebuild GCC. This is the layer worth caching above all others.
-COPY util/toolchain-builder/ /cva6/util/toolchain-builder/
-WORKDIR /cva6/util/toolchain-builder
-RUN bash get-toolchain.sh && bash build-toolchain.sh /cva6/tools
+COPY util/toolchain-builder/ /CVA6/util/toolchain-builder/
+WORKDIR /CVA6/util/toolchain-builder
+RUN bash get-toolchain.sh && bash build-toolchain.sh /CVA6/tools
 
 # ---- Verilator and Spike ----------------------------------------------------
 # Built from the verification harness alone, again before the RTL arrives, so
 # a changed core does not rebuild the simulators.
-COPY verif/ /cva6/verif/
-COPY vendor/ /cva6/vendor/
-WORKDIR /cva6
+COPY verif/ /CVA6/verif/
+COPY vendor/ /CVA6/vendor/
+WORKDIR /CVA6
 RUN pip3 install --no-cache-dir -r verif/sim/dv/requirements.txt
 RUN bash -c "source ./verif/regress/install-verilator.sh" \
     && bash -c "source ./verif/regress/install-spike.sh"
@@ -59,38 +59,38 @@ RUN bash -c "source ./verif/regress/install-verilator.sh" \
 # ---- the design and this project's own files --------------------------------
 # Everything else, last, so an edit here rebuilds one small layer. .dockerignore
 # keeps the run artefacts, the traces and the git history out.
-COPY . /cva6/
+COPY . /CVA6/
 
 # The gem5 side of the project has no business in this image: it would carry
 # the gem5 configurations, the patch, the gem5 benchmarks and the MinorFlow
-# viewer along for no reason and make /cva6 read as something it is not.
-RUN rm -rf /cva6/gem5_config_CVA6/gem5 \
-    /cva6/viewers/MinorFlow \
-    /cva6/dockerfiles \
-    && rm -f /cva6/scripts/get_CVA6_files.py \
-    /cva6/scripts/docker_sync.py \
-    /cva6/scripts/run_config_search_sweep.py
+# viewer along for no reason and make /CVA6 read as something it is not.
+RUN rm -rf /CVA6/gem5_config_CVA6/gem5 \
+    /CVA6/viewers/MinorFlow \
+    /CVA6/dockerfiles \
+    && rm -f /CVA6/scripts/get_CVA6_files.py \
+    /CVA6/scripts/docker_sync.py \
+    /CVA6/scripts/run_config_search_sweep.py
 
-# The drivers run from /cva6, which is what the README documents and what the
+# The drivers run from /CVA6, which is what the README documents and what the
 # hardcoded root expects, so they sit there rather than two folders down.
-RUN cp /cva6/viewers/CVA6Flow/scripts/run_CVA6.py \
-    /cva6/viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
-    /cva6/viewers/CVA6Flow/scripts/clean_CVA6_runs.py /cva6/ \
-    && mkdir -p /cva6/benchmarks \
-    && cp /cva6/gem5_config_CVA6/CVA6/benchmarks/*.c \
-    /cva6/gem5_config_CVA6/CVA6/benchmarks/*.S /cva6/benchmarks/ \
-    && cp /cva6/gem5_config_CVA6/CVA6/benchmarks/.overhead_suite \
-    /cva6/benchmarks/ \
-    && chmod +x /cva6/*.py /cva6/scripts/*.py \
-    /cva6/viewers/CVA6Flow/*.py \
-    /cva6/viewers/CVA6Flow/scripts/*.py
+RUN cp /CVA6/viewers/CVA6Flow/scripts/run_CVA6.py \
+    /CVA6/viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
+    /CVA6/viewers/CVA6Flow/scripts/clean_CVA6_runs.py /CVA6/ \
+    && mkdir -p /CVA6/benchmarks \
+    && cp /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.c \
+    /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.S /CVA6/benchmarks/ \
+    && cp /CVA6/gem5_config_CVA6/CVA6/benchmarks/.overhead_suite \
+    /CVA6/benchmarks/ \
+    && chmod +x /CVA6/*.py /CVA6/scripts/*.py \
+    /CVA6/viewers/CVA6Flow/*.py \
+    /CVA6/viewers/CVA6Flow/scripts/*.py
 
-COPY scripts/serve_viewers.py /cva6/serve_viewers.py
+COPY scripts/serve_viewers.py /CVA6/serve_viewers.py
 
 ENV DV_SIMULATORS=veri-testharness
 
 # The viewer is served rather than opened in the container.
 EXPOSE 8000
 
-WORKDIR /cva6
+WORKDIR /CVA6
 CMD ["/bin/bash"]

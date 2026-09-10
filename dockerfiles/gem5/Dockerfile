@@ -8,7 +8,7 @@
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/gem5/Dockerfile -t famaf/gem5 .
+#     docker build -f dockerfiles/gem5/Dockerfile -t famafcva6/gem5:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # Two gem5 builds are the whole cost: ~25 GB while building, ~12 GB in the

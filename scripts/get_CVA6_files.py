@@ -6,7 +6,7 @@ tree and written with variables the tools expand. This resolves them and copies
 every file into a single directory, which is what the RTL readers and the
 tracer's signal search expect.
 
-  python3 get_CVA6_files.py              # copy into cva6_files/
+  python3 get_CVA6_files.py              # copy into CVA6_files/
   python3 get_CVA6_files.py -o rtl       # a different destination
   python3 get_CVA6_files.py --dry-run    # list what would be copied
   python3 get_CVA6_files.py -v           # name every file as it is copied
@@ -34,7 +34,7 @@ def repo_root():
 
 REPO_ROOT = repo_root()
 
-DEFAULT_DEST = "cva6_files"
+DEFAULT_DEST = "CVA6_files"
 
 # The Flist names the config package through ${TARGET_CFG}, which the build
 # system sets. This is the configuration the project measures.

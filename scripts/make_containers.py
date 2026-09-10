@@ -35,14 +35,14 @@ IMAGE_DISK_GB = {"cva6": 14, "gem5": 12}
 SIDES = {
     "cva6": {
         "dockerfile": "dockerfiles/CVA6/Dockerfile",
-        "local_tag": "famaf/cva6",
-        "published": "manuel313/cva6:latest",
-        "container": "cva6",
+        "local_tag": "famafcva6/cva6:build",
+        "published": "famafcva6/cva6:latest",
+        "container": "CVA6",
     },
     "gem5": {
         "dockerfile": "dockerfiles/gem5/Dockerfile",
-        "local_tag": "famaf/gem5",
-        "published": "manuel313/gem5_v25:latest",
+        "local_tag": "famafcva6/gem5:build",
+        "published": "famafcva6/gem5:latest",
         "container": "gem5",
     },
 }
@@ -161,9 +161,10 @@ def report(mem_gb, cpus, free_gb, sides, build):
     return ok
 
 
-def build_image(side, jobs, dry_run, no_cache):
+def build_image(side, jobs, dry_run, no_cache, extra_args=()):
     """Build one image from the repository root, which is where the recipe
-    expects its context."""
+    expects its context. extra_args is for a caller that needs more of the
+    build than a plain build, such as seeding the cache when publishing."""
     cfg = SIDES[side]
     cmd = ["docker", "build",
            "--build-arg", f"JOBS={jobs}",
@@ -171,6 +172,7 @@ def build_image(side, jobs, dry_run, no_cache):
            "-t", cfg["local_tag"]]
     if no_cache:
         cmd.append("--no-cache")
+    cmd += list(extra_args)
     cmd.append(".")
     print(f"[INFO] Building {cfg['local_tag']} with JOBS={jobs}. "
           f"This takes hours.")
