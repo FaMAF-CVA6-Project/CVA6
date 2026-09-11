@@ -23,11 +23,15 @@ import shutil
 import argparse
 import subprocess
 
-# The folders this repository owns, relative to this script.
+# The folders this repository owns, relative to this script. scripts/ and
+# temp/ are here because importing any tool leaves a __pycache__ in the one,
+# and the scratch notes in the other collect the same.
 PROJECT_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
     "benchmarks",
+    "scripts",
+    "temp",
 ]
 
 # The submodules this script offers to clean after itself.
@@ -38,6 +42,10 @@ SUBMODULE_CLEANERS = [
 
 # Files removed, matched on the end of the name.
 FILE_SUFFIXES = (".list", ".vcd", ".fst")
+
+# Where a submodule keeps its own tools, tried in this order. Naming only the
+# folder would go stale the next time one of them moves.
+CLEANER_DIRS = ("scripts", ".")
 
 TRACE_MARK = "_trace."
 TRACE_END = ".txt"
@@ -160,10 +168,10 @@ def clean_submodules(args):
     if args.no_viewers:
         return
 
-    present = [(sub, script) for sub, script in SUBMODULE_CLEANERS
-               if os.path.isfile(os.path.join(REPO_ROOT, sub, script))]
-    missing = [(sub, script) for sub, script in SUBMODULE_CLEANERS
-               if not os.path.isfile(os.path.join(REPO_ROOT, sub, script))]
+    present, missing = [], []
+    for sub, name in SUBMODULE_CLEANERS:
+        rel = find_cleaner(sub, name)
+        (present if rel else missing).append((sub, rel or name))
     for sub, script in missing:
         print(f"[WARN] {sub}/{script} not found, so that submodule is not "
               f"cleaned. Run 'git submodule update --init' if it is empty.")
@@ -175,6 +183,12 @@ def clean_submodules(args):
         print(f"[INFO] {sub}/ is its own repository, cleaned by {script}")
 
     if not args.yes:
+        # Without a terminal there is nobody to ask, and blocking on a pipe
+        # that never closes is worse than leaving them alone.
+        if not sys.stdin.isatty():
+            print("[INFO] Not a terminal, so submodules are left alone. "
+                  "Pass -y to clean them.")
+            return
         try:
             reply = input("Clean the viewer submodules too? [y/N] ")
         except (EOFError, KeyboardInterrupt):
@@ -199,6 +213,18 @@ def clean_submodules(args):
             subprocess.run(cmd, cwd=os.path.join(REPO_ROOT, sub))
         except OSError as e:
             print(f"[WARN] Could not run {sub}/{script}: {e}")
+
+
+def find_cleaner(sub, name):
+    """A submodule's own cleaner, relative to it, or None when it is absent.
+
+    Looked for rather than spelled out, so a checkout from before the tools
+    moved into scripts/ still cleans."""
+    for folder in CLEANER_DIRS:
+        rel = os.path.normpath(os.path.join(folder, name))
+        if os.path.isfile(os.path.join(REPO_ROOT, sub, rel)):
+            return rel
+    return None
 
 
 def main():
