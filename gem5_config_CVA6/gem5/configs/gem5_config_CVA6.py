@@ -277,18 +277,22 @@ class CVA6FUPool(MinorFUPool):
 
 
 class CVA6CPU(RiscvMinorCPU):
-    def __init__(self):
+    def __init__(self, fetch_limit=None, fetch2_buffer=None):
         super().__init__()
 
         self.executeFuncUnits = CVA6FUPool()
 
         # Pipeline.
-        self.fetch1FetchLimit = 2
+        # The two configs differ here while the fetch depth is undecided, so
+        # a parity run against stock needs a way to make them equal.
+        self.fetch1FetchLimit = (
+            2 if fetch_limit is None else fetch_limit)
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
         self.fetch1ToFetch2BackwardDelay = 0
-        self.fetch2InputBufferSize = 2
+        self.fetch2InputBufferSize = (
+            2 if fetch2_buffer is None else fetch2_buffer)
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = True
         self.decodeInputBufferSize = 1
@@ -334,8 +338,9 @@ class CVA6CPU(RiscvMinorCPU):
 
 
 class CVA6Processor(BaseCPUProcessor):
-    def __init__(self):
-        cpu = CVA6CPU()
+    def __init__(self, fetch_limit=None, fetch2_buffer=None):
+        cpu = CVA6CPU(fetch_limit=fetch_limit,
+                      fetch2_buffer=fetch2_buffer)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
 
@@ -384,6 +389,13 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
 parser = argparse.ArgumentParser(description="CVA6 replication on gem5")
 parser.add_argument("binary", type=str,
                     help="Path to the compiled RISC-V ELF binary")
+parser.add_argument("--fetch-limit", type=int, default=None,
+                    metavar="N",
+                    help="Override fetch1FetchLimit. The two configs differ "
+                         "here, so a parity run needs them equal")
+parser.add_argument("--fetch2-buffer", type=int, default=None, metavar="N",
+                    help="Override fetch2InputBufferSize, for the same "
+                         "reason as --fetch-limit")
 parser.add_argument("--ddr3", action="store_true",
                     help="Use the DDR3-1600 device instead of a flat memory "
                          "at MEM_LATENCY. Matches the Verilator DDR3 model.")
@@ -391,7 +403,8 @@ args = parser.parse_args()
 
 binary = BinaryResource(args.binary)
 
-processor = CVA6Processor()
+processor = CVA6Processor(fetch_limit=args.fetch_limit,
+                          fetch2_buffer=args.fetch2_buffer)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
