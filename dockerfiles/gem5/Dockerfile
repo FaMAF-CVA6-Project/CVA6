@@ -79,9 +79,10 @@ COPY scripts/serve_viewers.py                             /gem5/scripts/
 COPY viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py /gem5/scripts/
 COPY viewers/MinorFlow/                                   /gem5/MinorFlow/
 
-# The viewer arrives whole, so its scripts/ is a second copy of every driver
-# already in /gem5/scripts. One copy is the point of putting them there.
-RUN rm -rf /gem5/MinorFlow/scripts
+# The viewer arrives whole, so its scripts/, configs/ and benchmarks/ would be
+# second copies of what /gem5 holds, and a push refreshes only one of each.
+RUN rm -rf /gem5/MinorFlow/scripts /gem5/MinorFlow/configs \
+    /gem5/MinorFlow/benchmarks /gem5/MinorFlow/docs/CARLA2026
 
 # Every configuration under gem5_configs/, one folder per origin, which is where
 # the drivers look for one given by name alone.
