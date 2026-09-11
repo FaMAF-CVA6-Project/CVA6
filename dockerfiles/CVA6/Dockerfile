@@ -61,9 +61,9 @@ RUN bash -c "source ./verif/regress/install-verilator.sh" \
 # keeps the run artefacts, the traces and the git history out.
 COPY . /CVA6/
 
-# The gem5 side has no business in this image, and the fork's repository
-# tools are for the host, so scripts/ is rebuilt from the drivers that
-# actually run here rather than pruned one name at a time.
+# The gem5 side and the fork's host tools have no business here, and the
+# viewer's scripts/, configs/ and benchmarks/ would be second copies of the
+# root's, so scripts/ is rebuilt and the copies go once they have been read.
 RUN rm -rf /CVA6/gem5_config_CVA6/gem5 /CVA6/dockerfiles /CVA6/scripts \
     && mv /CVA6/viewers/CVA6Flow /CVA6/CVA6Flow \
     && rm -rf /CVA6/viewers \
@@ -83,7 +83,8 @@ RUN rm -rf /CVA6/gem5_config_CVA6/gem5 /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/CVA6Flow/benchmarks/.overhead_suite \
     /CVA6/benchmarks/viewer/ \
     && cp /CVA6/CVA6Flow/configs/*.sv /CVA6/CVA6_configs/ \
-    && rm -rf /CVA6/CVA6Flow/scripts \
+    && rm -rf /CVA6/CVA6Flow/scripts /CVA6/CVA6Flow/configs \
+    /CVA6/CVA6Flow/benchmarks \
     && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
 COPY scripts/serve_viewers.py /CVA6/scripts/serve_viewers.py
