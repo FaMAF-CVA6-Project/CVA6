@@ -7,11 +7,11 @@ it should not be, which no ablation would reveal: every TEST in the campaign
 is measured against the patched build, so a patch that changes behaviour with
 its switches off moves the whole table and nothing flags it.
 
-Run it from the gem5 root, inside the container.
+Run it from the gem5 root, inside the container, where it sits in scripts/.
 
-    python3 check_patch_parity.py                 # run both, then compare
-    python3 check_patch_parity.py -n              # print the commands
-    python3 check_patch_parity.py --compare A B   # compare two metrics files
+    python3 scripts/check_patch_parity.py                 # run both, compare
+    python3 scripts/check_patch_parity.py -n              # print the commands
+    python3 scripts/check_patch_parity.py --compare A B   # two metrics files
 
 Traces are off on both sides, since only the counters are being compared.
 The OFFICIAL column is what is read, not NET: the two builds carry different
@@ -55,6 +55,17 @@ FLOAT_METRICS = ("Sim Seconds", "IPC", "Time")
 FLOAT_TOLERANCE = 1e-9
 
 
+def find_batch():
+    """The batch driver, beside this script first, which is where the image
+    puts it, then in the working directory for a container made before the
+    tools moved into scripts/."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    for candidate in (os.path.join(here, BATCH), os.path.abspath(BATCH)):
+        if os.path.isfile(candidate):
+            return candidate
+    return None
+
+
 def run(cmd, dry_run):
     print("  $ " + " ".join(cmd), flush=True)
     if dry_run:
@@ -63,7 +74,7 @@ def run(cmd, dry_run):
 
 
 def stock_command(args):
-    return ["python3", BATCH, STOCK_CONFIG, args.folder,
+    return ["python3", args.batch, STOCK_CONFIG, args.folder,
             "--variant", "stock", "--no-trace",
             "--out-dir", args.stock_out, "-j", str(args.jobs)]
 
@@ -71,7 +82,7 @@ def stock_command(args):
 def patch_command(args):
     """The patched build with every mechanism off and the stock geometry, so
     the only thing left that could differ is the patch itself."""
-    return ["python3", BATCH, PATCH_CONFIG, args.folder,
+    return ["python3", args.batch, PATCH_CONFIG, args.folder,
             "--variant", "stock", "--build", PATCH_BUILD,
             "--skip-build-check", "--no-trace",
             "--out-dir", args.patch_out, "-j", str(args.jobs),
@@ -194,9 +205,10 @@ def main():
         stock, patched = parse_metrics(left), parse_metrics(right)
         return summarise(stock, patched, compare(stock, patched))
 
-    if not os.path.isfile(BATCH):
-        print(f"[ERROR] No {BATCH} here. Run this from the gem5 root, where "
-              f"the drivers are, inside the container.")
+    args.batch = find_batch()
+    if args.batch is None:
+        print(f"[ERROR] No {BATCH} beside this script or in the working "
+              f"directory. Run it from the gem5 root, inside the container.")
         return 2
 
     print(f"[INFO] Stock build, {STOCK_CONFIG}")
