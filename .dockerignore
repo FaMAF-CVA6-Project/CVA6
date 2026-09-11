@@ -27,16 +27,13 @@
 benchmarks/**/*.list
 gem5_config_CVA6/**/*.list
 viewers/**/*.list
+# Everything a run writes is under results/, so one line covers the lot.
+results/
 m5out/
 work-ver/
 work-dpi/
 build/
 tools/
-run_results/
-batch_results/
-CVA6_testing_sweep_results/
-MinorFlow_sweep_results/
-CVA6Flow_sweep_results/
 
 # The tracer JSONs, which are large and regenerated from a trace.
 gem5_config_CVA6/gem5/tests/
@@ -51,7 +48,10 @@ viewers/*/tests/*.js
 temp/
 CVA6_files/
 
-# The paper sources and their images, which no image needs.
+# The paper sources and their images, which no image needs. Its Reference
+# Core configuration is the exception, since the gem5 image carries it under
+# configs/CARLA2026/ so the published numbers can be reproduced.
 viewers/*/docs/CARLA2026/
+!viewers/*/docs/CARLA2026/gem5_config_Reference_Core.py
 viewers/*/docs/old_versions/
 viewers/*/docs/parser_phases/
