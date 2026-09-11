@@ -55,6 +55,7 @@ Bender.lock
 # Our untracked files
 temp/
 CVA6_files/
+gem5_files/
 verilator_changes/ddr3_memory
 
 # Files too big to be tracked.
