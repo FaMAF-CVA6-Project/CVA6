@@ -9,9 +9,9 @@ Serving also unblocks fetch, which the sample button and a JSON URL need.
     python3 scripts/serve_viewers.py --port 9000
     python3 scripts/serve_viewers.py --root viewers
 
-Inside a container it sits at the root instead, so it is `python3
-serve_viewers.py` there. Either way the folder served is worked out from where
-a viewer page actually is, and --root overrides it.
+Inside a container it sits in scripts/ as well and is run from the root.
+Either way the folder served is worked out from where a viewer page actually
+is, and --root overrides it.
 
 Start the container with the port published, or nothing outside it can connect:
 
@@ -54,9 +54,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 def default_root():
     """The folder to serve when --root is not given.
 
-    This script lives in scripts/ in the repository and at the root of each
-    container image, so neither the working directory nor the script's own
-    folder is right in both places."""
+    It is started from the repository root, a container root or scripts/
+    itself, so the working directory, this script's folder and the one above
+    it are tried in turn."""
     here = os.path.dirname(os.path.abspath(__file__))
     for candidate in (os.getcwd(), here, os.path.dirname(here)):
         if any(os.path.isfile(os.path.join(candidate, page))
