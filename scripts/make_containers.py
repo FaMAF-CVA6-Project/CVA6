@@ -27,22 +27,22 @@ JOB_MEMORY_GB = {"cva6": 2.0, "gem5": 4.0}
 
 # Free space each build needs, which is several times the finished image
 # because the intermediate layers are not reclaimed until it ends.
-BUILD_DISK_GB = {"cva6": 30, "gem5": 25}
+BUILD_DISK_GB = {"cva6": 30, "gem5": 37}
 
 # What a finished container needs on disk, well short of the build figure.
-IMAGE_DISK_GB = {"cva6": 14, "gem5": 12}
+IMAGE_DISK_GB = {"cva6": 14, "gem5": 17}
 
 SIDES = {
     "cva6": {
         "dockerfile": "dockerfiles/CVA6/Dockerfile",
-        "local_tag": "famafcva6/cva6:build",
-        "published": "famafcva6/cva6:latest",
+        "local_tag": "famaf_cva6_project/cva6:build",
+        "published": "famaf_cva6_project/cva6:latest",
         "container": "CVA6",
     },
     "gem5": {
         "dockerfile": "dockerfiles/gem5/Dockerfile",
-        "local_tag": "famafcva6/gem5:build",
-        "published": "famafcva6/gem5:latest",
+        "local_tag": "famaf_cva6_project/gem5:build",
+        "published": "famaf_cva6_project/gem5:latest",
         "container": "gem5",
     },
 }
@@ -54,6 +54,15 @@ VIEWER_PORT = 8000
 # A Verilator build writes large temporaries here, and the 64 MB default is
 # what makes it fail with an out-of-space error that names no file.
 SHM_SIZE = "2g"
+
+# What this project adds to a container. git in there reports every one as
+# untracked, which buries the source change someone is actually looking for.
+OVERLAY = ("scripts/", "gem5_configs/", "CVA6_configs/", "benchmarks/", "results/",
+           "MinorFlow/", "CVA6Flow/", "MinorCPU_CVA6.patch",
+           ".built_patch_sha1", "container_results/")
+
+# Written once, and recognised on a second run so the list is not repeated.
+EXCLUDE_MARKER = "# added by make_containers.py"
 
 
 def repo_root():
@@ -134,6 +143,51 @@ def image_present(tag):
     done = subprocess.run(["docker", "image", "inspect", tag],
                           capture_output=True, text=True)
     return done.returncode == 0
+
+
+def container_root(name):
+    """The project root inside a container, read from the image's own working
+    directory rather than assumed, so an image built before a rename still
+    answers correctly."""
+    done = subprocess.run(
+        ["docker", "inspect", "-f", "{{.Config.WorkingDir}}", name],
+        capture_output=True, text=True)
+    root = done.stdout.strip() if done.returncode == 0 else ""
+    return root or "/" + name
+
+
+def tidy_git(name, dry_run):
+    """Leave git inside the container reporting source changes only.
+
+    The overlay goes in the container's own .gitignore. Files the image
+    deleted are marked skip-worktree, which .gitignore cannot reach and which
+    is all 759 entries on the CVA6 side."""
+    root = container_root(name)
+    script = (
+        'cd "$1" 2>/dev/null || exit 0\n'
+        '[ -d .git ] || exit 0\n'
+        'shift\n'
+        'if ! grep -qF "$MARKER" .gitignore 2>/dev/null; then\n'
+        '  { echo ""; echo "$MARKER"; for p in "$@"; do echo "$p"; done; } '
+        '>> .gitignore\n'
+        'fi\n'
+        'git ls-files --deleted -z | xargs -0 -r git update-index '
+        '--skip-worktree 2>/dev/null\n'
+        'git status --porcelain | wc -l\n')
+    cmd = ["docker", "exec", "-e", f"MARKER={EXCLUDE_MARKER}", name,
+           "sh", "-c", script, "sh", root] + list(OVERLAY)
+    print(f"[INFO] Quieting git in '{name}' at {root}")
+    if dry_run:
+        print("  $ " + " ".join(cmd[:6]) + " ...")
+        return 0
+    done = subprocess.run(cmd, capture_output=True, text=True)
+    if done.returncode != 0:
+        print(f"[WARN] Could not reach git in '{name}', left alone")
+        return 0
+    left = done.stdout.strip().splitlines()
+    print(f"[INFO] git status in '{name}' now reports "
+          f"{left[-1] if left else '?'} entry(ies)")
+    return 0
 
 
 def report(mem_gb, cpus, free_gb, sides, build):
@@ -243,6 +297,11 @@ def main():
                              "exists. Everything inside it is lost")
     parser.add_argument("--no-x11", action="store_true",
                         help="Do not pass the host's display through")
+    parser.add_argument("--no-git-tidy", action="store_true",
+                        help="Leave git inside the container reporting this "
+                             "project's files. Without this they are added to "
+                             "the container's .gitignore and the image's own "
+                             "deletions are marked skip-worktree")
     parser.add_argument("--check", action="store_true",
                         help="Report what this machine can do and stop")
     parser.add_argument("-n", "--dry-run", action="store_true",
@@ -289,6 +348,16 @@ def main():
                 print(f"[ERROR] Pull failed for {side}, stopping.")
                 return 1
         elif not image_present(image) and not args.dry_run:
+            # The image is only needed to make a container, so one that is
+            # already there is no reason to stop. Re-running this to tidy git
+            # in an existing container should not demand a pull.
+            if container_state(cfg["container"]):
+                print(f"[INFO] No image {image} here, but '"
+                      f"{cfg['container']}' exists, so there is nothing to "
+                      f"create.")
+                if not args.no_git_tidy:
+                    tidy_git(cfg["container"], args.dry_run)
+                continue
             print(f"[ERROR] No image {image} here. Pass --pull to fetch it "
                   f"or --build to build it from this tree.")
             return 1
@@ -296,6 +365,8 @@ def main():
                             args.force, not args.no_x11) != 0:
             print(f"[ERROR] Could not create the {side} container.")
             return 1
+        if not args.no_git_tidy:
+            tidy_git(cfg["container"], args.dry_run)
 
     print("[INFO] Done. 'docker exec -it <name> bash' to get a shell, and "
           "'python3 scripts/docker_sync.py push' to send this checkout in.")
