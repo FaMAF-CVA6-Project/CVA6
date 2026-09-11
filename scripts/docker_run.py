@@ -25,6 +25,7 @@ import importlib.util
 import os
 import subprocess
 import sys
+import time
 
 
 def repo_root():
@@ -61,16 +62,34 @@ MAKER = load_module("scripts/make_containers.py", "make_containers")
 CONTAINERS = SYNC.CONTAINERS
 PORT = MAKER.VIEWER_PORT
 
-# The driver each side runs its workloads through, at the container root. The
-# repository's script-names check is what keeps these two names honest.
+# The driver each side runs its workloads through. The repository's
+# script-names check is what keeps these two names honest.
 DRIVERS = {"gem5": "run_gem5.py", "CVA6": "run_CVA6.py"}
 
 # What serve puts in the browser, and the name it is recognised by inside.
 SERVER = "serve_viewers.py"
 
+# Where a tool is looked for inside a container, relative to its root. The
+# images keep them in scripts/, and an older container has them at the root.
+TOOL_DIRS = ("scripts", ".")
+
 
 def docker(args, **kwargs):
     return subprocess.run(["docker"] + args, **kwargs)
+
+
+def tool_path(name, tool):
+    """A tool's path inside the container relative to its root, or None.
+
+    Asked of the container rather than assumed, since a wrong guess under
+    docker exec -d fails without a word and the page simply never loads."""
+    root = CONTAINERS[name]["root"]
+    for folder in TOOL_DIRS:
+        rel = os.path.normpath(os.path.join(folder, tool))
+        if docker(["exec", name, "test", "-f", f"{root}/{rel}"],
+                  capture_output=True).returncode == 0:
+            return rel
+    return None
 
 
 def display_args(args):
@@ -188,17 +207,25 @@ def do_shell(name, args):
                   + ["-w", root, name, "bash"]).returncode
 
 
-def do_exec(name, args, prefix=()):
+def do_exec(name, args, driver=None):
     """Run a command inside, with the side's driver in front of it for run."""
     if not args.command:
-        what = "run" if prefix else "exec"
+        what = "run" if driver else "exec"
         print(f"[ERROR] Nothing to run. Put the command after -- , as in "
               f"'{what} {name} -- --help'.")
         return 2
     if not ready(name, args.yes):
         return 1
     root = CONTAINERS[name]["root"]
-    command = list(prefix) + list(args.command)
+    prefix = []
+    if driver:
+        found = tool_path(name, driver)
+        if found is None:
+            print(f"[ERROR] No {driver} in '{name}' under {root}. Push it "
+                  f"with 'python3 scripts/docker_sync.py push {name}'.")
+            return 1
+        prefix = ["python3", found]
+    command = prefix + list(args.command)
     print(f"[INFO] {name}:{root}$ " + " ".join(command), flush=True)
     if args.dry_run:
         return 0
@@ -235,11 +262,26 @@ def do_serve(name, args):
     print(f"[INFO] {name}: starting {SERVER} in {root}")
     if args.dry_run:
         return 0
+    server = tool_path(name, SERVER)
+    if server is None:
+        print(f"[ERROR] No {SERVER} in '{name}' under {root}. Push it with "
+              f"'python3 scripts/docker_sync.py push {name}'.")
+        return 1
     code = docker(["exec", "-d", "-w", root, name,
-                   "python3", SERVER]).returncode
+                   "python3", server]).returncode
     if code != 0:
         print(f"[ERROR] Could not start {SERVER} in '{name}'")
         return code
+    # docker exec -d reports success before the server has run a line, so a
+    # server that dies at once, on a port already taken say, is looked for.
+    for _ in range(10):
+        if server_pid(name):
+            break
+        time.sleep(0.2)
+    else:
+        print(f"[ERROR] {SERVER} exited as soon as it started. Run "
+              f"'docker_run.py exec {name} -- python3 {server}' to see why.")
+        return 1
     print(f"[INFO] Open {url}")
     print(f"[INFO] 'docker_run.py exec {name} -- pkill -f {SERVER}' stops it")
     return 0
@@ -321,7 +363,7 @@ def main():
     if args.action == "shell":
         return do_shell(names[0], args)
     if args.action == "run":
-        return do_exec(names[0], args, ("python3", DRIVERS[names[0]]))
+        return do_exec(names[0], args, DRIVERS[names[0]])
     if args.action == "exec":
         return do_exec(names[0], args)
 
