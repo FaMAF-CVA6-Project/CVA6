@@ -72,7 +72,20 @@ TEST_TABLES = (
 )
 
 PATCH = "gem5_config_CVA6/gem5/configs/MinorCPU_CVA6.patch"
-GEM5_TAG = "v25.0.0.1"
+
+
+def gem5_tag():
+    """The tag the gem5 image clones, read from its recipe so the patch is
+    checked against the version that is built rather than a second copy of
+    the number. None when the recipe does not say."""
+    path = os.path.join(REPO, "dockerfiles", "gem5", "Dockerfile")
+    if not os.path.isfile(path):
+        return None
+    found = re.search(r"^ARG GEM5_TAG=(\S+)", open(path).read(), re.M)
+    return found.group(1) if found else None
+
+
+GEM5_TAG = gem5_tag()
 GEM5_RAW = f"https://raw.githubusercontent.com/gem5/gem5/{GEM5_TAG}/"
 
 # Groups that are the same configuration on purpose, or were already so when
@@ -92,6 +105,7 @@ KNOWN_DUPLICATE_TESTS = {
 # a rename someone did not finish.
 EXTERNAL_SCRIPTS = {
     "BaseMinorCPU.py", "BranchPredictor.py", "Cache.py",   # gem5 sources
+    "RiscvCPU.py",                                         # gem5 source
     "cva6.py",                                             # verif/sim driver
     "my_config.py",                                        # an example name
 }
@@ -659,7 +673,8 @@ def check_script_names():
             continue
         for match in SCRIPT_PATH.finditer(text):
             named = match.group(1)
-            if os.path.isfile(os.path.join(REPO, named)):
+            if (os.path.isfile(os.path.join(REPO, named))
+                    or os.path.basename(named) in EXTERNAL_SCRIPTS):
                 continue
             line = text[:match.start()].count("\n") + 1
             bad.append(f"{rel}:{line}: {named} is not a path here")
@@ -844,10 +859,13 @@ def check_formatter():
     done = subprocess.run([sys.executable, script, "--check"],
                           capture_output=True, text=True, cwd=REPO)
     out = done.stdout
-    if "autopep8 is not installed" in out:
-        return ["SKIP autopep8 is not installed (pip install autopep8)"]
+    # The Python half could not run meaningfully, because autopep8 is missing
+    # or is not the toolchain the tree was formatted with. Either is a SKIP,
+    # never a pass and never a list of files that are in fact formatted.
+    python_skip = next((line[len("[SKIP] "):] for line in out.splitlines()
+                        if line.startswith("[SKIP] autopep8")), None)
     if done.returncode == 0:
-        return []
+        return [f"SKIP {python_skip}"] if python_skip else []
     files = [ln.strip() for ln in out.splitlines() if ln.startswith("  ")]
     return [f"{f}: not what the formatter produces" for f in files] or [
         "some files are not what the formatter produces"]
