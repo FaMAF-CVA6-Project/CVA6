@@ -6,7 +6,7 @@ message: >-
 title: "FaMAF CVA6 Project: a CVA6 fork calibrated against gem5's MinorCPU"
 abstract: >-
   A frozen fork of the OpenHW Group CORE-V CVA6, used as the real-hardware side
-  of an undergraduate thesis at FaMAF, Universidad Nacional de Cordoba, on how
+  of a thesis at FaMAF, Universidad Nacional de Cordoba, on how
   closely a gem5 MinorCPU configuration can be made to match a real RISC-V core. 
   It adds the matched gem5 configurations and the gem5 patch they depend on, 
   the calibration benchmark set and its sweep harness, the Verilator and gem5 
@@ -17,7 +17,7 @@ authors:
     given-names: "Manuel"
     affiliation: "FaMAF, Universidad Nacional de Córdoba"
     orcid: "https://orcid.org/0009-0007-3893-5628"
-license: Apache-2.0
+license: MIT
 license-url: "https://github.com/FaMAF-CVA6-Project/CVA6/blob/master/LICENSE.FaMAF"
 repository-code: "https://github.com/FaMAF-CVA6-Project/CVA6"
 url: "https://github.com/FaMAF-CVA6-Project/CVA6"
