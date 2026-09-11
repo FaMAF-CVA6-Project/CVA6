@@ -308,17 +308,23 @@ class CVA6FUPool(MinorFUPool):
 class CVA6CPU(RiscvMinorCPU):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
                  fence_signal=True, ras_no_recovery=True,
-                 fence_squash=True, icache_hold=True, kill_on_redirect=True):
+                 fence_squash=True, icache_hold=True,
+                 kill_on_redirect=True, fetch_limit=None,
+                 fetch2_buffer=None):
         super().__init__()
 
         self.executeFuncUnits = CVA6FUPool()
 
-        self.fetch1FetchLimit = 3
+        # The two configs differ here while the fetch depth is undecided, so
+        # a parity run against stock needs a way to make them equal.
+        self.fetch1FetchLimit = (
+            3 if fetch_limit is None else fetch_limit)
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
         self.fetch1ToFetch2BackwardDelay = 0
-        self.fetch2InputBufferSize = 3
+        self.fetch2InputBufferSize = (
+            3 if fetch2_buffer is None else fetch2_buffer)
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = True
         self.decodeInputBufferSize = 1
@@ -383,14 +389,18 @@ class CVA6CPU(RiscvMinorCPU):
 class CVA6Processor(BaseCPUProcessor):
     def __init__(self, direct_targets=True, store_forwarding_model=True,
                  fence_signal=True, ras_no_recovery=True,
-                 fence_squash=True, icache_hold=True, kill_on_redirect=True):
+                 fence_squash=True, icache_hold=True,
+                 kill_on_redirect=True, fetch_limit=None,
+                 fetch2_buffer=None):
         cpu = CVA6CPU(direct_targets=direct_targets,
                       store_forwarding_model=store_forwarding_model,
                       fence_signal=fence_signal,
                       fence_squash=fence_squash,
                       ras_no_recovery=ras_no_recovery,
                       icache_hold=icache_hold,
-                      kill_on_redirect=kill_on_redirect)
+                      kill_on_redirect=kill_on_redirect,
+                      fetch_limit=fetch_limit,
+                      fetch2_buffer=fetch2_buffer)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
 
@@ -518,6 +528,13 @@ class Axi2MemPortedDDR3(ChanneledMemory):
 parser = argparse.ArgumentParser(description="CVA6 replication on gem5")
 parser.add_argument("binary", type=str,
                     help="Path to the compiled RISC-V ELF binary")
+parser.add_argument("--fetch-limit", type=int, default=None,
+                    metavar="N",
+                    help="Override fetch1FetchLimit. The two configs differ "
+                         "here, so a parity run needs them equal")
+parser.add_argument("--fetch2-buffer", type=int, default=None, metavar="N",
+                    help="Override fetch2InputBufferSize, for the same "
+                         "reason as --fetch-limit")
 parser.add_argument("--ddr3", action="store_true",
                     help="Use the DDR3-1600 device instead of a flat memory "
                          "at MEM_LATENCY. Matches the Verilator DDR3 model in "
@@ -620,7 +637,9 @@ processor = CVA6Processor(direct_targets=direct_targets,
                           ras_no_recovery=ras_no_recovery,
                           fence_squash=not args.no_fence_squash,
                           icache_hold=not args.no_icache_hold,
-                          kill_on_redirect=not args.no_kill_on_redirect)
+                          kill_on_redirect=not args.no_kill_on_redirect,
+                          fetch_limit=args.fetch_limit,
+                          fetch2_buffer=args.fetch2_buffer)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
