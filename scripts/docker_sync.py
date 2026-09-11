@@ -54,8 +54,8 @@ NEVER_PULL = {"work-ver", "work-dpi", "build", "__pycache__"}
 NOROOT = "__no_such_root__"
 
 # What each container holds. The push lists are the two folders the images are
-# meant to look like: drivers and sweeps at the root, both benchmark sets in
-# benchmarks/, the viewer under viewers/ with the server that serves it.
+# meant to look like: the tools in scripts/, both benchmark sets under
+# benchmarks/, and the viewer in a folder of its own at the root.
 CONTAINERS = {
     "gem5": {
         "root": "/gem5",
@@ -372,7 +372,14 @@ def do_trace(name, args, pulled):
         if args.dry_run:
             continue
         cmd = [sys.executable, script, folder, "-j", str(args.jobs)]
-        failed += subprocess.run(cmd).returncode != 0
+        code = subprocess.run(cmd).returncode
+        # The batch passes --strict by default and ends with 3 when every
+        # trace converted but some are degraded, which is not a failure.
+        if code == 3:
+            print(f"[WARN] {shown(folder)}: some traces are degraded, see "
+                  f"metadata.degraded in their JSONs")
+        elif code != 0:
+            failed += 1
     return failed
 
 
