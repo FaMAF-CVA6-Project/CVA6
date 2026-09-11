@@ -48,7 +48,7 @@ from m5.objects import (  # type: ignore
 # grouped by the part of the machine it touches, front of the pipeline first.
 #
 # TESTS 1 to 39 are the whole table here, and carry the same numbers as in
-# gem5_config_CVA6_Patch_testing.py. That file continues at TEST 40 with the
+# gem5_config_CVA6_patch_testing.py. That file continues at TEST 40 with the
 # entries that need a patched gem5.
 #
 # TEST table fields (unchanged shape):
