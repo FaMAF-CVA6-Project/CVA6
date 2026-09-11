@@ -2,8 +2,7 @@
 
 A windowed waveform dump, so a long benchmark can be traced at all.
 
-Verilator writes about 63 KB of VCD per simulated cycle on this core. `store_fwd` at 1,602 cycles is 100 MB, `btb_pressure` at 21,945 is 442 MB, and `branch_full_test` at 542,216 would be roughly 34 GB. Upstream dumps from cycle
-zero to the end of the run, so the long rows of the comparison suite cannot be traced without this.
+Verilator writes about 63 KB of VCD per simulated cycle on this core. `store_fwd` at 1,602 cycles is 100 MB, `btb_pressure` at 21,945 is 442 MB, and `branch_full_test` at 542,216 would be roughly 34 GB. Upstream dumps from cycle zero to the end of the run, so the long rows of the comparison suite cannot be traced without this.
 
 ## What is here
 
