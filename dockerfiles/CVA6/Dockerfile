@@ -6,7 +6,7 @@
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/CVA6/Dockerfile -t famafcva6/cva6:build .
+#     docker build -f dockerfiles/CVA6/Dockerfile -t famaf_cva6_project/cva6:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # The RISC-V toolchain is the expensive step: ~30 GB while building, ~14 GB in
@@ -61,31 +61,32 @@ RUN bash -c "source ./verif/regress/install-verilator.sh" \
 # keeps the run artefacts, the traces and the git history out.
 COPY . /CVA6/
 
-# The gem5 side of the project has no business in this image: it would carry
-# the gem5 configurations, the patch, the gem5 benchmarks and the MinorFlow
-# viewer along for no reason and make /CVA6 read as something it is not.
-RUN rm -rf /CVA6/gem5_config_CVA6/gem5 \
-    /CVA6/viewers/MinorFlow \
-    /CVA6/dockerfiles \
-    && rm -f /CVA6/scripts/get_CVA6_files.py \
-    /CVA6/scripts/docker_sync.py \
-    /CVA6/scripts/run_config_search_sweep.py
-
-# The drivers run from /CVA6, which is what the README documents and what the
-# hardcoded root expects, so they sit there rather than two folders down.
-RUN cp /CVA6/viewers/CVA6Flow/scripts/run_CVA6.py \
-    /CVA6/viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
-    /CVA6/viewers/CVA6Flow/scripts/clean_CVA6_runs.py /CVA6/ \
-    && mkdir -p /CVA6/benchmarks \
+# The gem5 side has no business in this image, and the fork's repository
+# tools are for the host, so scripts/ is rebuilt from the drivers that
+# actually run here rather than pruned one name at a time.
+RUN rm -rf /CVA6/gem5_config_CVA6/gem5 /CVA6/dockerfiles /CVA6/scripts \
+    && mv /CVA6/viewers/CVA6Flow /CVA6/CVA6Flow \
+    && rm -rf /CVA6/viewers \
+    && mkdir -p /CVA6/scripts /CVA6/CVA6_configs /CVA6/results \
+    /CVA6/benchmarks/config /CVA6/benchmarks/viewer \
+    && cp /CVA6/CVA6Flow/scripts/run_CVA6.py \
+    /CVA6/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
+    /CVA6/CVA6Flow/scripts/clean_CVA6_runs.py \
+    /CVA6/CVA6Flow/scripts/run_CVA6Flow_sweep.py \
+    /CVA6/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py /CVA6/scripts/ \
     && cp /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.c \
-    /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.S /CVA6/benchmarks/ \
-    && cp /CVA6/gem5_config_CVA6/CVA6/benchmarks/.overhead_suite \
-    /CVA6/benchmarks/ \
-    && chmod +x /CVA6/*.py /CVA6/scripts/*.py \
-    /CVA6/viewers/CVA6Flow/*.py \
-    /CVA6/viewers/CVA6Flow/scripts/*.py
+    /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.S \
+    /CVA6/gem5_config_CVA6/CVA6/benchmarks/.overhead_suite \
+    /CVA6/benchmarks/config/ \
+    && cp /CVA6/CVA6Flow/benchmarks/*.c \
+    /CVA6/CVA6Flow/benchmarks/*.S \
+    /CVA6/CVA6Flow/benchmarks/.overhead_suite \
+    /CVA6/benchmarks/viewer/ \
+    && cp /CVA6/CVA6Flow/configs/*.sv /CVA6/CVA6_configs/ \
+    && rm -rf /CVA6/CVA6Flow/scripts \
+    && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
-COPY scripts/serve_viewers.py /CVA6/serve_viewers.py
+COPY scripts/serve_viewers.py /CVA6/scripts/serve_viewers.py
 
 ENV DV_SIMULATORS=veri-testharness
 
