@@ -62,30 +62,40 @@ CONTAINERS = {
         "cleaner": "viewers/MinorFlow/scripts/clean_gem5_runs.py",
         "tracer": "viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py",
         "push": [
-            # Drivers and sweeps, which run from /gem5.
-            ("viewers/MinorFlow/scripts/run_gem5.py", "/gem5/"),
-            ("viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py", "/gem5/"),
-            ("viewers/MinorFlow/scripts/clean_gem5_runs.py", "/gem5/"),
-            ("viewers/MinorFlow/scripts/run_MinorFlow_sweep.py", "/gem5/"),
-            ("scripts/run_config_search_sweep.py", "/gem5/"),
-            # Configurations, the fork's and the viewer's, plus the patch.
-            ("gem5_config_CVA6/gem5/configs/.", "/gem5/"),
-            ("viewers/MinorFlow/configs/gem5_config_MinorFlow.py", "/gem5/"),
+            # Drivers and sweeps, in the place they have here, run with the
+            # root as the working directory since that is where build/ is.
+            ("viewers/MinorFlow/scripts/run_gem5.py", "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py",
+             "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/clean_gem5_runs.py", "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/run_MinorFlow_sweep.py",
+             "/gem5/scripts/"),
+            ("scripts/run_config_search_sweep.py", "/gem5/scripts/"),
+            ("scripts/check_patch_parity.py", "/gem5/scripts/"),
+            ("scripts/patch_gem5.py", "/gem5/scripts/"),
+            ("scripts/serve_viewers.py", "/gem5/scripts/"),
+            # Configurations under gem5_configs/, a name gem5's own tree
+            # does not use, one folder per origin, plus the patch.
+            ("gem5_config_CVA6/gem5/configs/.", "/gem5/gem5_configs/config/"),
+            ("viewers/MinorFlow/configs/gem5_config_MinorFlow.py",
+             "/gem5/gem5_configs/viewer/"),
             ("viewers/MinorFlow/configs/gem5_config_Reference_Core.py",
-             "/gem5/"),
-            # The viewer, and the server that puts it in the host's browser.
-            ("viewers/MinorFlow/MinorFlow.html", "/gem5/viewers/MinorFlow/"),
-            ("viewers/MinorFlow/MinorFlow_tracer.py",
-             "/gem5/viewers/MinorFlow/"),
-            ("viewers/MinorFlow/index.html", "/gem5/viewers/MinorFlow/"),
+             "/gem5/gem5_configs/viewer/"),
+            # The published paper's own Reference Core, kept apart so the
+            # frozen one is never confused with the live one beside it.
+            ("viewers/MinorFlow/docs/CARLA2026/gem5_config_Reference_Core.py",
+             "/gem5/gem5_configs/CARLA2026/"),
+            # The viewer, at the root rather than under a viewers/ level.
+            ("viewers/MinorFlow/MinorFlow.html", "/gem5/MinorFlow/"),
+            ("viewers/MinorFlow/MinorFlow_tracer.py", "/gem5/MinorFlow/"),
+            ("viewers/MinorFlow/index.html", "/gem5/MinorFlow/"),
             ("viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py",
-             "/gem5/viewers/MinorFlow/scripts/"),
-            ("scripts/serve_viewers.py", "/gem5/"),
+             "/gem5/scripts/"),
         ],
         # Folders copied whole, source -> destination.
         "push_dirs": [
-            ("gem5_config_CVA6/gem5/benchmarks", "/gem5/benchmarks"),
-            ("viewers/MinorFlow/benchmarks", "/gem5/MinorFlow_benchmarks"),
+            ("gem5_config_CVA6/gem5/benchmarks", "/gem5/benchmarks/config"),
+            ("viewers/MinorFlow/benchmarks", "/gem5/benchmarks/viewer"),
         ],
     },
     "CVA6": {
@@ -93,27 +103,32 @@ CONTAINERS = {
         "cleaner": "viewers/CVA6Flow/scripts/clean_CVA6_runs.py",
         "tracer": "viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
         "push": [
-            ("viewers/CVA6Flow/scripts/run_CVA6.py", "/CVA6/"),
-            ("viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py", "/CVA6/"),
-            ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/CVA6/"),
-            ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py", "/CVA6/"),
+            ("viewers/CVA6Flow/scripts/run_CVA6.py", "/CVA6/scripts/"),
+            ("viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py",
+             "/CVA6/scripts/"),
+            ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/CVA6/scripts/"),
+            ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py",
+             "/CVA6/scripts/"),
+            ("scripts/serve_viewers.py", "/CVA6/scripts/"),
             # Straight to where the build reads it. This is the CVA6Flow
             # package, the one carrying the configuration table and
             # CVA6_CONFIG_SEL, and it replaces the live one.
             ("viewers/CVA6Flow/configs/"
              "cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv",
              "/CVA6/core/include/"),
+            ("viewers/CVA6Flow/configs/"
+             "cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv",
+             "/CVA6/CVA6_configs/"),
             # The viewer, and the server that puts it in the host's browser.
-            ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/viewers/CVA6Flow/"),
-            ("viewers/CVA6Flow/CVA6Flow_tracer.py", "/CVA6/viewers/CVA6Flow/"),
-            ("viewers/CVA6Flow/index.html", "/CVA6/viewers/CVA6Flow/"),
+            ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/CVA6Flow/"),
+            ("viewers/CVA6Flow/CVA6Flow_tracer.py", "/CVA6/CVA6Flow/"),
+            ("viewers/CVA6Flow/index.html", "/CVA6/CVA6Flow/"),
             ("viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
-             "/CVA6/viewers/CVA6Flow/scripts/"),
-            ("scripts/serve_viewers.py", "/CVA6/"),
+             "/CVA6/scripts/"),
         ],
         "push_dirs": [
-            ("gem5_config_CVA6/CVA6/benchmarks", "/CVA6/benchmarks"),
-            ("viewers/CVA6Flow/benchmarks", "/CVA6/CVA6Flow_benchmarks"),
+            ("gem5_config_CVA6/CVA6/benchmarks", "/CVA6/benchmarks/config"),
+            ("viewers/CVA6Flow/benchmarks", "/CVA6/benchmarks/viewer"),
         ],
     },
 }
