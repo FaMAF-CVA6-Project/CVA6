@@ -10,6 +10,7 @@ each submodule's own batch script over its own repository.
     python3 scripts/create_all_CVA6_repo_jsons.py -j 8
     python3 scripts/create_all_CVA6_repo_jsons.py --force    # redo existing JSONs
     python3 scripts/create_all_CVA6_repo_jsons.py --dry-run  # list, convert nothing
+    python3 scripts/create_all_CVA6_repo_jsons.py --no-strict  # degraded ok
     python3 scripts/create_all_CVA6_repo_jsons.py --no-submodules
 """
 import argparse
@@ -94,17 +95,24 @@ def find_traces(root):
     return found
 
 
-def run_one(engine, trace, out_json, quiet):
+def run_one(engine, trace, out_json, quiet, strict):
     tracer = os.path.join(REPO_ROOT, ENGINES[engine]["tracer"])
     cmd = [sys.executable, tracer, trace, "-o", out_json]
     if quiet:
         cmd.append("--quiet")
+    if strict:
+        cmd.append("--strict")
     start = time.time()
     # Output is not captured: the tracer's progress line is the only sign of
     # life on a trace that takes minutes.
     code = subprocess.run(cmd).returncode
     took = time.time() - start
     name = os.path.relpath(out_json, REPO_ROOT)
+    if code == 3:
+        # The tracer's strict exit. The JSON was still written, so this is
+        # reported as degraded rather than as a failure.
+        return (f"[DEGRADED] {name} written but the trace is degraded "
+                f"(exit 3, see metadata.degraded)")
     if code != 0:
         return f"[ERROR]   {name} failed with exit code {code}"
     size = os.path.getsize(out_json) / (1024 * 1024)
@@ -135,31 +143,37 @@ def convert(traces, args):
               f"redoes them")
     if not todo:
         print("[INFO] Nothing to convert in the fork itself")
-        return 0
+        return 0, 0
 
     for engine, trace, out_json in todo:
         print(f"[INFO] {engine:5} {os.path.relpath(trace, REPO_ROOT)}")
     if args.dry_run:
         print(f"\n[INFO] Dry run, {len(todo)} trace(s) left alone")
-        return 0
+        return 0, 0
 
     print(f"\n[INFO] Converting {len(todo)} trace(s), {args.jobs} at a time\n")
-    failed = 0
+    failed = degraded = 0
     with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        futures = [pool.submit(run_one, e, t, j, args.quiet)
+        futures = [pool.submit(run_one, e, t, j, args.quiet,
+                               not args.no_strict)
                    for e, t, j in todo]
         for future in as_completed(futures):
             line = future.result()
             failed += line.startswith("[ERROR]")
+            degraded += line.startswith("[DEGRADED]")
             print(line)
-    print(f"\n[INFO] {len(todo) - failed} of {len(todo)} converted")
-    return failed
+    print(f"\n[INFO] {len(todo) - failed - degraded} of {len(todo)} "
+          f"converted cleanly")
+    if degraded:
+        print(f"[WARN] {degraded} trace(s) converted but degraded. The JSONs "
+              f"are written and metadata.degraded names what is missing.")
+    return failed, degraded
 
 
 def run_submodules(args):
     """Each viewer has its own batch script, scoped to its own repository.
     Calling it rather than reaching in keeps that boundary intact."""
-    failed = 0
+    failed = degraded = 0
     for engine, spec in ENGINES.items():
         batch = os.path.join(REPO_ROOT, spec["batch"])
         name = spec["submodule"]
@@ -176,7 +190,7 @@ def run_submodules(args):
                               f"over {name}? [Y/n] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
                 print()
-                return failed
+                return failed, degraded
             if reply in ("n", "no"):
                 continue
         print(f"\n{'=' * 70}\n{name}\n{'=' * 70}")
@@ -185,8 +199,15 @@ def run_submodules(args):
             cmd.append("--force")
         if args.quiet:
             cmd.append("--quiet")
-        failed += subprocess.run(cmd).returncode != 0
-    return failed
+        if args.no_strict:
+            cmd.append("--no-strict")
+        code = subprocess.run(cmd).returncode
+        # 3 is the batch's code for every trace converted, some degraded.
+        if code == 3:
+            degraded += 1
+        elif code != 0:
+            failed += 1
+    return failed, degraded
 
 
 def main():
@@ -213,6 +234,11 @@ def main():
                         help="Stop after the fork's own traces")
     parser.add_argument("-y", "--yes", action="store_true",
                         help="Run the submodules without asking")
+    parser.add_argument("--no-strict", action="store_true",
+                        help="Do not pass --strict to the tracers or the "
+                             "submodules' batch scripts. By default a "
+                             "degraded trace ends the run with exit 3, its "
+                             "JSON still written")
     args = parser.parse_args()
 
     if not os.path.isdir(args.folder):
@@ -228,11 +254,17 @@ def main():
               if e not in absent]
     print(f"[INFO] {len(traces)} trace(s) in the fork itself, under "
           f"{os.path.relpath(os.path.abspath(args.folder), REPO_ROOT) or '.'}")
-    failed = convert(traces, args)
+    failed, degraded = convert(traces, args)
 
     if not args.no_submodules and not args.dry_run:
-        failed += run_submodules(args)
-    return 1 if failed else 0
+        more_failed, more_degraded = run_submodules(args)
+        failed += more_failed
+        degraded += more_degraded
+    # 1 when anything failed, 3 when everything converted but some traces are
+    # degraded, the same codes the tracers and the batch scripts use.
+    if failed:
+        return 1
+    return 3 if degraded else 0
 
 
 if __name__ == "__main__":
