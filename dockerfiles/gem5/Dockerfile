@@ -1,19 +1,21 @@
 # ==============================================================================
 # gem5 image for the FaMAF CVA6 project
 # ==============================================================================
-# Builds gem5 v25.0.0.1 twice from one source tree: build/RISCV from the
-# pristine sources, then build/RISCV_PATCH after applying MinorCPU_CVA6.patch.
+# Builds gem5 v25.0.0.1 three times from one source tree: build/RISCV from the
+# pristine sources, then build/RISCV_PATCH after applying MinorCPU_CVA6.patch,
+# then build/RISCV_EXP from the same patched sources for working on the patch.
 # That order matters, since the driver tells the builds apart by a SimObject
 # only the patch adds.
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/gem5/Dockerfile -t famafcva6/gem5:build .
+#     docker build -f dockerfiles/gem5/Dockerfile -t famaf_cva6_project/gem5:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
-# Two gem5 builds are the whole cost: ~25 GB while building, ~12 GB in the
-# image, one to three hours. Linking peaks near 4 GB per job, so keep JOBS
-# under (RAM in GB) / 4. See the README for the rest.
+# Three gem5 builds are the whole cost, about 4.9 GB of build tree each, so
+# roughly 37 GB while building, 17 GB in the image and two to five hours.
+# Linking peaks near 4 GB per job, so keep JOBS under (RAM in GB) / 4. See
+# the README for the rest.
 # ==============================================================================
 FROM ubuntu:22.04
 
@@ -55,24 +57,50 @@ RUN git apply --check MinorCPU_CVA6.patch \
     && scons defconfig build/RISCV_PATCH build_opts/RISCV \
     && scons build/RISCV_PATCH/gem5.opt -j${JOBS}
 
+# ---- the third build, for working on the patch ------------------------------
+# The same sources as build/RISCV_PATCH, kept apart so an edited patch can be
+# rebuilt without disturbing the build every TEST is measured against. Built
+# now so its objects are warm, which makes a later edit minutes not hours.
+RUN scons defconfig build/RISCV_EXP build_opts/RISCV \
+    && scons build/RISCV_EXP/gem5.opt -j${JOBS}
+
 # ---- what this project adds -------------------------------------------------
 # Copied last, so editing a configuration or a benchmark rebuilds one small
-# layer rather than gem5.
-COPY viewers/MinorFlow/scripts/run_gem5.py                /gem5/
-COPY viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py /gem5/
-COPY viewers/MinorFlow/scripts/clean_gem5_runs.py         /gem5/
-COPY gem5_config_CVA6/gem5/configs/*.py                   /gem5/
-COPY viewers/MinorFlow/                                   /gem5/viewers/MinorFlow/
-COPY scripts/serve_viewers.py                             /gem5/serve_viewers.py
+# layer rather than gem5. They keep the place they have in the repository and
+# still run with the root as the working directory, where build/ is.
+COPY viewers/MinorFlow/scripts/run_gem5.py                /gem5/scripts/
+COPY viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py /gem5/scripts/
+COPY viewers/MinorFlow/scripts/clean_gem5_runs.py         /gem5/scripts/
+COPY viewers/MinorFlow/scripts/run_MinorFlow_sweep.py     /gem5/scripts/
+COPY scripts/run_config_search_sweep.py                   /gem5/scripts/
+COPY scripts/check_patch_parity.py                        /gem5/scripts/
+COPY scripts/patch_gem5.py                                /gem5/scripts/
+COPY scripts/serve_viewers.py                             /gem5/scripts/
+COPY viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py /gem5/scripts/
+COPY viewers/MinorFlow/                                   /gem5/MinorFlow/
 
-# The tests themselves, in the folder run_all_gem5_benchmarks.py looks in by
-# default. Only the programs: the drivers above are the ones that run them.
+# The viewer arrives whole, so its scripts/ is a second copy of every driver
+# already in /gem5/scripts. One copy is the point of putting them there.
+RUN rm -rf /gem5/MinorFlow/scripts
+
+# Every configuration under gem5_configs/, one folder per origin, which is where
+# the drivers look for one given by name alone.
+COPY gem5_config_CVA6/gem5/configs/*.py                /gem5/gem5_configs/config/
+COPY gem5_config_CVA6/gem5/configs/MinorCPU_CVA6.patch /gem5/gem5_configs/config/
+COPY viewers/MinorFlow/configs/*.py                    /gem5/gem5_configs/viewer/
+COPY viewers/MinorFlow/docs/CARLA2026/gem5_config_Reference_Core.py \
+    /gem5/gem5_configs/CARLA2026/
+
+# The tests themselves, one folder per suite, which is what the overhead
+# tables are indexed by. Only the programs: the drivers above run them.
 COPY gem5_config_CVA6/gem5/benchmarks/*.c \
-    gem5_config_CVA6/gem5/benchmarks/*.S /gem5/benchmarks/
-COPY gem5_config_CVA6/gem5/benchmarks/.overhead_suite /gem5/benchmarks/
+    gem5_config_CVA6/gem5/benchmarks/*.S /gem5/benchmarks/config/
+COPY gem5_config_CVA6/gem5/benchmarks/.overhead_suite /gem5/benchmarks/config/
+COPY viewers/MinorFlow/benchmarks/*.c \
+    viewers/MinorFlow/benchmarks/*.S /gem5/benchmarks/viewer/
+COPY viewers/MinorFlow/benchmarks/.overhead_suite /gem5/benchmarks/viewer/
 
-RUN chmod +x /gem5/*.py /gem5/viewers/MinorFlow/*.py \
-    /gem5/viewers/MinorFlow/scripts/*.py
+RUN chmod +x /gem5/scripts/*.py /gem5/MinorFlow/*.py
 
 # The viewers are served rather than opened in the container
 EXPOSE 8000
