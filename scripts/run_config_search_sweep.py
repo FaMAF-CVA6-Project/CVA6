@@ -23,7 +23,9 @@ DEFAULT_CONFIG = "gem5_config_CVA6_patch_testing.py"
 # The swept configuration sets parameters only the patch provides, so the
 # patched build is the one that can run it.
 DEFAULT_VARIANT = "patch"
-DEFAULT_TESTS_DIR = "benchmarks"
+# The calibration set, under benchmarks/config/ in a container or gem5 root.
+# The flat benchmarks/ an older root keeps is tried second.
+DEFAULT_TESTS_DIRS = ("benchmarks/config", "benchmarks")
 DEFAULT_OUT_DIR = os.path.join("results", "sweep_config")
 
 RUNNER_NAME = "run_gem5.py"
@@ -115,8 +117,12 @@ def find_beside_script(name, what, extra=()):
     for candidate in candidates:
         if os.path.isfile(candidate):
             return os.path.abspath(candidate)
-    print(f"[ERROR] {what} ({name}) not found next to this script or in the "
-          f"current directory.")
+    # Beside the script and the working directory are often one folder, so
+    # each place is named once.
+    places = dict.fromkeys(os.path.relpath(os.path.dirname(c))
+                           for c in candidates)
+    print(f"[ERROR] {what} ({name}) not found. Looked in: "
+          + ", ".join(places))
     sys.exit(2)
 
 
@@ -522,9 +528,10 @@ def main():
     parser.add_argument("--configs", default="",
                         help="Which configurations to run, e.g. '1,4-6'. "
                              "Defaults to all of them")
-    parser.add_argument("--tests-dir", default=DEFAULT_TESTS_DIR,
-                        help=f"Folder holding the workloads. Defaults to "
-                             f"{DEFAULT_TESTS_DIR}/")
+    parser.add_argument("--tests-dir", default=None,
+                        help="Folder holding the workloads. Defaults to the "
+                             "first that exists of "
+                             + ", ".join(d + "/" for d in DEFAULT_TESTS_DIRS))
     parser.add_argument("--tests", default="",
                         help="Comma-separated workloads to run for every "
                              "configuration, instead of the ones the table "
@@ -579,9 +586,12 @@ def main():
     config_path = (os.path.abspath(args.config) if args.config
                    else find_beside_script(
                        DEFAULT_CONFIG, "Sweep config",
-                       # Where the config lives in the repository.
-                       extra=[os.path.join("..", "..", "gem5_config_CVA6",
-                                           "gem5")]))
+                       extra=[
+                           # In this repository, from scripts/.
+                           os.path.join("..", "gem5_config_CVA6", "gem5",
+                                        "configs"),
+                           # In a container, from /gem5/scripts.
+                           os.path.join("..", "gem5_configs", "config")]))
     if not os.path.isfile(config_path):
         print(f"[ERROR] The configuration file '{config_path}' does not exist")
         sys.exit(2)
@@ -612,6 +622,9 @@ def main():
     print("CVA6 TESTING SWEEP")
     print(SEP)
     print(f"Config    : {config_path}")
+    if args.tests_dir is None:
+        args.tests_dir = next((d for d in DEFAULT_TESTS_DIRS
+                               if os.path.isdir(d)), DEFAULT_TESTS_DIRS[0])
     print(f"Tests dir : {os.path.abspath(args.tests_dir)}")
     print(f"Out dir   : {os.path.abspath(args.out_dir)}")
     print(f"Jobs      : {max(1, args.jobs)}")
