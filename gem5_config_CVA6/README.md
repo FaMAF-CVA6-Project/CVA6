@@ -7,9 +7,9 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 | Path                                             | What it is                                                                                                                                                |
 | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `gem5/configs/gem5_config_CVA6.py`               | The matched configuration, for a **stock** gem5                                                                                                           |
-| `gem5/configs/gem5_config_CVA6_Patch.py`         | The matched configuration, for a **patched** gem5                                                                                                         |
+| `gem5/configs/gem5_config_CVA6_patch.py`         | The matched configuration, for a **patched** gem5                                                                                                         |
 | `gem5/configs/gem5_config_CVA6_testing.py`       | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39`                                                    |
-| `gem5/configs/gem5_config_CVA6_Patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 95` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
+| `gem5/configs/gem5_config_CVA6_patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 95` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
 | `../scripts/run_config_search_sweep.py`          | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep)                                              |
 | `gem5/configs/MinorCPU_CVA6.patch`               | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file                                                   |
 | `gem5/tests/`                                    | The gem5 tests side                                                                                                                                       |
@@ -23,7 +23,7 @@ They all live in [gem5/benchmarks/](gem5/benchmarks/) and [CVA6/benchmarks/](CVA
 
 ## The matched configuration
 
-It comes in two versions. `gem5_config_CVA6.py` runs on a **stock gem5**, using only what upstream already provides, so it works against an unmodified build. `gem5_config_CVA6_Patch.py` runs on a **patched gem5** and adds the mechanisms the patch makes available. Each has a `_testing` twin carrying the calibration table.
+It comes in two versions. `gem5_config_CVA6.py` runs on a **stock gem5**, using only what upstream already provides, so it works against an unmodified build. `gem5_config_CVA6_patch.py` runs on a **patched gem5** and adds the mechanisms the patch makes available. Each has a `_testing` twin carrying the calibration table.
 
 Both target `cv64a6_imafdc_sv39_hpdcache_wb` at 50 MHz, with a 16 KiB L1I and a 32 KiB L1D. Every value is either derived from a CVA6 RTL localparam or is a gem5-side estimate where CVA6 has no clean counterpart.
 
@@ -31,12 +31,12 @@ Run either like any other gem5 config:
 
 ```bash
 python3 run_gem5.py gem5_config_CVA6.py <test>         # stock gem5
-python3 run_gem5.py gem5_config_CVA6_Patch.py <test>   # patched gem5
+python3 run_gem5.py gem5_config_CVA6_patch.py <test>   # patched gem5
 ```
 
 In the patched version every transcribed mechanism is on by default and each has a `--no-` switch that turns it off, so it doubles as its own ablation harness. `--no-patch` is all of them at once, which reproduces the stock MinorCPU behaviour the calibration started from. It turns the mechanisms off, not the geometry: the fetch queues stay at 3 where the stock configuration uses 2. The stock configuration takes no switches, since it carries none of these mechanisms.
 
-**The two arms differ by geometry as well as by mechanism, and the comparison should say so.** `fetch1FetchLimit` and `fetch2InputBufferSize` are both 2 in `gem5_config_CVA6.py` and both 3 in `gem5_config_CVA6_Patch.py`, while the TEST grid states its deltas against a baseline of `fetch1FetchLimit 2` (rows 2, 3, 75, 76). The 3/3 value is defensible on RTL grounds, since the I-cache holds three lines in flight with a three-deep Fetch2 buffer, but it means the patched and unpatched figures are not separated by the mechanisms alone. It is not a small effect, and on this suite it is not a second-order one either.
+**The two arms differ by geometry as well as by mechanism, and the comparison should say so.** `fetch1FetchLimit` and `fetch2InputBufferSize` are both 2 in `gem5_config_CVA6.py` and both 3 in `gem5_config_CVA6_patch.py`, while the TEST grid states its deltas against a baseline of `fetch1FetchLimit 2` (rows 2, 3, 75, 76). The 3/3 value is defensible on RTL grounds, since the I-cache holds three lines in flight with a three-deep Fetch2 buffer, but it means the patched and unpatched figures are not separated by the mechanisms alone. It is not a small effect, and on this suite it is not a second-order one either.
 
 | Switch                            | Turns off                                                                                                 |
 | --------------------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -60,7 +60,7 @@ In the patched version every transcribed mechanism is on by default and each has
 
 ### The calibration table
 
-`gem5_config_CVA6_Patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, `TEST 99` is the full production configuration, and every other entry is a single-knob perturbation.
+`gem5_config_CVA6_patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, `TEST 99` is the full production configuration, and every other entry is a single-knob perturbation.
 
 The table is ordered by what an entry needs to run, then by the part of the machine it touches, front of the pipeline first. `gem5_config_CVA6_testing.py` carries the first tier, `TEST 1` to `TEST 39`, under the same numbers, so a row means the same thing in both files.
 
@@ -229,7 +229,7 @@ That rebuild turns `build/RISCV_PATCH` back into a stock binary, which is rarely
 
 [`run_gem5.py`](../viewers/MinorFlow/scripts/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
 
-Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert. `gem5_config_CVA6_Patch.py --no-patch` is the same test from the other direction, holding the configuration fixed and turning the mechanisms off.
+Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that, and any line that differs is a mechanism leaking when it should be inert. `gem5_config_CVA6_patch.py --no-patch` is the same test from the other direction, holding the configuration fixed and turning the mechanisms off.
 
 ### TO DO
 
@@ -250,7 +250,7 @@ Since every added parameter defaults off, the patched binary running `gem5_confi
 | `victim_readout_stall`                | Cache           | `False` | Charges the dirty-victim data-array readout, `blkSize / 8` cycles                                                                                                                                                                                                                                   |
 | `victim_readout_store_extra`          | Cache           | `0`     | Extra readout-window cycles when a store triggered the eviction                                                                                                                                                                                                                                     |
 | `victim_readout_first_load_extra`     | Cache           | `0`     | Extra readout-window cycles when a lone load triggered the eviction                                                                                                                                                                                                                                 |
-| `refill_window_blocks`                | Cache           | `False` | Blocks the CPU side for `blkSize / 8` cycles while a refill writes the data array. **Not enabled in either production configuration**: it is set only in `gem5_config_CVA6_Patch_testing.py`, where four entries use it, and `window_accept_and_charge` carries the delivered form of the same cost |
+| `refill_window_blocks`                | Cache           | `False` | Blocks the CPU side for `blkSize / 8` cycles while a refill writes the data array. **Not enabled in either production configuration**: it is set only in `gem5_config_CVA6_patch_testing.py`, where four entries use it, and `window_accept_and_charge` carries the delivered form of the same cost |
 | `window_accept_and_charge`            | Cache           | `False` | The accept-and-charge form of both windows: the port never blocks, a request inside a window takes the overlap as latency, the miss that opens a readout window takes it on its own fill                                                                                                            |
 | `victim_readable_until_fill`          | Cache           | `False` | Keeps the victim answering hits until its refill lands                                                                                                                                                                                                                                              |
 | `fill_delay`                          | Cache           | `0`     | Extra cycles from response arrival to fill, without touching shared memory latency                                                                                                                                                                                                                  |
