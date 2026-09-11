@@ -18,13 +18,13 @@ import time
 # ==============================================================================
 # CONFIGURATION
 # ==============================================================================
-DEFAULT_CONFIG = "gem5_config_CVA6_Patch_testing.py"
+DEFAULT_CONFIG = "gem5_config_CVA6_patch_testing.py"
 
 # The swept configuration sets parameters only the patch provides, so the
 # patched build is the one that can run it.
 DEFAULT_VARIANT = "patch"
 DEFAULT_TESTS_DIR = "benchmarks"
-DEFAULT_OUT_DIR = "config_testing_sweep_results"
+DEFAULT_OUT_DIR = os.path.join("results", "sweep_config")
 
 RUNNER_NAME = "run_gem5.py"
 
@@ -33,7 +33,7 @@ RUNNER_NAME = "run_gem5.py"
 GEM5_BINARY_NAMES = ("gem5.opt", "gem5.fast", "gem5.debug")
 
 # Where run_gem5.py has gem5 write, cleared after each collected run.
-GEM5_OUT_DIR = "m5out"
+GEM5_OUT_DIR = os.path.join("results", "m5out")
 
 # Runs to keep in flight at once. Deliberately below the core count:
 # each holds a gem5 process and writes a trace, so memory and disk
@@ -310,9 +310,10 @@ def build_plan(table, config_ids, tests_dir, override_tests):
     return plan
 
 
-def driver_results_dir(runner):
-    """The run_results/ folder run_gem5.py copies its keepers into."""
-    return os.path.join(os.path.dirname(os.path.abspath(runner)), "run_results")
+def driver_results_dir():
+    """The results/run/ folder run_gem5.py copies its keepers into, under the
+    gem5 root, which is the directory the driver is run from."""
+    return os.path.join("results", "run")
 
 
 def job_dirs(runner, label):
@@ -320,7 +321,7 @@ def job_dirs(runner, label):
     concurrent runs cannot overwrite each other's stats.txt, trace or
     binary."""
     return (os.path.join(GEM5_OUT_DIR, label),
-            os.path.join(driver_results_dir(runner), label))
+            os.path.join(driver_results_dir(), label))
 
 
 def write_config_copy(text, config_id, dest_dir, base_name):
@@ -788,7 +789,7 @@ def main():
               f"{os.path.abspath(GEM5_OUT_DIR)}")
     # Whatever the sweep emptied goes, anything a plain run_gem5.py run left
     # in there stays.
-    prune_empty(driver_results_dir(runner))
+    prune_empty(driver_results_dir())
     prune_empty(GEM5_OUT_DIR)
     return 1 if failed else 0
 
