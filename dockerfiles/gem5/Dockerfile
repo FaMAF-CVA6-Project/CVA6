@@ -17,7 +17,9 @@
 # Linking peaks near 4 GB per job, so keep JOBS under (RAM in GB) / 4. See
 # the README for the rest.
 # ==============================================================================
-FROM ubuntu:22.04
+# Noble, not jammy: the benchmark driver compiles with the bitmanip and
+# crypto extensions, which jammy's bare-metal gcc 10 rejects. This ships 13.
+FROM ubuntu:24.04
 
 ARG JOBS=4
 ARG GEM5_TAG=v25.0.0.1

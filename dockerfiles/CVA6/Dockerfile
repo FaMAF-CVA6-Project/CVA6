@@ -53,8 +53,21 @@ COPY verif/ /CVA6/verif/
 COPY vendor/ /CVA6/vendor/
 WORKDIR /CVA6
 RUN pip3 install --no-cache-dir -r verif/sim/dv/requirements.txt
+# Verilator's lexer needs FlexLexer.h, which jammy ships in libfl-dev and
+# which --no-install-recommends leaves out. Installed here, beside its
+# user, so the toolchain layer above stays cached.
+RUN apt-get update && apt-get install -y --no-install-recommends libfl-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Both installers ignore their own failures, and Verilator's default path
+# is not the one setup-env.sh puts on PATH, so both are pinned and checked.
+ENV VERILATOR_INSTALL_DIR=/CVA6/tools/verilator
+ENV SPIKE_INSTALL_DIR=/CVA6/tools/spike
 RUN bash -c "source ./verif/regress/install-verilator.sh" \
-    && bash -c "source ./verif/regress/install-spike.sh"
+    && bash -c "source ./verif/regress/install-spike.sh" \
+    && test -x "${VERILATOR_INSTALL_DIR}/bin/verilator" \
+    && test -x "${SPIKE_INSTALL_DIR}/bin/spike" \
+    && "${VERILATOR_INSTALL_DIR}/bin/verilator" --version
 
 # ---- the design and this project's own files --------------------------------
 # Everything else, last, so an edit here rebuilds one small layer. .dockerignore
