@@ -4,16 +4,18 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 
 ## Layout
 
-| Path                                             | What it is                                                                                                                                                |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gem5/configs/gem5_config_CVA6.py`               | The matched configuration, for a **stock** gem5                                                                                                           |
-| `gem5/configs/gem5_config_CVA6_patch.py`         | The matched configuration, for a **patched** gem5                                                                                                         |
-| `gem5/configs/gem5_config_CVA6_testing.py`       | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39`                                                    |
-| `gem5/configs/gem5_config_CVA6_patch_testing.py` | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 95` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` |
-| `../scripts/run_config_search_sweep.py`          | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep)                                              |
-| `gem5/configs/MinorCPU_CVA6.patch`               | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file                                                   |
-| `gem5/tests/`                                    | The gem5 tests side                                                                                                                                       |
-| `CVA6/tests/`                                    | The CVA6 tests side                                                                                                                                       |
+| Path                                                                | What it is                                                                                                                                                                                                                                |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gem5/configs/gem5_config_CVA6.py`                                  | The matched configuration, for a **stock** gem5                                                                                                                                                                                           |
+| `gem5/configs/gem5_config_CVA6_patch.py`                            | The matched configuration, for a **patched** gem5                                                                                                                                                                                         |
+| `gem5/configs/gem5_config_CVA6_testing.py`                          | The calibration harness: the stock core as a table of single-knob perturbations, `TEST 1` to `TEST 39` Beside that grid it carries `CACHE_TESTS`, `TEST 201` to `TEST 217`, cache geometry only.                                          |
+| `gem5/configs/gem5_config_CVA6_patch_testing.py`                    | The same 39 entries under the same numbers, then the ones that need the patch, `TEST 40` to `TEST 95` and `TEST 99`. This is the sweep's `DEFAULT_CONFIG` It carries the same `TEST 201` to `TEST 217` cache list under the same numbers. |
+| `../scripts/run_gem5_config_sweep.py`                               | Replays that table, sweeping its `DEFAULT_CONFIG`. See the main [README](../README.md#the-calibration-sweep)                                                                                                                              |
+| `gem5/configs/MinorCPU_CVA6.patch`                                  | Every gem5 change the patched configuration depends on, CPU, front end and caches, in one verified file                                                                                                                                   |
+| `CVA6/configs/cv64a6_imafdc_sv39_hpdcache_wb_config_testing_pkg.sv` | The same package with the cache geometry table and its `CVA6_CONFIG_SEL` selector                                                                                                                                                         |
+| `../scripts/run_CVA6_config_sweep.py`                               | Runs that table on the real core, the RTL side of the cache question                                                                                                                                                                      |
+| `gem5/tests/`                                                       | The gem5 tests side                                                                                                                                                                                                                       |
+| `CVA6/tests/`                                                       | The CVA6 tests side                                                                                                                                                                                                                       |
 
 `DEFAULT_ALL_TESTS` in the sweep names **sixteen** programs, and every entry whose workload is `all` runs all sixteen. Fourteen of them are the comparison suite: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`.
 
@@ -192,6 +194,50 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 95  | the whole structural I-side, TEST 99's stack        | all          |
 |     | **full patch baseline**                             |              |
 | 99  | full production                                     | all          |
+
+### The cache geometry list
+
+`CACHE_TESTS` is a second table in both harnesses, kept apart from the grid above. Nothing in it touches the CPU: it varies only L1I and L1D size and associativity, and each entry runs over more of the benchmark set than a single-knob calibration row does. The ids start at 201, so a number says which table it came from, and a plain sweep leaves them out.
+
+```bash
+python3 scripts/run_gem5_config_sweep.py --configs cache        # the list below
+python3 scripts/run_gem5_config_sweep.py --configs grid         # the table above
+python3 scripts/run_gem5_config_sweep.py --configs all          # both
+python3 scripts/run_gem5_config_sweep.py --configs 208-213      # part of one
+```
+
+Both harnesses carry the same seventeen entries under the same numbers, so a cut can be measured on a stock gem5 and on the patched build and the two compared.
+
+| #   | What it changes                 | Workload                                     |
+| --- | ------------------------------- | -------------------------------------------- |
+| 201 | L1I 4KiB                        | icache_pressure, matmul_small, full_test     |
+| 202 | L1I 8KiB                        | icache_pressure, full_test                   |
+| 203 | L1I 32KiB                       | icache_pressure, full_test                   |
+| 204 | L1I 64KiB                       | icache_pressure, matmul_small                |
+| 205 | L1I direct mapped, assoc 4 -> 1 | icache_pressure, full_test, branch_full_test |
+| 206 | L1I assoc 4 -> 2                | icache_pressure, full_test                   |
+| 207 | L1I assoc 4 -> 8                | icache_pressure, full_test                   |
+| 208 | L1D 8KiB                        | matmul_small, daxpy, store_fwd               |
+| 209 | L1D 16KiB                       | matmul_small, store_fwd                      |
+| 210 | L1D 64KiB                       | matmul_small, daxpy                          |
+| 211 | L1D direct mapped, assoc 8 -> 1 | matmul_small, store_fwd, atomic_fence        |
+| 212 | L1D assoc 8 -> 2                | matmul_small, daxpy, store_fwd               |
+| 213 | L1D assoc 8 -> 4                | matmul_small, store_fwd                      |
+| 214 | L1I 4KiB and L1D 8KiB           | icache_pressure, matmul_small                |
+| 215 | L1I 64KiB and L1D 64KiB         | icache_pressure, matmul_small                |
+| 216 | both direct mapped              | icache_pressure, matmul_small, store_fwd     |
+| 217 | L1I 32KiB and L1D 64KiB         | icache_pressure, matmul_small, daxpy         |
+
+### The same list on the real core
+
+`CVA6/configs/cv64a6_imafdc_sv39_hpdcache_wb_config_testing_pkg.sv` is the RTL counterpart. It is the production configuration package with a table of the same geometries and one selector, `CVA6_CONFIG_SEL`, and its four cache fields read the selected values. The cuts are in the same order as the gem5 list, so **a CFG id plus 199 is the gem5 TEST id**: `CFG_ICACHE_4K` is 2 here and `TEST 201` there.
+
+```bash
+python3 scripts/run_CVA6_config_sweep.py --list          # the eighteen, and their workloads
+python3 scripts/run_CVA6_config_sweep.py --configs 2-8   # the instruction cache cuts
+```
+
+That sweep installs the package over `core/include/`, rebuilds the model, runs each entry's workloads and restores the live package afterwards, on success, on failure and on interrupt. One caution: not every corner has to elaborate. A direct-mapped HPDcache, for instance, may be refused by the RTL, and the sweep reports that configuration as failed and carries on rather than stopping.
 
 ## The patch
 
