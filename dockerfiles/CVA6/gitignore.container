@@ -1,0 +1,33 @@
+# What is generated inside this container, rather than shipped in the image.
+# The image carries no git history, so this file is a list of what a run writes
+# and what is safe to delete, which scripts/clean_CVA6_runs.py acts on.
+
+# Run output. results/ is where the drivers put what is worth keeping.
+results/
+verif/sim/out_*
+work-ver/
+
+# What the harness leaves beside the simulator on every run.
+verif/sim/*.dasm
+verif/sim/*.trace
+verif/sim/logfile.log
+verif/sim/uvm_seed.log
+
+# Waveforms and the listings that go with them. About 63 KB of VCD per
+# simulated cycle, so these are the large ones.
+*.vcd
+*.vcd.*
+*.fst
+*.list
+
+# Python, and the upstream copies scripts/patch_vcd_window.py keeps.
+__pycache__/
+*.pyc
+*.upstream
+
+# What this project adds on top of CVA6, listed so a git status in here shows
+# changed core sources rather than the tooling that came with the image.
+scripts/
+CVA6_configs/
+benchmarks/
+CVA6Flow/
