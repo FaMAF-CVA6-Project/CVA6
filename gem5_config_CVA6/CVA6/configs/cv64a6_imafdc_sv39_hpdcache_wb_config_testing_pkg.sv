@@ -12,10 +12,56 @@
 //
 // Author: Cesar Fuguet - CEA
 // Date: August, 2023
-// Description: CVA6 configuration package using the HPDcache as cache subsystem
+// Description: CVA6 configuration package using the HPDcache as cache
+//              subsystem, with a cache geometry table for the sweep
+//
+// ---------------------------------------------------------------------------
+// NOTICE OF MODIFICATION
+//
+// This file has been modified by the FaMAF CVA6 Project, Universidad Nacional
+// de Cordoba, and is NOT the upstream file. The unmodified original is in this
+// same repository at core/include/cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv
+// and beside this file under that same name.
+//
+// What changed: a table of cache geometries and one selector, CVA6_CONFIG_SEL,
+// were added, and the four cache fields of the configuration struct read the
+// selected values rather than the fixed ones. Nothing else is touched, so
+// CFG_BASELINE elaborates exactly the core the original does.
+//
+// This notice is required by Apache License 2.0 section 4(b), which governs the
+// original file and requires modified files to carry prominent notices stating
+// that they were changed.
+// ---------------------------------------------------------------------------
 
 
 package cva6_config_pkg;
+
+  // Available cache geometries (id : parameter cut : workload). This is the
+  // RTL counterpart of CACHE_TESTS in the gem5 harness, and the same cut has
+  // the same place in both: a CFG id plus 199 is the gem5 TEST id.
+  localparam int CFG_BASELINE      = 1;   // reference, I$ 16K/4w and D$ 32K/8w : all (reference)
+  localparam int CFG_ICACHE_4K     = 2;   // IcacheByteSize 16384 -> 4096   : icache_pressure, matmul_small, full_test
+  localparam int CFG_ICACHE_8K     = 3;   // IcacheByteSize 16384 -> 8192   : icache_pressure, full_test
+  localparam int CFG_ICACHE_32K    = 4;   // IcacheByteSize 16384 -> 32768  : icache_pressure, full_test
+  localparam int CFG_ICACHE_64K    = 5;   // IcacheByteSize 16384 -> 65536  : icache_pressure, matmul_small
+  localparam int CFG_ICACHE_DM     = 6;   // IcacheSetAssoc 4 -> 1          : icache_pressure, full_test, branch_full_test
+  localparam int CFG_ICACHE_ASSOC2 = 7;   // IcacheSetAssoc 4 -> 2          : icache_pressure, full_test
+  localparam int CFG_ICACHE_ASSOC8 = 8;   // IcacheSetAssoc 4 -> 8          : icache_pressure, full_test
+  localparam int CFG_DCACHE_8K     = 9;   // DcacheByteSize 32768 -> 8192   : matmul_small, daxpy, store_fwd
+  localparam int CFG_DCACHE_16K    = 10;  // DcacheByteSize 32768 -> 16384  : matmul_small, store_fwd
+  localparam int CFG_DCACHE_64K    = 11;  // DcacheByteSize 32768 -> 65536  : matmul_small, daxpy
+  localparam int CFG_DCACHE_DM     = 12;  // DcacheSetAssoc 8 -> 1          : matmul_small, store_fwd, atomic_fence
+  localparam int CFG_DCACHE_ASSOC2 = 13;  // DcacheSetAssoc 8 -> 2          : matmul_small, daxpy, store_fwd
+  localparam int CFG_DCACHE_ASSOC4 = 14;  // DcacheSetAssoc 8 -> 4          : matmul_small, store_fwd
+  localparam int CFG_BOTH_SMALL    = 15;  // I$ 4K and D$ 8K                : icache_pressure, matmul_small
+  localparam int CFG_BOTH_LARGE    = 16;  // I$ 64K and D$ 64K              : icache_pressure, matmul_small
+  localparam int CFG_BOTH_DM       = 17;  // both direct mapped             : icache_pressure, matmul_small, store_fwd
+  localparam int CFG_BOTH_DOUBLED  = 18;  // I$ 32K and D$ 64K              : icache_pressure, matmul_small, daxpy
+
+  // =========================================================================
+  // Change this single constant to pick which geometry runs
+  // =========================================================================
+  localparam int CVA6_CONFIG_SEL = CFG_BASELINE;
 
   localparam CVA6ConfigXlen = 64;
 
@@ -50,6 +96,31 @@ package cva6_config_pkg;
   localparam CVA6ConfigDcacheByteSize = 32768;
   localparam CVA6ConfigDcacheSetAssoc = 8;
   localparam CVA6ConfigDcacheLineWidth = 128;
+
+  // The geometry the table above selects. The struct below reads these, so one
+  // constant changes the build and every other parameter stays put.
+  localparam int SwIcacheByteSize =
+      (CVA6_CONFIG_SEL == CFG_ICACHE_4K || CVA6_CONFIG_SEL == CFG_BOTH_SMALL) ? 4096 :
+      (CVA6_CONFIG_SEL == CFG_ICACHE_8K) ? 8192 :
+      (CVA6_CONFIG_SEL == CFG_ICACHE_32K || CVA6_CONFIG_SEL == CFG_BOTH_DOUBLED) ? 32768 :
+      (CVA6_CONFIG_SEL == CFG_ICACHE_64K || CVA6_CONFIG_SEL == CFG_BOTH_LARGE) ? 65536 :
+      CVA6ConfigIcacheByteSize;
+  localparam int SwIcacheSetAssoc =
+      (CVA6_CONFIG_SEL == CFG_ICACHE_DM || CVA6_CONFIG_SEL == CFG_BOTH_DM) ? 1 :
+      (CVA6_CONFIG_SEL == CFG_ICACHE_ASSOC2) ? 2 :
+      (CVA6_CONFIG_SEL == CFG_ICACHE_ASSOC8) ? 8 :
+      CVA6ConfigIcacheSetAssoc;
+  localparam int SwDcacheByteSize =
+      (CVA6_CONFIG_SEL == CFG_DCACHE_8K || CVA6_CONFIG_SEL == CFG_BOTH_SMALL) ? 8192 :
+      (CVA6_CONFIG_SEL == CFG_DCACHE_16K) ? 16384 :
+      (CVA6_CONFIG_SEL == CFG_DCACHE_64K || CVA6_CONFIG_SEL == CFG_BOTH_LARGE
+       || CVA6_CONFIG_SEL == CFG_BOTH_DOUBLED) ? 65536 :
+      CVA6ConfigDcacheByteSize;
+  localparam int SwDcacheSetAssoc =
+      (CVA6_CONFIG_SEL == CFG_DCACHE_DM || CVA6_CONFIG_SEL == CFG_BOTH_DM) ? 1 :
+      (CVA6_CONFIG_SEL == CFG_DCACHE_ASSOC2) ? 2 :
+      (CVA6_CONFIG_SEL == CFG_DCACHE_ASSOC4) ? 4 :
+      CVA6ConfigDcacheSetAssoc;
 
   localparam CVA6ConfigDcacheFlushOnFence = 1'b1;
   localparam CVA6ConfigDcacheInvalidateOnFlush = 1'b0;
@@ -150,12 +221,12 @@ package cva6_config_pkg;
       MaxOutstandingStores: unsigned'(7),
       DebugEn: bit'(1),
       AxiBurstWriteEn: bit'(0),
-      IcacheByteSize: unsigned'(CVA6ConfigIcacheByteSize),
-      IcacheSetAssoc: unsigned'(CVA6ConfigIcacheSetAssoc),
+      IcacheByteSize: unsigned'(SwIcacheByteSize),
+      IcacheSetAssoc: unsigned'(SwIcacheSetAssoc),
       IcacheLineWidth: unsigned'(CVA6ConfigIcacheLineWidth),
       DCacheType: CVA6ConfigDcacheType,
-      DcacheByteSize: unsigned'(CVA6ConfigDcacheByteSize),
-      DcacheSetAssoc: unsigned'(CVA6ConfigDcacheSetAssoc),
+      DcacheByteSize: unsigned'(SwDcacheByteSize),
+      DcacheSetAssoc: unsigned'(SwDcacheSetAssoc),
       DcacheLineWidth: unsigned'(CVA6ConfigDcacheLineWidth),
       DcacheFlushOnFence: bit'(CVA6ConfigDcacheFlushOnFence),
       DcacheInvalidateOnFlush: bit'(CVA6ConfigDcacheInvalidateOnFlush),
