@@ -9,7 +9,7 @@
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/gem5/Dockerfile -t famaf_cva6_project/gem5:build .
+#     docker build -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # Three gem5 builds are the whole cost, about 4.9 GB of build tree each, so
@@ -74,17 +74,21 @@ COPY viewers/MinorFlow/scripts/run_gem5.py                /gem5/scripts/
 COPY viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py /gem5/scripts/
 COPY viewers/MinorFlow/scripts/clean_gem5_runs.py         /gem5/scripts/
 COPY viewers/MinorFlow/scripts/run_MinorFlow_sweep.py     /gem5/scripts/
-COPY scripts/run_config_search_sweep.py                   /gem5/scripts/
+COPY scripts/run_gem5_config_sweep.py                   /gem5/scripts/
 COPY scripts/check_patch_parity.py                        /gem5/scripts/
 COPY scripts/patch_gem5.py                                /gem5/scripts/
-COPY scripts/serve_viewers.py                             /gem5/scripts/
+COPY viewers/MinorFlow/scripts/serve_MinorFlow.py        /gem5/scripts/
 COPY viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py /gem5/scripts/
 COPY viewers/MinorFlow/                                   /gem5/MinorFlow/
 
 # The viewer arrives whole, so its scripts/, configs/ and benchmarks/ would be
-# second copies of what /gem5 holds, and a push refreshes only one of each.
+# second copies of what /gem5 holds, and its README, licence and citation
+# describe the viewer's own repository rather than this container.
 RUN rm -rf /gem5/MinorFlow/scripts /gem5/MinorFlow/configs \
-    /gem5/MinorFlow/benchmarks /gem5/MinorFlow/docs/CARLA2026
+    /gem5/MinorFlow/benchmarks /gem5/MinorFlow/docs/CARLA2026 \
+    /gem5/MinorFlow/README.md /gem5/MinorFlow/LICENSE \
+    /gem5/MinorFlow/CITATION.cff /gem5/MinorFlow/.gitignore \
+    /gem5/MinorFlow/.nojekyll /gem5/MinorFlow/tests/README.md
 
 # Every configuration under gem5_configs/, one folder per origin, which is where
 # the drivers look for one given by name alone.
@@ -103,7 +107,26 @@ COPY viewers/MinorFlow/benchmarks/*.c \
     viewers/MinorFlow/benchmarks/*.S /gem5/benchmarks/viewer/
 COPY viewers/MinorFlow/benchmarks/.overhead_suite /gem5/benchmarks/viewer/
 
-RUN chmod +x /gem5/scripts/*.py /gem5/MinorFlow/*.py
+# results/ is made here rather than left to the first run. The patch is read
+# from gem5_configs/, so the copy the build applied goes, and scons leaves a
+# __pycache__ in every folder it touched, which is build state.
+RUN mkdir -p /gem5/results \
+    && rm -f /gem5/MinorCPU_CVA6.patch \
+    && find /gem5 -name __pycache__ -type d -prune -exec rm -rf {} + \
+    && mv /gem5/README.md /gem5/README.gem5.md \
+    && chmod +x /gem5/scripts/*.py /gem5/MinorFlow/*.py
+
+# The container's own documents. gem5's README is kept as README.gem5.md, and
+# its LICENSE and COPYING stay where they are, since gem5 is in here.
+COPY dockerfiles/gem5/README.md     /gem5/README.md
+COPY dockerfiles/gem5/LICENSE.FaMAF /gem5/LICENSE.FaMAF
+COPY dockerfiles/gem5/CITATION.cff  /gem5/CITATION.cff
+
+# git in here reports changed gem5 sources, so this project's own folders go
+# into the ignore list. make_containers.py finds its marker and adds nothing.
+COPY dockerfiles/gem5/gitignore.extra /gem5/.gitignore.extra
+RUN cat /gem5/.gitignore.extra >> /gem5/.gitignore \
+    && rm /gem5/.gitignore.extra
 
 # The viewers are served rather than opened in the container
 EXPOSE 8000
