@@ -139,7 +139,7 @@ CONTAINERS = {
             # The viewer's swept package, which the sweep installs over the
             # live one when it runs and puts back afterwards.
             ("viewers/CVA6Flow/configs/"
-             "cv64a6_imafdc_sv39_hpdcache_wb_config_viewer_pkg.sv",
+             "cv64a6_imafdc_sv39_hpdcache_wb_config_CVA6Flow_pkg.sv",
              "/CVA6/CVA6_configs/"),
             # The viewer, and the server that puts it in the host's browser.
             ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/CVA6Flow/"),
