@@ -144,8 +144,8 @@ def rebuild(side, jobs, dry_run):
 
 
 def normalised(reference):
-    """A reference with its tag spelled out, so famaf_cva6_project/cva6 and
-    famaf_cva6_project/cva6:latest compare equal. A colon in the last path element
+    """A reference with its tag spelled out, so manuel313/famaf_cva6 and
+    manuel313/famaf_cva6:latest compare equal. A colon in the last path element
     is the tag, anything earlier is a registry port."""
     return (reference if ":" in reference.rsplit("/", 1)[-1]
             else reference + ":latest")
