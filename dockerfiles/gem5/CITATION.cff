@@ -1,0 +1,99 @@
+cff-version: 1.2.0
+message: >-
+  If you use this container, please cite it as below. It packages the FaMAF CVA6
+  Project's additions on top of gem5, which is cited under references along with
+  its papers.
+title: "FaMAF CVA6 Project: the gem5 container"
+abstract: >-
+  A Docker image holding gem5 v25.0.0.1 built three times, with the MinorCPU
+  configuration matched to the CORE-V CVA6 for a thesis at FaMAF, Universidad
+  Nacional de Cordoba, on how closely a gem5 MinorCPU configuration can be made
+  to match a real RISC-V core. It ships the stock and patched builds and a third
+  for working on the patch, the MinorCPU patch itself, the matched
+  configurations and their calibration harness, the calibration and teaching
+  benchmark sets, the run drivers and sweeps, and the MinorFlow pipeline viewer.
+type: software
+authors:
+  - family-names: "Nieto"
+    given-names: "Manuel"
+    affiliation: "FaMAF, Universidad Nacional de Córdoba"
+    orcid: "https://orcid.org/0009-0007-3893-5628"
+license: MIT
+license-url: "https://github.com/FaMAF-CVA6-Project/CVA6/blob/master/dockerfiles/gem5/LICENSE.FaMAF"
+repository-code: "https://github.com/FaMAF-CVA6-Project/CVA6"
+url: "https://hub.docker.com/r/manuel313/famaf_gem5"
+keywords:
+  - RISC-V
+  - gem5
+  - MinorCPU
+  - CVA6
+  - computer architecture
+  - microarchitecture
+  - simulator calibration
+  - Docker
+references:
+  - type: software
+    title: "gem5"
+    abstract: >-
+      The simulator this container carries, built from the v25.0.0.1 tag with
+      this project's MinorCPU patch applied in the tree.
+    version: "v25.0.0.1"
+    repository-code: "https://github.com/gem5/gem5"
+    url: "https://www.gem5.org/"
+    authors:
+      - name: "The gem5 developers"
+  - type: article
+    title: "The gem5 simulator"
+    doi: 10.1145/2024716.2024718
+    year: 2011
+    journal: "ACM SIGARCH Computer Architecture News"
+    authors:
+      - family-names: "Binkert"
+        given-names: "Nathan"
+      - family-names: "Beckmann"
+        given-names: "Bradford"
+      - family-names: "Black"
+        given-names: "Gabriel"
+      - family-names: "Reinhardt"
+        given-names: "Steven K."
+      - family-names: "Saidi"
+        given-names: "Ali"
+      - family-names: "Basu"
+        given-names: "Arkaprava"
+      - family-names: "Hestness"
+        given-names: "Joel"
+      - family-names: "Hower"
+        given-names: "Derek R."
+      - family-names: "Krishna"
+        given-names: "Tushar"
+      - family-names: "Sardashti"
+        given-names: "Somayeh"
+      - family-names: "Sen"
+        given-names: "Rathijit"
+      - family-names: "Sewell"
+        given-names: "Korey"
+      - family-names: "Shoaib"
+        given-names: "Muhammad"
+      - family-names: "Vaish"
+        given-names: "Nilay"
+      - family-names: "Hill"
+        given-names: "Mark D."
+      - family-names: "Wood"
+        given-names: "David A."
+  - type: article
+    title: "The gem5 Simulator: Version 20.0+"
+    url: "https://arxiv.org/abs/2007.03152"
+    year: 2020
+    authors:
+      - name: "Jason Lowe-Power and the gem5 contributors"
+  - type: software
+    title: "MinorFlow"
+    abstract: >-
+      The pipeline viewer shipped in this container, reconstructed from gem5
+      MinorCPU debug traces.
+    repository-code: "https://github.com/FaMAF-CVA6-Project/MinorFlow"
+    url: "https://github.com/FaMAF-CVA6-Project/MinorFlow"
+    authors:
+      - family-names: "Nieto"
+        given-names: "Manuel"
+        orcid: "https://orcid.org/0009-0007-3893-5628"
