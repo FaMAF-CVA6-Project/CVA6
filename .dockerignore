@@ -6,9 +6,14 @@
 #   docker build -f dockerfiles/CVA6/Dockerfile -t famaf/cva6 .
 
 # History and tooling state. A submodule's .git is a file naming a gitdir
-# outside the context, which would sit in the image as a dangling pointer.
+# outside the context, which would sit in the image as a dangling pointer. The
+# CVA6 image makes its own repo for the one source whose commit is checked.
 .git
 **/.git
+# These two describe the build context and this repository's submodules, so
+# neither means anything inside an image.
+.dockerignore
+.gitmodules
 .github
 .gitlab-ci
 .claude
@@ -29,8 +34,10 @@
 benchmarks/**/*.list
 gem5_config_CVA6/**/*.list
 viewers/**/*.list
-# Everything a run writes is under results/, so one line covers the lot.
+# Everything a run writes is under results/, except the simulator's own
+# output folder, which the drivers move there only if the run survives.
 results/
+verif/sim/out_*
 m5out/
 work-ver/
 work-dpi/
@@ -50,6 +57,7 @@ viewers/*/tests/*.js
 temp/
 CVA6_files/
 gem5_files/
+container_results/
 
 # The paper sources and their images, which no image needs. Its Reference
 # Core configuration is the exception, since the gem5 image carries it under
