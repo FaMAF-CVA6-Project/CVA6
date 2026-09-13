@@ -35,20 +35,23 @@ IMAGE_DISK_GB = {"cva6": 14, "gem5": 17}
 SIDES = {
     "cva6": {
         "dockerfile": "dockerfiles/CVA6/Dockerfile",
-        "local_tag": "famaf_cva6_project/cva6:build",
-        "published": "famaf_cva6_project/cva6:latest",
+        "local_tag": "manuel313/famaf_cva6:build",
+        "published": "manuel313/famaf_cva6:latest",
         "container": "CVA6",
+        "host_port": 8001,
     },
     "gem5": {
         "dockerfile": "dockerfiles/gem5/Dockerfile",
-        "local_tag": "famaf_cva6_project/gem5:build",
-        "published": "famaf_cva6_project/gem5:latest",
+        "local_tag": "manuel313/famaf_gem5:build",
+        "published": "manuel313/famaf_gem5:latest",
         "container": "gem5",
+        "host_port": 8000,
     },
 }
 
-# Published so serve_viewers.py can reach the host's browser. The container is
-# useless for viewing without it and it cannot be added to a container later.
+# Published so the viewer's server can reach the host's browser, and it cannot
+# added later. The port inside is the same on both sides and the host one
+# differs per side above, so both containers can serve at the same time.
 VIEWER_PORT = 8000
 
 # A Verilator build writes large temporaries here, and the 64 MB default is
@@ -260,7 +263,7 @@ def create_container(side, image, mem_gb, cpus, dry_run, force, x11):
     limit_cpus = max(1, cpus - 1)
     limit_mem = max(2, int(mem_gb) - 2)
     cmd = ["docker", "run", "-dit", "--name", name,
-           "-p", f"{VIEWER_PORT}:{VIEWER_PORT}",
+           "-p", f"{cfg['host_port']}:{VIEWER_PORT}",
            "--cpus", str(limit_cpus),
            "--memory", f"{limit_mem}g",
            "--shm-size", SHM_SIZE]
@@ -269,7 +272,7 @@ def create_container(side, image, mem_gb, cpus, dry_run, force, x11):
                 "-v", "/tmp/.X11-unix:/tmp/.X11-unix"]
     cmd += [image, "bash"]
     print(f"[INFO] Creating {name}: {limit_cpus} CPU(s), {limit_mem} GB, "
-          f"port {VIEWER_PORT} published")
+          f"port {cfg['host_port']} published as {VIEWER_PORT} inside")
     code, _ = run(cmd, dry_run)
     return code
 
