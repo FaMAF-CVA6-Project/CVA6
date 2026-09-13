@@ -21,6 +21,7 @@ Copy both over their originals, then pass the window to `make`:
 cp ariane_tb.cpp ../../corev_apu/tb/ariane_tb.cpp
 cp Makefile ../../Makefile
 make verilate trace_start=100000 trace_end=200000
+python3 scripts/run_CVA6.py benchmarks/viewer/daxpy.S --keep-build
 ```
 
 `trace_start` and `trace_end` are simulation time, not cycles, and they reach the testbench as the `START_TRACE_CYCLE` and `END_TRACE_CYCLE` defines. Both default to the full run, so an unset window behaves as upstream does.
