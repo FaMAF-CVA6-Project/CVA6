@@ -1,0 +1,57 @@
+This licence covers only the work added to this container by the FaMAF CVA6
+Project. Every path below is a path inside the container:
+
+  - scripts/               the run drivers, the sweep, the cleaner, the VCD
+                           window tool and the viewer server
+  - CVA6_configs/          the configuration package the sweeps read
+  - benchmarks/config/     the calibration programs, written for the gem5
+                           comparison
+  - benchmarks/viewer/     the teaching programs written for the viewer
+  - CVA6Flow/              the CVA6Flow viewer and its tracer, offered under
+                           this same MIT licence in its own repository at
+                           https://github.com/FaMAF-CVA6-Project/CVA6Flow
+  - README.md              the documentation written for this container
+
+  - verilator_changes/     PARTLY, and only the modifications. Both files in
+                           custom_size_vcds/, ariane_tb.cpp and the Makefile,
+                           are modified copies of files belonging to the OpenHW
+                           Group and ETH Zurich. The changes made to them are
+                           this project's. The files themselves stay under
+                           their original Apache 2.0 and Solderpad 0.51 terms,
+                           and each carries a notice saying what was changed,
+                           as those licences require. The unmodified originals
+                           are at corev_apu/tb/ariane_tb.cpp and the Makefile
+                           at the root of this container.
+
+It does not cover the CVA6 core, its SoC wrapper, the verification harness or
+the vendored dependencies. Those are the work of the OpenHW Group and
+contributors and stay under their original licences, preserved in this container
+as LICENSE, LICENSE.Berkeley and LICENSE.SiFive.
+
+It does not cover the toolchain under tools/ either. The RISC-V GNU toolchain,
+Verilator and Spike are built into the image from their own sources and stay
+under their own terms.
+
+--------------------------------------------------------------------------------
+
+MIT License
+
+Copyright (c) 2026 FaMAF CVA6 Project
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
