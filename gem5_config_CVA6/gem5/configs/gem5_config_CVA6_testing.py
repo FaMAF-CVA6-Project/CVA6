@@ -107,6 +107,28 @@ from m5.objects import (  # type: ignore
 #  38   mem latency 0 -> 60ns                     workload: daxpy
 #   --- core-wide ---
 #  39   threadPolicy -> RoundRobin                workload: daxpy
+#
+#   --- cache geometry ---
+# CACHE_TESTS is a table of its own: nothing in it touches the CPU, only L1I
+# and L1D size and associativity, and each entry runs over more of the
+# benchmark set than a single-knob calibration row does.
+# 201   L1I 4KiB                                  workload: icache_pressure, matmul_small, full_test
+# 202   L1I 8KiB                                  workload: icache_pressure, full_test
+# 203   L1I 32KiB                                 workload: icache_pressure, full_test
+# 204   L1I 64KiB                                 workload: icache_pressure, matmul_small
+# 205   L1I direct mapped, assoc 4 -> 1           workload: icache_pressure, full_test, branch_full_test
+# 206   L1I assoc 4 -> 2                          workload: icache_pressure, full_test
+# 207   L1I assoc 4 -> 8                          workload: icache_pressure, full_test
+# 208   L1D 8KiB                                  workload: matmul_small, daxpy, store_fwd
+# 209   L1D 16KiB                                 workload: matmul_small, store_fwd
+# 210   L1D 64KiB                                 workload: matmul_small, daxpy
+# 211   L1D direct mapped, assoc 8 -> 1           workload: matmul_small, store_fwd, atomic_fence
+# 212   L1D assoc 8 -> 2                          workload: matmul_small, daxpy, store_fwd
+# 213   L1D assoc 8 -> 4                          workload: matmul_small, store_fwd
+# 214   both small, L1I 4KiB and L1D 8KiB         workload: icache_pressure, matmul_small
+# 215   both large, L1I 64KiB and L1D 64KiB       workload: icache_pressure, matmul_small
+# 216   both direct mapped                        workload: icache_pressure, matmul_small, store_fwd
+# 217   both doubled, L1I 32KiB and L1D 64KiB     workload: icache_pressure, matmul_small, daxpy
 
 TEST = 1
 
@@ -175,6 +197,33 @@ TESTS = {
     # --- core-wide ---
     39: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
 }
+
+# Cache geometry, kept apart from the grid above. These vary nothing but L1I
+# and L1D size and associativity, which is what the calibration needs the
+# sensitivity of, so they are selected from their own id range.
+CACHE_TESTS = {
+    201: ("L1I 4KiB",                       {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    202: ("L1I 8KiB",                       {}, "8KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    203: ("L1I 32KiB",                      {}, "32KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    204: ("L1I 64KiB",                      {}, "64KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    205: ("L1I direct mapped",              {}, "16KiB", "32KiB", {}, {"assoc": 1}, "50MHz", "0ns", {}),
+    206: ("L1I assoc 4->2",                 {}, "16KiB", "32KiB", {}, {"assoc": 2}, "50MHz", "0ns", {}),
+    207: ("L1I assoc 4->8",                 {}, "16KiB", "32KiB", {}, {"assoc": 8}, "50MHz", "0ns", {}),
+    208: ("L1D 8KiB",                       {}, "16KiB", "8KiB", {}, {}, "50MHz", "0ns", {}),
+    209: ("L1D 16KiB",                      {}, "16KiB", "16KiB", {}, {}, "50MHz", "0ns", {}),
+    210: ("L1D 64KiB",                      {}, "16KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
+    211: ("L1D direct mapped",              {}, "16KiB", "32KiB", {"assoc": 1}, {}, "50MHz", "0ns", {}),
+    212: ("L1D assoc 8->2",                 {}, "16KiB", "32KiB", {"assoc": 2}, {}, "50MHz", "0ns", {}),
+    213: ("L1D assoc 8->4",                 {}, "16KiB", "32KiB", {"assoc": 4}, {}, "50MHz", "0ns", {}),
+    214: ("both small 4KiB/8KiB",           {}, "4KiB", "8KiB", {}, {}, "50MHz", "0ns", {}),
+    215: ("both large 64KiB/64KiB",         {}, "64KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
+    216: ("both direct mapped",             {}, "16KiB", "32KiB", {"assoc": 1}, {"assoc": 1}, "50MHz", "0ns", {}),
+    217: ("both doubled 32KiB/64KiB",       {}, "32KiB", "64KiB", {}, {}, "50MHz", "0ns", {}),
+}
+
+# TEST picks from either table. The two id ranges do not overlap, so a number
+# is enough and the caller never has to say which list it came from.
+ALL_TESTS = {**TESTS, **CACHE_TESTS}
 
 
 def _lit(value):
@@ -720,11 +769,11 @@ if USE_MORILLAS:
     mem_latency = None
     mem_bandwidth = "12.8GiB/s"
 else:
-    if TEST not in TESTS:
+    if TEST not in ALL_TESTS:
         raise ValueError(
-            f"TEST={TEST} is not in the test table. Valid IDs: {sorted(TESTS.keys())}")
+            f"TEST={TEST} is not in the test table. Valid IDs: {sorted(ALL_TESTS.keys())}")
     (test_name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
-     icache_overrides, clk_freq, mem_latency, bp_overrides) = TESTS[TEST]
+     icache_overrides, clk_freq, mem_latency, bp_overrides) = ALL_TESTS[TEST]
     mem_bandwidth = dict(dcache_overrides).get("_mem_bandwidth", "12.8GiB/s")
 
 print("=" * 70)
