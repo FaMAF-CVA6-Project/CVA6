@@ -1,0 +1,69 @@
+cff-version: 1.2.0
+message: >-
+  If you use this container, please cite it as below. It packages the FaMAF CVA6
+  Project's additions on top of the OpenHW Group's CORE-V CVA6, which is cited
+  under references along with its paper.
+title: "FaMAF CVA6 Project: the CVA6 container"
+abstract: >-
+  A Docker image holding the frozen CORE-V CVA6 fork used as the real-hardware
+  side of a thesis at FaMAF, Universidad Nacional de Cordoba, on how closely a
+  gem5 MinorCPU configuration can be made to match a real RISC-V core. It ships
+  the core with a built RISC-V toolchain, Verilator and Spike, the calibration
+  and teaching benchmark sets, the Verilator run drivers and sweep, the windowed
+  waveform dump, and the CVA6Flow pipeline viewer.
+type: software
+authors:
+  - family-names: "Nieto"
+    given-names: "Manuel"
+    affiliation: "FaMAF, Universidad Nacional de Córdoba"
+    orcid: "https://orcid.org/0009-0007-3893-5628"
+license: MIT
+license-url: "https://github.com/FaMAF-CVA6-Project/CVA6/blob/master/dockerfiles/CVA6/LICENSE.FaMAF"
+repository-code: "https://github.com/FaMAF-CVA6-Project/CVA6"
+url: "https://hub.docker.com/r/manuel313/famaf_cva6"
+keywords:
+  - RISC-V
+  - CVA6
+  - Verilator
+  - RTL simulation
+  - computer architecture
+  - microarchitecture
+  - simulator calibration
+  - Docker
+references:
+  - type: software
+    title: "CORE-V CVA6"
+    abstract: >-
+      The upstream core this container carries. Everything under core/,
+      corev_apu/, common/, vendor/ and verif/ is upstream's work unless a file
+      says otherwise.
+    version: "5.3.0"
+    repository-code: "https://github.com/openhwgroup/cva6"
+    url: "https://github.com/openhwgroup/cva6"
+    authors:
+      - name: "OpenHW Group"
+  - type: article
+    title: >-
+      The Cost of Application-Class Processing: Energy and Performance Analysis
+      of a Linux-Ready 1.7-GHz 64-Bit RISC-V Core in 22-nm FDSOI Technology
+    doi: 10.1109/TVLSI.2019.2926114
+    year: 2019
+    journal: "IEEE Transactions on Very Large Scale Integration (VLSI) Systems"
+    authors:
+      - family-names: "Zaruba"
+        given-names: "Florian"
+        orcid: "https://orcid.org/0000-0002-8194-6521"
+      - family-names: "Benini"
+        given-names: "Luca"
+        orcid: "https://orcid.org/0000-0001-8068-3806"
+  - type: software
+    title: "CVA6Flow"
+    abstract: >-
+      The pipeline viewer shipped in this container, reconstructed from
+      Verilator VCD signals.
+    repository-code: "https://github.com/FaMAF-CVA6-Project/CVA6Flow"
+    url: "https://github.com/FaMAF-CVA6-Project/CVA6Flow"
+    authors:
+      - family-names: "Nieto"
+        given-names: "Manuel"
+        orcid: "https://orcid.org/0009-0007-3893-5628"
