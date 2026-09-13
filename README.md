@@ -49,28 +49,29 @@ Most of the tree is the standard CORE-V CVA6 layout. The pieces most relevant to
 | `vendor/`                                       | Vendored upstream dependencies, pinned so nothing is fetched.                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `gem5_config_CVA6/CVA6/`                        | The CVA6 side of the calibration: its benchmarks, the target's configuration package, and the traces under `tests/`.                                                                                                                                                                                                                                                                                                                                            |
 | `gem5_config_CVA6/gem5/`                        | The gem5 side: its benchmarks, the configurations and the patch under `configs/`, and the traces under `tests/`.                                                                                                                                                                                                                                                                                                                                                |
-| `scripts/`                                      | The repository-wide tools: `check_CVA6_repo.py`, `format_CVA6_repo.py`, `docker_sync.py`, `make_containers.py`, `docker_run.py`, `docker_publish.py`, `check_patch_parity.py`, `patch_gem5.py`, `create_all_CVA6_repo_jsons.py`, `clean_CVA6_repo.py`, `ignore_big_CVA6_repo_jsons.py`, `get_CVA6_files.py`, `get_gem5_files.py`, `serve_viewers.py` and the calibration sweep.                                                                                 |
+| `scripts/`                                      | The repository-wide tools: `check_CVA6_repo.py`, `format_CVA6_repo.py`, `docker_sync.py`, `make_containers.py`, `docker_run.py`, `docker_publish.py`, `check_patch_parity.py`, `patch_gem5.py`, `patch_vcd_window.py`, `create_all_CVA6_repo_jsons.py`, `clean_CVA6_repo.py`, `ignore_big_CVA6_repo_jsons.py`, `get_CVA6_files.py`, `get_gem5_files.py`, `run_gem5_config_sweep.py` and `run_CVA6_config_sweep.py`.                                             |
 | `viewers/MinorFlow`                             | The MinorFlow visualizer, as a submodule.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `viewers/CVA6Flow`                              | The CVA6Flow visualizer, as a submodule.                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `gem5_config_CVA6/`                             | The gem5 configuration matched to CVA6, and the gem5 patch it depends on.                                                                                                                                                                                                                                                                                                                                                                                       |
-| `dockerfiles/`                                  | The two image recipes. The container copier is `scripts/docker_sync.py` and the small HTTP server that puts a viewer in the host's browser is `scripts/serve_viewers.py`.                                                                                                                                                                                                                                                                                       |
+| `dockerfiles/`                                  | The two image recipes. The container copier is `scripts/docker_sync.py` and each viewer ships the small HTTP server that puts it in the host's browser, `scripts/serve_MinorFlow.py` and `scripts/serve_CVA6Flow.py`. Each side also holds the documents its image installs at the container root: a README for the container, `LICENSE.FaMAF`, `CITATION.cff` and the container's `.gitignore`.                                                                |
 | `verilator_changes/`                            | Modified copies of two upstream files, each carrying a notice of change. `custom_size_vcds/` windows the waveform dump so a long benchmark can be traced, and has [its own README](verilator_changes/custom_size_vcds/README.md).                                                                                                                                                                                                                               |
 | `scripts/check_CVA6_repo.py`                    | Checks this fork's own files: the scripts, the calibration tables, the patch, the Dockerfiles, the viewer pages, the links, the comment prose and the formatting. Each viewer has the same tool for itself, `check_MinorFlow_repo.py` and `check_CVA6Flow_repo.py`, sharing this one's helpers and check protocol.                                                                                                                                              |
 | `scripts/clean_CVA6_repo.py`                    | Deletes the `.list`, `.vcd`, `.fst`, traces and `__pycache__` left in this repository, then offers to run each viewer's own cleaner.                                                                                                                                                                                                                                                                                                                            |
 | `scripts/ignore_big_CVA6_repo_jsons.py`         | Lists the tracer JSONs too big for GitHub in `.gitignore`.                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `scripts/serve_viewers.py`                      | Serves the viewer pages over HTTP, so a container with no browser can put one in the host's. Both images copy it to `scripts/`, where it runs as `python3 scripts/serve_viewers.py` from the container root.                                                                                                                                                                                                                                                    |
 | `scripts/make_containers.py`                    | Creates both containers, or one, with CPU and memory limits and the viewer port published. Reads what the Docker daemon actually has, picks a build job count that fits, and refuses rather than failing partway.                                                                                                                                                                                                                                               |
 | `scripts/docker_run.py`                         | Works inside a container without the docker incantations: `status`, `shell`, `run` through the side's own driver, `exec`, `serve` for the viewer, and `stop`. A stopped container is started first, and nothing is copied, which is `docker_sync.py push`.                                                                                                                                                                                                      |
 | `scripts/docker_publish.py`                     | Rebuilds the images and pushes them to Docker Hub. The build decides what changed, so there is no path list to keep in step with `.dockerignore`. `master` publishes `latest`, every other branch publishes `testing`, and both also get `sha-<short>`.                                                                                                                                                                                                         |     |
 | `scripts/check_patch_parity.py`                 | Runs the config benchmarks twice in the gem5 container, once on the stock build with the unpatched config and once on the patched build with every switch off, and compares gem5's own counters. A difference means a patch mechanism is live with its switch off, which no ablation would show, since every TEST is measured against the patched build.                                                                                                        |
 | `scripts/patch_gem5.py`                         | The loop for working on `MinorCPU_CVA6.patch` inside the gem5 container: `status`, `create` the patch from the tree with its new files, `apply`, `revert` and `build`, which asks whether to remake `RISCV_PATCH` or `RISCV_EXP`.                                                                                                                                                                                                                               |
+| `scripts/run_CVA6_config_sweep.py`              | Runs the cache geometry table on the real core, driving `viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py` with this side's package, benchmarks and results folder.                                                                                                                                                                                                                                                                                               |
+| `scripts/patch_vcd_window.py`                   | Applies or reverts the windowed waveform dump in `verilator_changes/custom_size_vcds/`, keeping the file it replaces beside it so a container with no git can put it back.                                                                                                                                                                                                                                                                                      |
 | `scripts/format_CVA6_repo.py`                   | Formats this fork's own Python with autopep8 at 79 columns, its Markdown with Prettier, and the benchmarks to `.editorconfig`: trailing whitespace and a final newline on both languages, plus operand alignment on the assembly. Scope is the same `OWN_PATHS` the checker uses, so upstream files are never touched, and C++ and Makefiles are out of scope. `--check` reports without changing, which is what `check_CVA6_repo.py`'s `formatter` check runs. |
 | `scripts/get_CVA6_files.py`                     | Flattens the RTL the Flist manifests name into one folder, `CVA6_files/` by default, which is what the RTL readers and the tracer's signal search expect.                                                                                                                                                                                                                                                                                                       |
 | `scripts/get_gem5_files.py`                     | Fetches the pristine gem5 sources of the RISC-V MinorCPU into `gem5_files/` by default, at the version the gem5 image builds, read from its Dockerfile. The tree is mirrored rather than flattened so `MinorCPU_CVA6.patch` applies to it as it is, and `--check-patch` dry-runs the patch there.                                                                                                                                                               |
 | `LICENSE.FaMAF`                                 | MIT licence covering this project's own work.                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `LICENSE`, `LICENSE.Berkeley`, `LICENSE.SiFive` | Upstream licences, preserved.                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
-Everything else (`common/`, `util/`, `pd/`, `spyglass/`, `ci/`, `cva6_docs/` and so on) is standard upstream CVA6.
+Everything else (`common/`, `util/`, `pd/`, `spyglass/`, `ci/`, `docs/` and so on) is standard upstream CVA6.
 
 ## The benchmarks
 
@@ -132,13 +133,15 @@ Matching the gem5 model to CVA6 meant perturbing one part of the pipeline at a t
 #  22   fp_addmul without the double mask         workload: fp_addmul
 ```
 
-`run_config_search_sweep.py`, next to it, replays the whole thing. It always sweeps its own `DEFAULT_CONFIG`, the file it is written for. Run it from `/gem5`:
+`run_gem5_config_sweep.py`, next to it, replays the whole thing. It always sweeps its own `DEFAULT_CONFIG`, the file it is written for. Run it from `/gem5`:
 
 ```bash
-python3 scripts/run_config_search_sweep.py [-j N] [--configs 1,4-6] [--tests daxpy,full_test] [--variant patch|stock] [--no-trace] [--list]
+python3 scripts/run_gem5_config_sweep.py [-j N] [--configs 1,4-6|grid|cache|all] [--tests daxpy,full_test] [--variant patch|stock] [--no-trace] [--list]
 ```
 
-It defaults to `--variant patch`, since `DEFAULT_CONFIG` sets parameters only the patch provides. For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `results/sweep_config/` tagged `.config<N>`, plus one gathered metrics file named after the sweep, `metrics_<config>_<variant>...txt`. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
+It defaults to `--variant patch`, since `DEFAULT_CONFIG` sets parameters only the patch provides. For each configuration it sets `TEST`, runs that entry's workloads through `run_gem5.py`, and moves the results into `results/sweep_gem5_config/` tagged `.config<N>`, plus one gathered metrics file named after the sweep, `metrics_<config>_<variant>...txt`. An entry whose workload is `all` runs `DEFAULT_ALL_TESTS`, the set the baseline was calibrated against, which is wider than what the perturbation rows name.
+
+The harness holds a second table beside the calibration grid, `CACHE_TESTS`, which varies only L1I and L1D size and associativity over more of the benchmark set. Its ids start at 201 and a plain run leaves them out, so `--configs cache` is how to ask for the seventeen of them, `--configs grid` for the table above and `--configs all` for both. The same seventeen cuts exist on the real core in `gem5_config_CVA6/CVA6/configs/cv64a6_imafdc_sv39_hpdcache_wb_config_testing_pkg.sv`, run by `scripts/run_CVA6_config_sweep.py`, where a CFG id plus 199 is the gem5 TEST id. See [gem5_config_CVA6/README.md](gem5_config_CVA6/README.md#the-cache-geometry-list) for the list itself.
 
 The sweep runs `-j` at once, 4 by default, each in its own folder under `results/m5out/` and `results/run/`, deleted once collected. A run that **fails** keeps its folder, under `results/m5out/config<N>_<test>/`, together with the configuration copy it ran. Both parent folders are removed only if the sweep leaves them empty, since a plain `run_gem5.py` run writes into them too.
 
@@ -196,7 +199,7 @@ It comes in two versions, so the same core can be run on either gem5 build:
 - `gem5_config_CVA6/gem5/configs/gem5_config_CVA6.py` runs on a **stock gem5**, using only what upstream already provides.
 - `gem5_config_CVA6/gem5/configs/gem5_config_CVA6_patch.py` runs on a **patched gem5** and adds the mechanisms the patch makes available.
 
-Each has a `_testing` twin, `gem5_config_CVA6_testing.py` and `gem5_config_CVA6_patch_testing.py`, which is the same core wrapped in the calibration table of single-knob perturbations that `run_config_search_sweep.py` replays.
+Each has a `_testing` twin, `gem5_config_CVA6_testing.py` and `gem5_config_CVA6_patch_testing.py`, which is the same core wrapped in the calibration table of single-knob perturbations that `run_gem5_config_sweep.py` replays.
 
 #### Why there is a patch
 
@@ -276,16 +279,16 @@ Two ways: pull the published image, or build it from this working tree.
 
 Two images are published on Docker Hub. Check the tags and pull the latest.
 
-**CVA6 + Verilator** ([famaf_cva6_project/cva6](https://hub.docker.com/r/famaf_cva6_project/cva6/tags)):
+**CVA6 + Verilator** ([manuel313/famaf_cva6](https://hub.docker.com/r/manuel313/famaf_cva6/tags)):
 
 ```bash
-docker pull famaf_cva6_project/cva6:latest
+docker pull manuel313/famaf_cva6:latest
 ```
 
-**gem5 (MinorCPU)** ([famaf_cva6_project/gem5](https://hub.docker.com/r/famaf_cva6_project/gem5/tags)):
+**gem5 (MinorCPU)** ([manuel313/famaf_gem5](https://hub.docker.com/r/manuel313/famaf_gem5/tags)):
 
 ```bash
-docker pull famaf_cva6_project/gem5:latest
+docker pull manuel313/famaf_gem5:latest
 ```
 
 Verify:
@@ -301,28 +304,28 @@ The recipes in [dockerfiles/](dockerfiles/) build the same images from **this wo
 Both build from the repository **root**, not from the recipe's own folder:
 
 ```bash
-docker build -f dockerfiles/CVA6/Dockerfile -t famaf_cva6_project/cva6:build .
-docker build -f dockerfiles/gem5/Dockerfile -t famaf_cva6_project/gem5:build .
+docker build -f dockerfiles/CVA6/Dockerfile -t manuel313/famaf_cva6:build .
+docker build -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
 ```
 
 `.dockerignore` keeps the traces, VCDs, JSONs and git history out of the build context, so what is uploaded to the daemon is a few tens of megabytes rather than the whole tree.
 
 **These are heavy builds.** The cost is the RISC-V toolchain on the CVA6 side and two full gem5 builds on the gem5 side.
 
-|                                 | Disk while building | Finished image | Time     | Memory per job |
-| ------------------------------- | ------------------- | -------------- | -------- | -------------- |
-| `famaf_cva6_project/cva6:build` | ~30 GB              | ~14 GB         | 2 to 4 h | ~2 GB          |
-| `famaf_cva6_project/gem5:build` | ~37 GB              | ~17 GB         | 2 to 5 h | ~4 GB          |
+|                              | Disk while building | Finished image | Time     | Memory per job |
+| ---------------------------- | ------------------- | -------------- | -------- | -------------- |
+| `manuel313/famaf_cva6:build` | ~30 GB              | ~14 GB         | 2 to 4 h | ~2 GB          |
+| `manuel313/famaf_gem5:build` | ~37 GB              | ~17 GB         | 2 to 5 h | ~4 GB          |
 
 Memory is what actually fails a build, and it fails as a compiler killed with no useful message. Both recipes take a `JOBS` argument, and it should be no higher than your RAM in GB divided by the per-job figure above:
 
 ```bash
-docker build --build-arg JOBS=2 -f dockerfiles/gem5/Dockerfile -t famaf_cva6_project/gem5:build .
+docker build --build-arg JOBS=2 -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
 ```
 
 On Docker Desktop the VM has its own memory cap, in Settings, Resources, and it is what the build sees rather than the host's. The Linux engine has no such cap. `docker system prune` frees the space earlier attempts left behind.
 
-The two images carry different halves of the project on purpose. `famaf_cva6_project/cva6:build` has the RTL, the CVA6 benchmarks and CVA6Flow, with the gem5 configurations, the gem5 benchmarks and MinorFlow removed. `famaf_cva6_project/gem5:build` has gem5 built three times, the two configurations, the gem5 benchmarks and MinorFlow. Both keep the drivers in `scripts/` and run them from the root, which is where the commands below are run from.
+The two images carry different halves of the project on purpose. `manuel313/famaf_cva6:build` has the RTL, the CVA6 benchmarks and CVA6Flow, with the gem5 configurations, the gem5 benchmarks and MinorFlow removed. `manuel313/famaf_gem5:build` has gem5 built three times, the two configurations, the gem5 benchmarks and MinorFlow. Both keep the drivers in `scripts/` and run them from the root, which is where the commands below are run from.
 
 ---
 
@@ -341,7 +344,7 @@ docker cp gem5_config_CVA6/gem5/configs/.          gem5:/gem5/gem5_configs/confi
 # container -> host: what a run produced, all of it under results/
 docker cp CVA6:/CVA6/results/run/         ./results/run/
 docker cp gem5:/gem5/results/batch/       ./results/batch/
-docker cp gem5:/gem5/results/sweep_config/ ./
+docker cp gem5:/gem5/results/sweep_gem5_config/ ./
 ```
 
 A trailing `/.` on the source copies the contents of a folder rather than the folder itself.
@@ -361,14 +364,14 @@ python3 scripts/docker_sync.py push -n   # say what would be copied
 
 **push** sends, per container:
 
-| What                                                     | Where it lands                                                                         |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| The drivers, the sweeps, the cleaner, `serve_viewers.py` | `scripts/`, the same place they have here                                              |
-| The gem5 configurations                                  | `gem5_configs/config/`, `gem5_configs/viewer/` and `gem5_configs/CARLA2026/` by origin |
-| The CVA6Flow configuration package                       | `CVA6_configs/`, and `/CVA6/core/include/` where the build reads it                    |
-| The calibration benchmarks                               | `benchmarks/config/`                                                                   |
-| The viewer's teaching set                                | `benchmarks/viewer/`                                                                   |
-| The viewer page, its tracer and its batch tracer         | `MinorFlow/` or `CVA6Flow/`                                                            |
+| What                                                          | Where it lands                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| The drivers, the sweeps, the cleaner, the viewer's own server | `scripts/`, the same place they have here                                              |
+| The gem5 configurations                                       | `gem5_configs/config/`, `gem5_configs/viewer/` and `gem5_configs/CARLA2026/` by origin |
+| The CVA6Flow configuration package                            | `CVA6_configs/`, and `/CVA6/core/include/` where the build reads it                    |
+| The calibration benchmarks                                    | `benchmarks/config/`                                                                   |
+| The viewer's development set                                  | `benchmarks/viewer/`                                                                   |
+| The viewer page, its tracer and its batch tracer              | `MinorFlow/` or `CVA6Flow/`                                                            |
 
 It is the one to remember: a container keeps its own copy of everything, so editing `run_gem5.py` here changes nothing inside until it is pushed.
 
@@ -389,12 +392,12 @@ The configuration package is the CVA6Flow one, which carries the seventeen-confi
 Create a container named `CVA6` with a Bash terminal and permission to run graphical applications:
 
 ```bash
-docker run -it --name CVA6 -p 8000:8000 \
+docker run -it --name CVA6 -p 8001:8000 \
            -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix \
-           famaf_cva6_project/cva6:latest bash
+           manuel313/famaf_cva6:latest bash
 ```
 
-`-p 8000:8000` is what lets `serve_viewers.py` put CVA6Flow in the host's browser later.
+`-p 8001:8000` is what lets `serve_CVA6Flow.py` put CVA6Flow in the host's browser later. The CVA6 side takes host port 8001 and the gem5 side 8000, so both containers can serve their viewer at the same time.
 
 Or let [`scripts/make_containers.py`](scripts/make_containers.py) do it. It reads what the Docker daemon actually has, publishes the port, passes the display through, and caps CPU and memory so a simulation cannot take the machine down with it:
 
@@ -482,10 +485,10 @@ Then open `daxpy.json` in [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6F
 To use the viewer from inside the container, serve it and open the page on the host:
 
 ```bash
-python3 scripts/serve_viewers.py    # then open http://localhost:8000/
+python3 scripts/serve_CVA6Flow.py    # listens on 8000 inside the container
 ```
 
-Publishing the port at creation, `docker run -p 8000:8000 ...`, is the portable way and the one [`scripts/make_containers.py`](scripts/make_containers.py) uses. A container already made without it is not a dead end: where the host routes to the container network, which is the normal Linux bridge, the page is reachable at the container's own address instead. `python3 scripts/docker_run.py serve` starts the server and prints whichever of the two applies, so an existing container does not have to be remade and its results lost.
+Then open `http://localhost:8001/` on the host, which is where the CVA6 container publishes it. Publishing the port at creation, `docker run -p 8001:8000 ...`, is the portable way and the one [`scripts/make_containers.py`](scripts/make_containers.py) uses. A container already made without it is not a dead end: where the host routes to the container network, which is the normal Linux bridge, the page is reachable at the container's own address instead. `python3 scripts/docker_run.py serve` starts the server and prints whichever of the two applies, so an existing container does not have to be remade and its results lost.
 
 ### Limitations and considerations
 
@@ -507,7 +510,7 @@ Publishing the port at creation, `docker run -p 8000:8000 ...`, is the portable 
 Create a container named `gem5` with a Bash terminal
 
 ```bash
-docker run -it --name gem5 -p 8000:8000 famaf_cva6_project/gem5 bash
+docker run -it --name gem5 -p 8000:8000 manuel313/famaf_gem5 bash
 ```
 
 Type `exit` to leave.
@@ -553,7 +556,7 @@ Then open `daxpy.json` in [MinorFlow](https://github.com/FaMAF-CVA6-Project/Mino
 To use the viewer from inside the container, serve it and open the page on the host, which needs no browser in the image and no X11:
 
 ```bash
-python3 scripts/serve_viewers.py    # then open http://localhost:8000/
+python3 scripts/serve_MinorFlow.py    # then open http://localhost:8000/
 ```
 
 Publishing the port at creation, `docker run -p 8000:8000 ...`, is the portable way and the one [`scripts/make_containers.py`](scripts/make_containers.py) uses. A container already made without it is not a dead end: where the host routes to the container network, which is the normal Linux bridge, the page is reachable at the container's own address instead. `python3 scripts/docker_run.py serve` starts the server and prints whichever of the two applies, so an existing container does not have to be remade and its results lost.
