@@ -6,14 +6,16 @@
 #
 # Build from the ROOT of this repository, not from this folder:
 #
-#     docker build -f dockerfiles/CVA6/Dockerfile -t famaf_cva6_project/cva6:build .
+#     docker build -f dockerfiles/CVA6/Dockerfile -t manuel313/famaf_cva6:build .
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # The RISC-V toolchain is the expensive step: ~30 GB while building, ~14 GB in
 # the image, two to four hours. GCC's bootstrap peaks near 2 GB per job, so
 # keep JOBS under (RAM in GB) / 2. See the README for the rest.
 # ==============================================================================
-FROM ubuntu:22.04
+# The same base as the gem5 image, so both containers share one Ubuntu and
+# one set of system libraries.
+FROM ubuntu:24.04
 
 ARG JOBS=8
 ENV DEBIAN_FRONTEND=noninteractive
@@ -28,7 +30,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     help2man device-tree-compiler ca-certificates \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# CMake 3.27, newer than jammy ships and what the CVA6 flow expects.
+# CMake 3.27, pinned to what the CVA6 flow was run with rather than whatever
+# the distribution ships.
 RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.27.9/cmake-3.27.9-linux-x86_64.tar.gz \
     && tar -xzf cmake-3.27.9-linux-x86_64.tar.gz -C /opt \
     && mv /opt/cmake-3.27.9-linux-x86_64 /opt/cmake-3.27.9 \
@@ -52,32 +55,47 @@ RUN bash get-toolchain.sh && bash build-toolchain.sh /CVA6/tools
 COPY verif/ /CVA6/verif/
 COPY vendor/ /CVA6/vendor/
 WORKDIR /CVA6
-RUN pip3 install --no-cache-dir -r verif/sim/dv/requirements.txt
-# Verilator's lexer needs FlexLexer.h, which jammy ships in libfl-dev and
+# Noble marks the system Python as externally managed, which refuses a plain
+# pip install. The flow's packages are what this Python exists for here.
+RUN pip3 install --no-cache-dir --break-system-packages \
+    -r verif/sim/dv/requirements.txt
+# Verilator's lexer needs FlexLexer.h, which Ubuntu ships in libfl-dev and
 # which --no-install-recommends leaves out. Installed here, beside its
 # user, so the toolchain layer above stays cached.
 RUN apt-get update && apt-get install -y --no-install-recommends libfl-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# cva6.py refuses to run unless spike's own version string carries the commit
+# of the source it was built from, and no history reaches this image, so the
+# vendored source gets a one-commit repo of its own before spike is built.
+ENV SPIKE_SRC_DIR=/CVA6/verif/core-v-verif/vendor/riscv/riscv-isa-sim
+RUN git init -q "${SPIKE_SRC_DIR}" \
+    && git -C "${SPIKE_SRC_DIR}" add -A \
+    && git -C "${SPIKE_SRC_DIR}" -c user.email=build@local \
+    -c user.name=build commit -qm "vendored spike source"
+
 # Both installers ignore their own failures, and Verilator's default path
 # is not the one setup-env.sh puts on PATH, so both are pinned and checked.
+# The last test is cva6.py's own version gate, failed here rather than at run.
 ENV VERILATOR_INSTALL_DIR=/CVA6/tools/verilator
 ENV SPIKE_INSTALL_DIR=/CVA6/tools/spike
 RUN bash -c "source ./verif/regress/install-verilator.sh" \
     && bash -c "source ./verif/regress/install-spike.sh" \
     && test -x "${VERILATOR_INSTALL_DIR}/bin/verilator" \
     && test -x "${SPIKE_INSTALL_DIR}/bin/spike" \
-    && "${VERILATOR_INSTALL_DIR}/bin/verilator" --version
+    && "${VERILATOR_INSTALL_DIR}/bin/verilator" --version \
+    && "${SPIKE_INSTALL_DIR}/bin/spike" -v 2>&1 \
+    | grep -q "$(git -C "${SPIKE_SRC_DIR}" log -1 --pretty=tformat:%h)"
 
 # ---- the design and this project's own files --------------------------------
 # Everything else, last, so an edit here rebuilds one small layer. .dockerignore
 # keeps the run artefacts, the traces and the git history out.
 COPY . /CVA6/
 
-# The gem5 side and the fork's host tools have no business here, and the
-# viewer's scripts/, configs/ and benchmarks/ would be second copies of the
-# root's, so scripts/ is rebuilt and the copies go once they have been read.
-RUN rm -rf /CVA6/gem5_config_CVA6/gem5 /CVA6/dockerfiles /CVA6/scripts \
+# The gem5 side, the fork's host tools and the viewer's second copies have no
+# business here, so scripts/ is rebuilt from the viewer's own and everything
+# read from is deleted once it has been read.
+RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     && mv /CVA6/viewers/CVA6Flow /CVA6/CVA6Flow \
     && rm -rf /CVA6/viewers \
     && mkdir -p /CVA6/scripts /CVA6/CVA6_configs /CVA6/results \
@@ -97,10 +115,32 @@ RUN rm -rf /CVA6/gem5_config_CVA6/gem5 /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/benchmarks/viewer/ \
     && cp /CVA6/CVA6Flow/configs/*.sv /CVA6/CVA6_configs/ \
     && rm -rf /CVA6/CVA6Flow/scripts /CVA6/CVA6Flow/configs \
-    /CVA6/CVA6Flow/benchmarks \
+    /CVA6/CVA6Flow/benchmarks /CVA6/CVA6Flow/README.md \
+    /CVA6/CVA6Flow/LICENSE /CVA6/CVA6Flow/CITATION.cff \
+    /CVA6/CVA6Flow/.gitignore /CVA6/CVA6Flow/.nojekyll \
+    /CVA6/CVA6Flow/tests/README.md \
+    /CVA6/verilator_changes/custom_size_vcds/README.md \
+    /CVA6/gem5_config_CVA6 /CVA6/verilator_changes/ddr3_memory \
     && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
-COPY scripts/serve_viewers.py /CVA6/scripts/serve_viewers.py
+COPY viewers/CVA6Flow/scripts/serve_CVA6Flow.py /CVA6/scripts/
+COPY scripts/patch_vcd_window.py  /CVA6/scripts/patch_vcd_window.py
+COPY scripts/run_CVA6_config_sweep.py /CVA6/scripts/
+
+# The cache geometry package this side sweeps, beside the viewer's. It is
+# copied rather than installed: the sweep puts it over the live one.
+COPY gem5_config_CVA6/CVA6/configs/cv64a6_imafdc_sv39_hpdcache_wb_config_testing_pkg.sv \
+    /CVA6/CVA6_configs/
+
+# The container's own documents, which describe what is in here rather than the
+# repository the image was built from. The upstream licences stay as they are,
+# since the code they cover is in here too.
+COPY dockerfiles/CVA6/README.md           /CVA6/README.md
+COPY dockerfiles/CVA6/LICENSE.FaMAF       /CVA6/LICENSE.FaMAF
+COPY dockerfiles/CVA6/CITATION.cff        /CVA6/CITATION.cff
+COPY dockerfiles/CVA6/gitignore.container /CVA6/.gitignore
+
+RUN chmod +x /CVA6/scripts/*.py
 
 ENV DV_SIMULATORS=veri-testharness
 
