@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
-"""Run the CVA6 calibration sweep. Each TEST entry runs against the workloads
+"""Run the gem5 configuration sweep. Each TEST entry runs against the workloads
 it was made for, outputs carry a .config<N> tag, and every metrics table is
 gathered into one metrics.txt. Run it from the gem5 root.
+
+    python3 scripts/run_gem5_config_sweep.py --list
+    python3 scripts/run_gem5_config_sweep.py --configs 1,4-6
+    python3 scripts/run_gem5_config_sweep.py --configs cache
+
+The harness holds two tables: the calibration grid, which a plain run sweeps,
+and the cache geometry list beside it, which '--configs cache' asks for.
 """
 import argparse
 import concurrent.futures
@@ -26,7 +33,7 @@ DEFAULT_VARIANT = "patch"
 # The calibration set, under benchmarks/config/ in a container or gem5 root.
 # The flat benchmarks/ an older root keeps is tried second.
 DEFAULT_TESTS_DIRS = ("benchmarks/config", "benchmarks")
-DEFAULT_OUT_DIR = os.path.join("results", "sweep_config")
+DEFAULT_OUT_DIR = os.path.join("results", "sweep_gem5_config")
 
 RUNNER_NAME = "run_gem5.py"
 
@@ -41,6 +48,14 @@ GEM5_OUT_DIR = os.path.join("results", "m5out")
 # each holds a gem5 process and writes a trace, so memory and disk
 # bind before cores do.
 DEFAULT_JOBS = min(4, os.cpu_count() or 1)
+
+# Ids at or above this are the harness's cache geometry list rather than its
+# calibration grid. A plain run sweeps the grid, since the cache list answers a
+# different question and costs a run per entry.
+CACHE_FIRST_ID = 201
+
+# Names accepted by --configs in place of ids.
+GROUPS = ("grid", "cache", "all")
 
 # How a collected file and a config copy are labelled.
 LABEL = "config"
@@ -239,15 +254,29 @@ def resolve_test_file(name, tests_dir):
     return matches[0]
 
 
+def group_ids(name, table):
+    """The ids a group name stands for."""
+    if name == "cache":
+        return [n for n in table if n >= CACHE_FIRST_ID]
+    if name == "grid":
+        return [n for n in table if n < CACHE_FIRST_ID]
+    return list(table)
+
+
 def parse_config_selection(spec, table):
-    """Parse '1,4-6' into a sorted list of configuration ids."""
+    """Parse '1,4-6', or a group name, into a sorted list of configuration
+    ids. The cache list is left out of a plain run, so the default is the
+    calibration grid."""
     if not spec:
-        return sorted(table)
+        return sorted(group_ids("grid", table))
 
     selected = set()
     for chunk in spec.split(","):
         chunk = chunk.strip()
         if not chunk:
+            continue
+        if chunk.lower() in GROUPS:
+            selected.update(group_ids(chunk.lower(), table))
             continue
         if "-" in chunk:
             low, _, high = chunk.partition("-")
@@ -526,8 +555,10 @@ def main():
                              f"it unless this says otherwise, so only pass it "
                              f"for a copy or a variant of that file")
     parser.add_argument("--configs", default="",
-                        help="Which configurations to run, e.g. '1,4-6'. "
-                             "Defaults to all of them")
+                        help="Which configurations to run, e.g. '1,4-6', or "
+                             f"one of {', '.join(GROUPS)}. Defaults to grid, "
+                             f"the calibration table, leaving the cache list "
+                             f"at {CACHE_FIRST_ID} and above for 'cache'")
     parser.add_argument("--tests-dir", default=None,
                         help="Folder holding the workloads. Defaults to the "
                              "first that exists of "
