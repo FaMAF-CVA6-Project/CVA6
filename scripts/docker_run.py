@@ -67,7 +67,8 @@ PORT = MAKER.VIEWER_PORT
 DRIVERS = {"gem5": "run_gem5.py", "CVA6": "run_CVA6.py"}
 
 # What serve puts in the browser, and the name it is recognised by inside.
-SERVER = "serve_viewers.py"
+# Each viewer serves itself, so the script is the viewer's own.
+SERVERS = {"gem5": "serve_MinorFlow.py", "CVA6": "serve_CVA6Flow.py"}
 
 # Where a tool is looked for inside a container, relative to its root. The
 # images keep them in scripts/, and an older container has them at the root.
@@ -167,7 +168,7 @@ def viewer_url(name):
 
 def server_pid(name):
     """The PID of a server already running inside, or None."""
-    done = docker(["exec", name, "pgrep", "-f", SERVER],
+    done = docker(["exec", name, "pgrep", "-f", SERVERS[name]],
                   capture_output=True, text=True)
     pids = done.stdout.split() if done.returncode == 0 else []
     return pids[0] if pids else None
@@ -259,18 +260,18 @@ def do_serve(name, args):
         print(f"[INFO] Open {url}")
         return 0
     root = CONTAINERS[name]["root"]
-    print(f"[INFO] {name}: starting {SERVER} in {root}")
+    print(f"[INFO] {name}: starting {SERVERS[name]} in {root}")
     if args.dry_run:
         return 0
-    server = tool_path(name, SERVER)
+    server = tool_path(name, SERVERS[name])
     if server is None:
-        print(f"[ERROR] No {SERVER} in '{name}' under {root}. Push it with "
+        print(f"[ERROR] No {SERVERS[name]} in '{name}' under {root}. Push it "
               f"'python3 scripts/docker_sync.py push {name}'.")
         return 1
     code = docker(["exec", "-d", "-w", root, name,
                    "python3", server]).returncode
     if code != 0:
-        print(f"[ERROR] Could not start {SERVER} in '{name}'")
+        print(f"[ERROR] Could not start {SERVERS[name]} in '{name}'")
         return code
     # docker exec -d reports success before the server has run a line, so a
     # server that dies at once, on a port already taken say, is looked for.
@@ -279,11 +280,12 @@ def do_serve(name, args):
             break
         time.sleep(0.2)
     else:
-        print(f"[ERROR] {SERVER} exited as soon as it started. Run "
+        print(f"[ERROR] {SERVERS[name]} exited as soon as it started. Run "
               f"'docker_run.py exec {name} -- python3 {server}' to see why.")
         return 1
     print(f"[INFO] Open {url}")
-    print(f"[INFO] 'docker_run.py exec {name} -- pkill -f {SERVER}' stops it")
+    print(f"[INFO] 'docker_run.py exec {name} -- pkill -f "
+          f"{SERVERS[name]}' stops it")
     return 0
 
 
