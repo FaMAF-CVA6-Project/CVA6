@@ -70,10 +70,15 @@ CONTAINERS = {
             ("viewers/MinorFlow/scripts/clean_gem5_runs.py", "/gem5/scripts/"),
             ("viewers/MinorFlow/scripts/run_MinorFlow_sweep.py",
              "/gem5/scripts/"),
-            ("scripts/run_config_search_sweep.py", "/gem5/scripts/"),
+            ("scripts/run_gem5_config_sweep.py", "/gem5/scripts/"),
             ("scripts/check_patch_parity.py", "/gem5/scripts/"),
             ("scripts/patch_gem5.py", "/gem5/scripts/"),
-            ("scripts/serve_viewers.py", "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/serve_MinorFlow.py", "/gem5/scripts/"),
+            # The container's own documents, which describe what is in
+            # there rather than this repository.
+            ("dockerfiles/gem5/README.md", "/gem5/README.md"),
+            ("dockerfiles/gem5/LICENSE.FaMAF", "/gem5/LICENSE.FaMAF"),
+            ("dockerfiles/gem5/CITATION.cff", "/gem5/CITATION.cff"),
             # Configurations under gem5_configs/, a name gem5's own tree
             # does not use, one folder per origin, plus the patch.
             ("gem5_config_CVA6/gem5/configs/.", "/gem5/gem5_configs/config/"),
@@ -109,15 +114,32 @@ CONTAINERS = {
             ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py",
              "/CVA6/scripts/"),
-            ("scripts/serve_viewers.py", "/CVA6/scripts/"),
-            # Straight to where the build reads it. This is the CVA6Flow
-            # package, the one carrying the configuration table and
-            # CVA6_CONFIG_SEL, and it replaces the live one.
+            ("viewers/CVA6Flow/scripts/serve_CVA6Flow.py", "/CVA6/scripts/"),
+            ("scripts/patch_vcd_window.py", "/CVA6/scripts/"),
+            ("scripts/run_CVA6_config_sweep.py", "/CVA6/scripts/"),
+            # The cache geometry package the fork sweeps, beside the
+            # viewer's. Only the sweep installs it over the live one.
+            ("gem5_config_CVA6/CVA6/configs/"
+             "cv64a6_imafdc_sv39_hpdcache_wb_config_testing_pkg.sv",
+             "/CVA6/CVA6_configs/"),
+            # The container's own documents, which describe what is in
+            # there rather than this repository.
+            ("dockerfiles/CVA6/README.md", "/CVA6/README.md"),
+            ("dockerfiles/CVA6/LICENSE.FaMAF", "/CVA6/LICENSE.FaMAF"),
+            ("dockerfiles/CVA6/CITATION.cff", "/CVA6/CITATION.cff"),
+            ("dockerfiles/CVA6/gitignore.container", "/CVA6/.gitignore"),
+            # The unmodified production package, straight to where the
+            # build reads it, and to the folder the sweeps read from.
             ("viewers/CVA6Flow/configs/"
              "cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv",
              "/CVA6/core/include/"),
             ("viewers/CVA6Flow/configs/"
              "cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv",
+             "/CVA6/CVA6_configs/"),
+            # The viewer's swept package, which the sweep installs over the
+            # live one when it runs and puts back afterwards.
+            ("viewers/CVA6Flow/configs/"
+             "cv64a6_imafdc_sv39_hpdcache_wb_config_viewer_pkg.sv",
              "/CVA6/CVA6_configs/"),
             # The viewer, and the server that puts it in the host's browser.
             ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/CVA6Flow/"),
