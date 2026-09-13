@@ -56,6 +56,9 @@ Bender.lock
 temp/
 CVA6_files/
 gem5_files/
+
+# The upstream copies scripts/patch_vcd_window.py keeps while it is applied.
+*.upstream
 verilator_changes/ddr3_memory
 
 # Files too big to be tracked.
