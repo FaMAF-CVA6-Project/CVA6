@@ -1,0 +1,11 @@
+
+# What this project adds on top of gem5, so a git status in here shows changed
+# gem5 sources rather than the tooling and the configurations that came with
+# the image. gem5's own entries, build/ and m5out among them, are above.
+scripts/
+gem5_configs/
+benchmarks/
+results/
+MinorFlow/
+.built_patch_sha1
+__pycache__/
