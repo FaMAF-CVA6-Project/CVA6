@@ -3,7 +3,8 @@
 
 The loop for working on the patch. Edit the sources under src/, create the
 patch from them, rebuild, measure. Run it from the gem5 root, inside the
-container, where /gem5 is the git clone the image patched.
+container, where /gem5 is the gem5 tree the image patched. The image keeps no
+git history, so create diffs the tree against the pristine sources it kept.
 
     python3 scripts/patch_gem5.py status    # applied or not, and which builds
     python3 scripts/patch_gem5.py create    # the tree becomes the patch file
@@ -15,14 +16,18 @@ build/RISCV_PATCH is what every TEST is measured against, so an edited patch
 belongs in build/RISCV_EXP until it is worth adopting.
 """
 import argparse
+import fnmatch
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
-# The patch as the build read it, which run_gem5.py hashes to catch an edited
-# but unrebuilt patch, and the copy under configs/ that mirrors the repository.
+# The copy under gem5_configs/config/ mirrors the repository, and run_gem5.py
+# hashes it to catch an edited but unrebuilt patch. The root copy is the
+# fallback, for an image built before gem5_configs/ existed.
 PATCH_IN_TREE = "MinorCPU_CVA6.patch"
 PATCH_IN_CONFIGS = os.path.join("gem5_configs", "config",
                                 "MinorCPU_CVA6.patch")
@@ -31,10 +36,20 @@ PATCH_IN_CONFIGS = os.path.join("gem5_configs", "config",
 # an unrelated edit elsewhere in the tree cannot leak into the patch.
 PATCH_PATHS = ("src",)
 
-# The hash of the patch the build was made from.
+# The pristine PATCH_PATHS, archived by the image before the patch went in and
+# before gem5's git history was dropped. create diffs the tree against it.
+PRISTINE = ".pristine_src.tar.xz"
+
+# What gem5's .gitignore kept out of a git diff under src/, and the leftovers
+# of a failed patch, which a plain diff would otherwise put in the patch.
+IGNORED = ("*.pyc", "*~", ".*.swp", ".*.swo", "*.orig", "*.rej",
+           "parser.out", "parsetab.py", "cscope.files", "cscope.out")
+IGNORED_DIRS = ("__pycache__",)
+
+# The hash of the patch the build was made from, kept beside the tree so a run
+# can tell an edited patch from the one the binary carries.
 MARKER = ".built_patch_sha1"
 
-# The two patched builds, by the short name asked for at the prompt.
 BUILDS = {"PATCH": "RISCV_PATCH", "EXP": "RISCV_EXP"}
 
 # Named in the binary only when the patch is in it.
@@ -48,13 +63,12 @@ def git(args, **kwargs):
 
 def at_gem5_root():
     """gem5's own tree, which is the only place any of this makes sense."""
-    return (os.path.isdir("src") and os.path.isdir("build_opts")
-            and os.path.isdir(".git"))
+    return os.path.isdir("src") and os.path.isdir("build_opts")
 
 
 def patch_file():
-    """The patch to read, preferring the copy under configs/ since that is the
-    one the repository keeps."""
+    """The patch to read, preferring the copy under gem5_configs/config/,
+    since that is the one the repository keeps."""
     for path in (PATCH_IN_CONFIGS, PATCH_IN_TREE):
         if os.path.isfile(path):
             return path
@@ -77,7 +91,8 @@ def built_hash():
 
 
 def applied(path):
-    """Whether the patch is in the tree, told by whether it reverses."""
+    """Whether the patch is in the tree, told by whether it reverses. git
+    apply needs no repository, so this works in a tree without history."""
     return git(["apply", "--reverse", "--check", path]).returncode == 0
 
 
@@ -147,8 +162,45 @@ def do_status(args):
     return 0
 
 
-def do_create(args):
-    """Write the patch from the tree, new files included."""
+def ignored(path):
+    """Whether create leaves this path out of the patch."""
+    parts = path.split("/")
+    return (any(part in IGNORED_DIRS for part in parts)
+            or any(fnmatch.fnmatch(parts[-1], pattern) for pattern in IGNORED))
+
+
+def pristine_diff():
+    """The tree against the pristine archive, as (patch, error)."""
+    with tempfile.TemporaryDirectory(prefix=".pristine_", dir=".") as tmp:
+        tmp = os.path.basename(tmp)
+        done = subprocess.run(["tar", "-xJf", PRISTINE, "-C", tmp],
+                              capture_output=True, text=True)
+        if done.returncode != 0:
+            return None, (f"tar could not read {PRISTINE}: "
+                          f"{done.stderr.strip()}")
+        sections = []
+        for top in PATCH_PATHS:
+            done = git(["diff", "--no-index", "--no-renames", "--no-color",
+                        "--", os.path.join(tmp, top), top])
+            # 1 means the two differ, which is the point. Above that is git's
+            # own failure.
+            if done.returncode > 1:
+                return None, f"git diff failed: {done.stderr.strip()}"
+            for chunk in re.split(r"(?m)^(?=diff --git )", done.stdout):
+                if not chunk:
+                    continue
+                head, hunks, body = chunk.partition("\n@@")
+                head = (head.replace(f"a/{tmp}/", "a/")
+                        .replace(f"b/{tmp}/", "b/"))
+                path = head.split("\n", 1)[0].split(" b/", 1)[1]
+                if not ignored(path):
+                    sections.append((path.encode(), head + hunks + body))
+    return "".join(text for _, text in sorted(sections)), None
+
+
+def git_diff():
+    """The tree against its git HEAD, as (patch, error), for a container
+    whose image still carries gem5's git clone."""
     # git diff ignores a file git has never heard of, and the patch adds nine
     # of them, so the untracked ones are marked intent-to-add for the diff.
     listed = git(["ls-files", "--others", "--exclude-standard", "--"]
@@ -162,17 +214,31 @@ def do_create(args):
     if untracked:
         git(["reset", "-q", "--"] + untracked)
     if done.returncode != 0:
-        print(f"[ERROR] git diff failed: {done.stderr.strip()}")
+        return None, f"git diff failed: {done.stderr.strip()}"
+    return done.stdout, None
+
+
+def do_create(args):
+    """Write the patch from the tree, new files included."""
+    if os.path.isfile(PRISTINE):
+        patch, error = pristine_diff()
+    elif os.path.isdir(".git"):
+        patch, error = git_diff()
+    else:
+        patch, error = None, (f"No {PRISTINE} and no .git, so there is "
+                              f"nothing to tell the patch from gem5's own "
+                              f"sources.")
+    if error:
+        print(f"[ERROR] {error}")
         return 1
-    if not done.stdout.strip():
+    if not patch.strip():
         print("[ERROR] The tree has no changes under "
               f"{', '.join(PATCH_PATHS)}, so there is no patch to make. "
               f"Apply it first, or edit the sources.")
         return 1
 
-    files = done.stdout.count("\ndiff --git") + done.stdout.count(
-        "diff --git", 0, 10)
-    hunks = done.stdout.count("\n@@ ")
+    files = patch.count("\ndiff --git") + patch.count("diff --git", 0, 10)
+    hunks = patch.count("\n@@ ")
     print(f"[INFO] {files} file(s), {hunks} hunk(s) from the tree")
     target = PATCH_IN_CONFIGS if os.path.isdir(
         os.path.dirname(PATCH_IN_CONFIGS)) else PATCH_IN_TREE
@@ -187,16 +253,18 @@ def do_create(args):
         shutil.copy2(target, backup)
         print(f"[INFO] Previous patch kept as {backup}")
     with open(target, "w") as handle:
-        handle.write(done.stdout)
+        handle.write(patch)
     # A patch that does not reverse is not a description of this tree, which
     # is worth knowing now rather than at the next build.
     if not applied(target):
+        keep = f" Keep {target}.bak." if existing else ""
         print(f"[WARN] {target} does not reverse against this tree, so it "
-              f"does not describe it. Keep {target}.bak.")
+              f"does not describe it.{keep}")
     print(f"[INFO] Wrote {target}, now {short_hash(target)}")
     if target != PATCH_IN_TREE and os.path.isfile(PATCH_IN_TREE):
         shutil.copy2(target, PATCH_IN_TREE)
-        print(f"[INFO] Refreshed {PATCH_IN_TREE}, which run_gem5.py hashes")
+        print(f"[INFO] Refreshed {PATCH_IN_TREE}, the copy an older image "
+              f"hashes")
     print("[INFO] Next: 'build' to remake a build from it")
     return 0
 
@@ -219,7 +287,7 @@ def do_apply(args, reverse=False):
     if done.returncode != 0:
         print(f"[ERROR] git apply failed: {done.stderr.strip()}")
         return 1
-    print(f"[INFO] {word.capitalize()}ed {path}")
+    print(f"[INFO] {'Reverted' if reverse else 'Applied'} {path}")
     print("[INFO] The builds are unchanged until 'build' remakes one")
     return 0
 
@@ -274,23 +342,25 @@ def main():
     parser.add_argument("action",
                         choices=["status", "create", "apply", "revert",
                                  "build"],
-                        help="what to do")
+                        help="What to do")
     parser.add_argument("--build", choices=sorted(BUILDS), default=None,
-                        help="which build to remake, instead of being asked")
+                        help="Which build to remake, instead of being asked")
     parser.add_argument("-j", "--jobs", type=int, default=None, metavar="N",
-                        help="compile jobs. Defaults to half the cores")
+                        help="Compile jobs. Defaults to half the cores")
     parser.add_argument("-y", "--yes", action="store_true",
-                        help="do not ask before changing the tree")
+                        help="Do not ask before changing the tree")
     parser.add_argument("-n", "--dry-run", action="store_true",
-                        help="print the build commands without running them")
+                        help="Print the build commands without running "
+                             "them. Only build takes it")
     args = parser.parse_args()
 
     if not at_gem5_root():
-        print("[ERROR] This is not a gem5 git tree. Run it from the gem5 "
-              "root, which is /gem5 in the container.")
+        print("[ERROR] This is not a gem5 tree. Run it from the gem5 root, "
+              "which is /gem5 in the container.")
         return 2
     if not shutil.which("git"):
-        print("[ERROR] No git on PATH.")
+        print("[ERROR] No git on PATH. It applies and diffs the patch, "
+              "with or without a repository.")
         return 2
 
     if args.action == "status":
