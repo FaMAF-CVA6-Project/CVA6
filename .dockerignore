@@ -2,8 +2,8 @@
 # 50 GB upload to the docker daemon before the first instruction runs.
 #
 # Both images build from the repository ROOT:
-#   docker build -f dockerfiles/gem5/Dockerfile      -t famaf/gem5 .
-#   docker build -f dockerfiles/CVA6/Dockerfile -t famaf/cva6 .
+#   docker build -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
+#   docker build -f dockerfiles/CVA6/Dockerfile -t manuel313/famaf_cva6:build .
 
 # History and tooling state. A submodule's .git is a file naming a gitdir
 # outside the context, which would sit in the image as a dangling pointer. The
@@ -22,7 +22,7 @@
 *.pyc
 
 # Run artefacts. Every one of these is produced inside the container anyway,
-# and the traces alone run to tens of gigabytes.
+# and the traces and VCDs alone run to tens of gigabytes.
 **/*_trace.txt
 **/*_trace.*.txt
 **/*.vcd
@@ -31,11 +31,10 @@
 **/*.log
 # Objdump listings from a run, but NOT the hand-written manifests upstream
 # CVA6 keeps in ci/ and corev_apu/tb/, which the build reads.
-benchmarks/**/*.list
 gem5_config_CVA6/**/*.list
 viewers/**/*.list
-# Everything a run writes is under results/, except the simulator's own
-# output folder, which the drivers move there only if the run survives.
+# What a run keeps is under results/. The rest are the simulators' own output
+# and build trees, and tools/, which the CVA6 image builds for itself.
 results/
 verif/sim/out_*
 m5out/
@@ -44,24 +43,26 @@ work-dpi/
 build/
 tools/
 
-# The tracer JSONs, which are large and regenerated from a trace.
+# The JSONs, which are large and regenerated from a trace or VCD: the tests/
+# folders, a JSON beside a viewer's tracer, where its batch writes by default,
+# and make_<Viewer>_oversized.py's output with its side files, wherever it is.
 gem5_config_CVA6/gem5/tests/
 gem5_config_CVA6/CVA6/tests/
 viewers/*/tests/*.json
 viewers/*/tests/*.js
-# except the committed sample, which is what the viewer's button loads.
-!viewers/*/tests/daxpy.config1.json
-!viewers/*/tests/daxpy.config1.js
+viewers/*/*.json
+**/oversized*.json*
 
-# Local scratch and the vendored copies get_CVA6_files.py and get_gem5_files.py make.
+# Local scratch, the copies get_CVA6_files.py and get_gem5_files.py make, and
+# what docker_sync.py pulls.
 temp/
 CVA6_files/
 gem5_files/
 container_results/
 
-# The paper sources and their images, which no image needs. Its Reference
-# Core configuration is the exception, since the gem5 image carries it under
-# configs/CARLA2026/ so the published numbers can be reproduced.
+# The paper sources and their figures, which no image needs. The paper's
+# Reference Core configuration is the exception: the gem5 image carries it
+# under gem5_configs/CARLA2026/, so the published numbers can be reproduced.
 viewers/*/docs/CARLA2026/
 !viewers/*/docs/CARLA2026/gem5_config_Reference_Core.py
 viewers/*/docs/old_versions/
