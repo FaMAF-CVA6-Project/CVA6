@@ -13,9 +13,9 @@
 # to the Verilator build as -DSTART_TRACE_CYCLE and -DEND_TRACE_CYCLE, which
 # the modified ariane_tb.cpp beside this file uses to window the waveform dump.
 #
-# This notice is required by Apache License 2.0 section 4(b), which governs the
-# original file and requires modified files to carry prominent notices stating
-# that they were changed.
+# This notice is required by section 4 of the Solderpad Hardware License 0.51,
+# the repository licence that governs the original file, which requires
+# modified files to carry prominent notices stating that they were changed.
 # ---------------------------------------------------------------------------
 
 # questa library
