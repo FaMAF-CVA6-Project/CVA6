@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run the gem5 configuration sweep. Each TEST entry runs against the workloads
 it was made for, outputs carry a .config<N> tag, and every metrics table is
-gathered into one metrics.txt. Run it from the gem5 root.
+gathered into one metrics file named after the sweep. Run it from the gem5
+root.
 
-    python3 scripts/run_gem5_config_sweep.py --list
+    python3 scripts/run_gem5_config_sweep.py --dry-run
     python3 scripts/run_gem5_config_sweep.py --configs 1,4-6
     python3 scripts/run_gem5_config_sweep.py --configs cache
 
@@ -22,9 +23,9 @@ import tempfile
 import threading
 import time
 
-# ==============================================================================
+# =============================================================================
 # CONFIGURATION
-# ==============================================================================
+# =============================================================================
 DEFAULT_CONFIG = "gem5_config_CVA6_patch_testing.py"
 
 # The swept configuration sets parameters only the patch provides, so the
@@ -44,9 +45,9 @@ GEM5_BINARY_NAMES = ("gem5.opt", "gem5.fast", "gem5.debug")
 # Where run_gem5.py has gem5 write, cleared after each collected run.
 GEM5_OUT_DIR = os.path.join("results", "m5out")
 
-# Runs to keep in flight at once. Deliberately below the core count:
-# each holds a gem5 process and writes a trace, so memory and disk
-# bind before cores do.
+# Runs to keep in flight at once, capped at four however many cores there
+# are: each holds a gem5 process and writes a trace, so memory and disk bind
+# before cores do.
 DEFAULT_JOBS = min(4, os.cpu_count() or 1)
 
 # Ids at or above this are the harness's cache geometry list rather than its
@@ -54,10 +55,12 @@ DEFAULT_JOBS = min(4, os.cpu_count() or 1)
 # different question and costs a run per entry.
 CACHE_FIRST_ID = 201
 
-# Names accepted by --configs in place of ids.
+# Names accepted by --configs in place of ids, so a table's two halves can be
+# asked for without knowing where one ends.
 GROUPS = ("grid", "cache", "all")
 
-# How a collected file and a config copy are labelled.
+# How a collected file and a config copy are labelled, named once so the
+# collected names and the gathered metrics file cannot disagree.
 LABEL = "config"
 SELECTOR_NAME = "TEST"
 UNIT = "configuration"
@@ -74,6 +77,7 @@ DEFAULT_ALL_TESTS = [
     "fp_divsqrt",
     "fp_divsqrt_probe",
     "fp_divsqrt_probe2",
+    "fp_divsqrt_probe3",
     "full_test",
     "icache_pressure",
     "int_div",
@@ -81,14 +85,15 @@ DEFAULT_ALL_TESTS = [
     "store_fwd",
 ]
 
-# Extensions tried when turning a workload name into a file, in this order.
+# Extensions tried when turning a workload name into a file, C first, since
+# the table names workloads without one.
 EXT_PRIORITY = [".c", ".S", ".s", ".asm", ".sx"]
 
-# '    6: ("fetch1FetchLimit 2->1", {...}, ...)' in the TESTS dict.
+# '    2: ("fetch1FetchLimit 2->1", {...}, ...)' in the TESTS dict.
 # These ids are authoritative: the comment table only annotates them.
 ENTRY_RE = re.compile(r'^\s*(\d+):\s*\(\s*"([^"]*)"', re.M)
 
-# '#   6   fetch1FetchLimit 2 -> 1 (reproduce the fetch starvation)'
+# '#   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small'
 ROW_RE = re.compile(r'^#\s+(\d+)\s+(\S.*)$')
 CONTINUATION_RE = re.compile(r'^#\s{4,}(\S.*)$')
 
@@ -100,13 +105,13 @@ MORILLAS_RE = re.compile(r'^USE_MORILLAS[ \t]*=[ \t]*(True|False)', re.M)
 
 SEP = "=" * 70
 
-# What the runner writes above its metrics table, and where the sweep gathers
-# every one of those tables once the runs are done.
+# What the runner writes above its metrics table, which is where the sweep
+# starts cutting each table out of a report once the runs are done.
 METRICS_MARKER = "RESULTS TABLE"
 
 
 def slug(text, limit=40):
-    """Turn a value into something safe for a file name: word characters and
+    """Turn a value into something safe for a file name: letters, digits and
     single dashes, trimmed."""
     out = re.sub(r"[^A-Za-z0-9]+", "-", str(text)).strip("-")
     return out[:limit].strip("-")
@@ -168,7 +173,7 @@ def parse_table(text):
     if not entries:
         return {}
 
-    # Accumulate each comment row, including its continuation lines.
+    # A row may wrap, so continuation lines join the row above them.
     comments = {}
     current = None
     for line in text.splitlines():
@@ -229,13 +234,15 @@ def resolve_test_file(name, tests_dir):
     """Turn a workload into a path. The table writes a bare name, but a name
     with its extension and a path to a file are what a person types on
     --tests, so all three resolve rather than only the first."""
-    # A path, absolute or relative to the working directory, taken as given.
+    # A path, absolute or relative to the working directory, is taken as
+    # given, since that is what a person typing one means.
     if os.path.isfile(name):
         return name
 
     stem, ext = os.path.splitext(name)
     if ext in EXT_PRIORITY:
-        # A name that already carries its extension, inside the tests folder.
+        # A name with its extension is looked for in the tests folder first,
+        # since that is where the table's workloads live.
         candidate = os.path.join(tests_dir, name)
         if os.path.isfile(candidate):
             return candidate
@@ -351,7 +358,7 @@ def driver_results_dir():
     return os.path.join("results", "run")
 
 
-def job_dirs(runner, label):
+def job_dirs(label):
     """The private folders one run works in. Each job gets its own, so
     concurrent runs cannot overwrite each other's stats.txt, trace or
     binary."""
@@ -424,8 +431,8 @@ def discard_run(job_gem5_out, job_results):
 
 def prune_empty(path):
     """Remove a folder the sweep has emptied, leaving anything else alone.
-    Deliberately not a recursive delete, a plain run_gem5.py run writes
-    straight into these folders and that output is not the sweep's."""
+    Deliberately not a recursive delete. A plain run_gem5.py run writes
+    straight into these folders, and that output is not the sweep's."""
     try:
         if os.path.isdir(path) and not os.listdir(path):
             os.rmdir(path)
@@ -454,7 +461,7 @@ def extract_metrics(report_path):
 
 
 def write_metrics_file(out_dir, entries, info, filename):
-    """Gather every run's metrics table into one metrics.txt. entries is
+    """Gather every run's metrics table into one file. entries is
     [(label, report file)] in plan order, so the file reads like the summary
     above it. A run with no table is named, not skipped."""
     blocks, missing = [], []
@@ -537,13 +544,13 @@ def print_summary(results, total_elapsed):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run the CVA6 calibration sweep: each entry of the TEST "
+        description="Run the gem5 calibration sweep: each entry of the TEST "
                     "table, with the workloads it was made for.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"Always sweeps {DEFAULT_CONFIG}, which it is written for. An "
-               f"entry whose\nworkload is 'all' runs the calibration set in "
-               f"DEFAULT_ALL_TESTS.\nRun this from the gem5 root, like "
-               f"run_gem5.py.\n"
+        epilog=f"Sweeps {DEFAULT_CONFIG},\nwhich it is written for, unless "
+               f"--config names another. An entry whose\nworkload is 'all' "
+               f"runs the calibration set in DEFAULT_ALL_TESTS. Run this\n"
+               f"from the gem5 root, like run_gem5.py.\n"
                f"\n"
                f"Any flag this script does not define is passed on to the "
                f"configuration\nbeing swept, through run_gem5.py and the same "
@@ -597,7 +604,7 @@ def main():
     parser.add_argument("--skip-build-check", action="store_true",
                         help="Forwarded to run_gem5.py: run even when the "
                              "build does not match --variant")
-    parser.add_argument("--list", action="store_true",
+    parser.add_argument("--dry-run", action="store_true",
                         help="Print the plan and exit, touching nothing")
     own_argv, after_separator = split_own_args(sys.argv[1:])
     args, unrecognised = parser.parse_known_args(own_argv)
@@ -650,7 +657,7 @@ def main():
     all_tests = override_tests if override_tests else resolve_all(table)
 
     print(SEP)
-    print("CVA6 TESTING SWEEP")
+    print("GEM5 CALIBRATION SWEEP")
     print(SEP)
     print(f"Config    : {config_path}")
     if args.tests_dir is None:
@@ -675,8 +682,8 @@ def main():
         "--tests" if override_tests else
         "DEFAULT_ALL_TESTS" if DEFAULT_ALL_TESTS else "the table")
 
-    if args.list:
-        print("[INFO] Listing only, nothing run.")
+    if args.dry_run:
+        print("[INFO] Dry run, nothing executed.")
         return 0
     if not total_runs:
         print("[ERROR] Nothing to run.")
@@ -710,7 +717,7 @@ def main():
             return
         test_name = os.path.splitext(os.path.basename(path))[0]
         label = f"{LABEL}{config_id}_{test_name}"
-        job_gem5_out, job_results = job_dirs(runner, label)
+        job_gem5_out, job_results = job_dirs(label)
         # Anything left from an earlier sweep would otherwise be collected.
         discard_run(job_gem5_out, job_results)
 
@@ -771,7 +778,8 @@ def main():
     stop = threading.Event()
     pool = None
     try:
-        # One copy of the configuration per id, each with its selector set.
+        # One copy per id, each with its selector set, so the runs of one id
+        # share a file and the original is never edited.
         queue = []
         for entry in plan:
             config_id, paths = entry[0], entry[-1]
