@@ -25,9 +25,9 @@
 // What changed: the waveform dump is windowed. Two compile-time defines,
 // START_TRACE_CYCLE and END_TRACE_CYCLE, bound the simulation time over which
 // samples are written, and the four dump sites are gated on that window.
-// Upstream dumps from cycle 0 to the end of the run. The purpose is a VCD small
-// enough to trace a long benchmark, since an unwindowed dump of one of these
-// runs reaches tens of gigabytes.
+// Upstream dumps from cycle 0 to the end of the run. The purpose is a VCD of a
+// long benchmark small enough to keep and convert, since an unwindowed dump of
+// one of these runs reaches tens of gigabytes.
 //
 // The defines are supplied by the Makefile beside this file, itself a modified
 // copy of the repository's top-level Makefile, through trace_start and
