@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Work inside the project's containers without the docker incantations.
+"""Work inside the project's containers without typing the docker commands.
 
 Six things to do, one word each. The container is cva6, gem5, or left out
 where both make sense. A stopped container is started first.
 
     python3 scripts/docker_run.py status           # what is up, and where
     python3 scripts/docker_run.py shell gem5       # a shell inside
-    python3 scripts/docker_run.py serve CVA6       # the viewer in a browser
+    python3 scripts/docker_run.py serve CVA6       # start the viewer server
     python3 scripts/docker_run.py stop             # stop both
 
-    python3 scripts/docker_run.py run gem5 daxpy   # through the side's driver
+    python3 scripts/docker_run.py run gem5 -- gem5_config_CVA6.py daxpy.S
     python3 scripts/docker_run.py exec CVA6 -- ls /CVA6/benchmarks
 
 run puts the side's driver in front of what follows, so the driver's own name
@@ -70,6 +70,10 @@ DRIVERS = {"gem5": "run_gem5.py", "CVA6": "run_CVA6.py"}
 # Each viewer serves itself, so the script is the viewer's own.
 SERVERS = {"gem5": "serve_MinorFlow.py", "CVA6": "serve_CVA6Flow.py"}
 
+# The page under the served root, which is the image's root, so the printed
+# address opens the viewer rather than a folder listing.
+PAGES = {"gem5": "MinorFlow/MinorFlow.html", "CVA6": "CVA6Flow/CVA6Flow.html"}
+
 # Where a tool is looked for inside a container, relative to its root. The
 # images keep them in scripts/, and an older container has them at the root.
 TOOL_DIRS = ("scripts", ".")
@@ -97,8 +101,8 @@ def display_args(args):
     """The -e DISPLAY a GUI inside the container needs, or nothing.
 
     make_containers.py sets it at creation, so this is for a container made
-    without it and for overriding the value, which Docker Desktop spells
-    host.docker.internal:0 rather than as the host's own DISPLAY."""
+    without it and for overriding the value, which on Docker Desktop is
+    host.docker.internal:0 rather than the host's own DISPLAY."""
     if args.no_display:
         return []
     value = args.display or os.environ.get("DISPLAY")
@@ -159,10 +163,10 @@ def viewer_url(name):
     the fallback, so an unpublished port is not a dead end."""
     host = published_port(name)
     if host:
-        return f"http://localhost:{host}/", True
+        return f"http://localhost:{host}/{PAGES[name]}", True
     address = container_ip(name)
     if address:
-        return f"http://{address}:{PORT}/", False
+        return f"http://{address}:{PORT}/{PAGES[name]}", False
     return None, False
 
 
@@ -211,9 +215,9 @@ def do_shell(name, args):
 def do_exec(name, args, driver=None):
     """Run a command inside, with the side's driver in front of it for run."""
     if not args.command:
-        what = "run" if driver else "exec"
+        example = f"run {name} -- --help" if driver else f"exec {name} -- ls"
         print(f"[ERROR] Nothing to run. Put the command after -- , as in "
-              f"'{what} {name} -- --help'.")
+              f"'{example}'.")
         return 2
     if not ready(name, args.yes):
         return 1
@@ -266,7 +270,7 @@ def do_serve(name, args):
     server = tool_path(name, SERVERS[name])
     if server is None:
         print(f"[ERROR] No {SERVERS[name]} in '{name}' under {root}. Push it "
-              f"'python3 scripts/docker_sync.py push {name}'.")
+              f"with 'python3 scripts/docker_sync.py push {name}'.")
         return 1
     code = docker(["exec", "-d", "-w", root, name,
                    "python3", server]).returncode
@@ -281,10 +285,11 @@ def do_serve(name, args):
         time.sleep(0.2)
     else:
         print(f"[ERROR] {SERVERS[name]} exited as soon as it started. Run "
-              f"'docker_run.py exec {name} -- python3 {server}' to see why.")
+              f"'python3 scripts/docker_run.py exec {name} -- python3 "
+              f"{server}' to see why.")
         return 1
     print(f"[INFO] Open {url}")
-    print(f"[INFO] 'docker_run.py exec {name} -- pkill -f "
+    print(f"[INFO] 'python3 scripts/docker_run.py exec {name} -- pkill -f "
           f"{SERVERS[name]}' stops it")
     return 0
 
@@ -310,7 +315,8 @@ ONE_SIDED = ("shell", "run", "exec")
 def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        usage="%(prog)s ACTION [CONTAINER] [-y] [-n] [-- COMMAND ...]",
+        usage="%(prog)s ACTION [CONTAINER] [-y] [-n] [--display VALUE] "
+              "[--no-display] [-- COMMAND ...]",
         description="Work inside the project's containers.",
         epilog="status  what is up, its image and its viewer URL\n"
                "shell   an interactive shell at the container root\n"
@@ -324,19 +330,19 @@ def main():
     parser.add_argument("action",
                         choices=["status", "shell", "run", "exec", "serve",
                                  "stop"],
-                        help="what to do")
+                        help="What to do")
     parser.add_argument("container", nargs="?", metavar="CONTAINER",
                         help=f"{' or '.join(sorted(CONTAINERS))}, or left out "
                              f"for both where that makes sense")
     parser.add_argument("-y", "--yes", action="store_true",
-                        help="do not ask before starting a stopped container")
+                        help="Do not ask before starting a stopped container")
     parser.add_argument("-n", "--dry-run", action="store_true",
-                        help="say what would run, run nothing")
+                        help="Say what would run, run nothing")
     parser.add_argument("--display", metavar="VALUE",
                         help="DISPLAY to pass in, defaulting to the host's. "
                              "Docker Desktop wants host.docker.internal:0")
     parser.add_argument("--no-display", action="store_true",
-                        help="do not pass a display in")
+                        help="Do not pass a display in")
     # Split on -- before argparse sees it. A REMAINDER positional would take
     # this script's own flags too, so -n after the container name became an
     # argument for the command instead of a dry run.
