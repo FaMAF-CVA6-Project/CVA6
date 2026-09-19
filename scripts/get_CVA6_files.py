@@ -3,13 +3,12 @@
 
 The manifests name the sources the core is built from, spread over the whole
 tree and written with variables the tools expand. This resolves them and copies
-every file into a single directory, which is what the RTL readers and the
-tracer's signal search expect.
+every file into a single directory, which is what the RTL readers expect.
 
-  python3 get_CVA6_files.py              # copy into CVA6_files/
-  python3 get_CVA6_files.py -o rtl       # a different destination
-  python3 get_CVA6_files.py --dry-run    # list what would be copied
-  python3 get_CVA6_files.py -v           # name every file as it is copied
+    python3 scripts/get_CVA6_files.py            # copy into CVA6_files/
+    python3 scripts/get_CVA6_files.py -o rtl     # a different destination
+    python3 scripts/get_CVA6_files.py --dry-run  # list what would be copied
+    python3 scripts/get_CVA6_files.py -v         # name every file copied
 """
 import os
 import sys
@@ -64,7 +63,7 @@ def manifest_vars(repo_root, target_cfg):
 
 
 def read_manifest(path, variables):
-    """Yield (kind, resolved_path) for every entry, kind being file or incdir.
+    """[(kind, resolved_path)] for every entry, kind being file or incdir.
 
     Comments, blank lines and -F directives are skipped. A -F pulls in another
     manifest, and both of ours are already listed explicitly.
@@ -85,7 +84,7 @@ def read_manifest(path, variables):
 
 
 def sources_for(kind, path):
-    """The files one entry contributes, and a reason when it contributes none."""
+    """(the files one entry contributes, a reason when it contributes none)."""
     if kind == "incdir":
         if not os.path.isdir(path):
             return [], f"+incdir+ directory not found: {path}"
@@ -104,7 +103,8 @@ def main():
         description="Copy the CVA6 RTL named by the Flist manifests into one "
                     "folder.")
     parser.add_argument("-o", "--dest", default=DEFAULT_DEST, metavar="DIR",
-                        help=f"Destination directory (default {DEFAULT_DEST}/)")
+                        help=f"Destination directory (default "
+                             f"{DEFAULT_DEST}/)")
     parser.add_argument("-n", "--dry-run", action="store_true",
                         help="List what would be copied and stop")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -114,8 +114,8 @@ def main():
                         help=f"Configuration whose config package is copied "
                              f"(default {DEFAULT_TARGET_CFG})")
     parser.add_argument("--repo", default=REPO_ROOT, metavar="DIR",
-                        help="CVA6 repository root (default: this script's "
-                             "folder)")
+                        help="CVA6 repository root (default: the "
+                             "repository this script sits in)")
     args = parser.parse_args()
 
     repo_root = os.path.abspath(args.repo)
