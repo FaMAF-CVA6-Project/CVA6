@@ -6,11 +6,11 @@ for both.
 
     python3 scripts/docker_sync.py push          # send this checkout in
     python3 scripts/docker_sync.py pull          # bring the results back
-    python3 scripts/docker_sync.py trace         # pull, then make the JSONs
-    python3 scripts/docker_sync.py list          # show what is in there
+    python3 scripts/docker_sync.py jsons         # pull, then make the JSONs
+    python3 scripts/docker_sync.py list          # show the run output inside
 
     python3 scripts/docker_sync.py push gem5     # one container
-    python3 scripts/docker_sync.py trace -y      # take every folder, no asking
+    python3 scripts/docker_sync.py jsons -y      # take every folder, no asking
     python3 scripts/docker_sync.py push -n       # say what would be copied
 
 A container keeps its own copy of everything, so a script edited here changes
@@ -41,7 +41,8 @@ def repo_root():
 
 REPO = repo_root()
 
-# Where a pulled folder lands, unless --out-dir says otherwise.
+# Where a pulled folder lands, unless --out-dir says otherwise. .gitignore
+# lists it, since a pull can bring back gigabytes.
 DEFAULT_OUT_DIR = "container_results"
 
 # The cleaners list every folder a run leaves behind, which is not the same as
@@ -53,21 +54,23 @@ NEVER_PULL = {"work-ver", "work-dpi", "build", "__pycache__"}
 # differently from a root that is simply empty.
 NOROOT = "__no_such_root__"
 
-# What each container holds. The push lists are the two folders the images are
-# meant to look like: the tools in scripts/, both benchmark sets under
-# benchmarks/, and the viewer in a folder of its own at the root.
+# What each container holds. The push lists copy each image's own layout: the
+# tools in scripts/, the configurations and both benchmark sets in folders of
+# their own, and the viewer in a folder at the root.
 CONTAINERS = {
     "gem5": {
         "root": "/gem5",
         "cleaner": "viewers/MinorFlow/scripts/clean_gem5_runs.py",
-        "tracer": "viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py",
+        "batch": "viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py",
         "push": [
-            # Drivers and sweeps, in the place they have here, run with the
-            # root as the working directory since that is where build/ is.
+            # The tools all land in scripts/ and run with the root as the
+            # working directory, since that is where build/ is.
             ("viewers/MinorFlow/scripts/run_gem5.py", "/gem5/scripts/"),
             ("viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py",
              "/gem5/scripts/"),
             ("viewers/MinorFlow/scripts/clean_gem5_runs.py", "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/measure_gem5_overhead.py",
+             "/gem5/scripts/"),
             ("viewers/MinorFlow/scripts/run_MinorFlow_sweep.py",
              "/gem5/scripts/"),
             ("scripts/run_gem5_config_sweep.py", "/gem5/scripts/"),
@@ -96,6 +99,8 @@ CONTAINERS = {
             ("viewers/MinorFlow/index.html", "/gem5/MinorFlow/"),
             ("viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py",
              "/gem5/scripts/"),
+            ("viewers/MinorFlow/scripts/make_MinorFlow_sample.py",
+             "/gem5/scripts/"),
         ],
         # Folders copied whole, source -> destination.
         "push_dirs": [
@@ -106,12 +111,14 @@ CONTAINERS = {
     "CVA6": {
         "root": "/CVA6",
         "cleaner": "viewers/CVA6Flow/scripts/clean_CVA6_runs.py",
-        "tracer": "viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
+        "batch": "viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
         "push": [
             ("viewers/CVA6Flow/scripts/run_CVA6.py", "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/run_all_CVA6_benchmarks.py",
              "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/clean_CVA6_runs.py", "/CVA6/scripts/"),
+            ("viewers/CVA6Flow/scripts/measure_CVA6_overhead.py",
+             "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py",
              "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/serve_CVA6Flow.py", "/CVA6/scripts/"),
@@ -141,11 +148,13 @@ CONTAINERS = {
             ("viewers/CVA6Flow/configs/"
              "cv64a6_imafdc_sv39_hpdcache_wb_config_CVA6Flow_pkg.sv",
              "/CVA6/CVA6_configs/"),
-            # The viewer, and the server that puts it in the host's browser.
+            # The viewer page, its tracer and the batch that runs it.
             ("viewers/CVA6Flow/CVA6Flow.html", "/CVA6/CVA6Flow/"),
             ("viewers/CVA6Flow/CVA6Flow_tracer.py", "/CVA6/CVA6Flow/"),
             ("viewers/CVA6Flow/index.html", "/CVA6/CVA6Flow/"),
             ("viewers/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py",
+             "/CVA6/scripts/"),
+            ("viewers/CVA6Flow/scripts/make_CVA6Flow_sample.py",
              "/CVA6/scripts/"),
         ],
         "push_dirs": [
@@ -174,10 +183,12 @@ def candidates(name):
     except (OSError, ImportError) as e:
         print(f"[WARN] Could not read {spec['cleaner']}: {e}")
         return []
-    out = [(d, why) for d, why in cleaner.ROOT_DIRS.items()
-           if d not in NEVER_PULL]
-    out += [(d, why) for d, why in cleaner.SIBLING_DIRS.items()
-            if d not in NEVER_PULL]
+    # Read by name and each one optional, so a table a cleaner renames or
+    # drops costs this menu a row rather than raising AttributeError.
+    out = []
+    for table in ("ROOT_DIRS", "ANY_DEPTH_DIRS"):
+        out += [(d, why) for d, why in getattr(cleaner, table, {}).items()
+                if d not in NEVER_PULL]
     if getattr(cleaner, "OUT_GLOB", None):
         out.append((cleaner.OUT_GLOB, cleaner.OUT_REASON))
     return out
@@ -205,8 +216,8 @@ def ensure_running(name, assume_yes):
         return True
     print(f"[INFO] '{name}' is not running.")
     if not assume_yes:
-        # Starting a container changes the machine, so it is never done on its
-        # own. Without a terminal to ask, say so and leave it alone.
+        # Starting a container changes the machine, so it is asked first.
+        # Without a terminal to ask, say so and leave it alone.
         if not sys.stdin.isatty():
             print(f"[INFO] Skipping '{name}'. Start it, or pass -y.")
             return False
@@ -380,25 +391,26 @@ def shown(path):
     return path if rel.startswith("..") else rel
 
 
-def do_trace(name, args, pulled):
-    """Turn every trace that came back into a viewer JSON."""
-    script = os.path.join(REPO, CONTAINERS[name]["tracer"])
+def do_jsons(name, args, pulled):
+    """Turn every trace or VCD that came back into a JSON."""
+    script = os.path.join(REPO, CONTAINERS[name]["batch"])
     if not os.path.isfile(script):
-        print(f"[WARN] {CONTAINERS[name]['tracer']} not found, nothing traced")
+        print(f"[WARN] {CONTAINERS[name]['batch']} not found, nothing "
+              f"converted")
         return 1
     failed = 0
     for folder in pulled:
         if not os.path.isdir(folder):
             continue
-        print(f"\n[INFO] Tracing {shown(folder)}")
+        print(f"\n[INFO] Converting {shown(folder)}")
         if args.dry_run:
             continue
         cmd = [sys.executable, script, folder, "-j", str(args.jobs)]
         code = subprocess.run(cmd).returncode
         # The batch passes --strict by default and ends with 3 when every
-        # trace converted but some are degraded, which is not a failure.
+        # input converted but some are degraded, which is not a failure.
         if code == 3:
-            print(f"[WARN] {shown(folder)}: some traces are degraded, see "
+            print(f"[WARN] {shown(folder)}: some inputs are degraded, see "
                   f"metadata.degraded in their JSONs")
         elif code != 0:
             failed += 1
@@ -412,25 +424,25 @@ def main():
         epilog="push   send this checkout's scripts, configurations and\n"
                "       benchmarks into the container\n"
                "pull   bring the run output back\n"
-               "trace  pull, then turn every trace into a viewer JSON\n"
-               "list   show what the container holds, copy nothing\n"
+               "jsons  pull, then turn every trace or VCD into a JSON\n"
+               "list   show the run output the container holds, copy nothing\n"
                "\n"
                "The container defaults to both.")
-    parser.add_argument("action", choices=["push", "pull", "trace", "list"],
-                        help="what to do")
+    parser.add_argument("action", choices=["push", "pull", "jsons", "list"],
+                        help="What to do")
     parser.add_argument("container", nargs="*", metavar="CONTAINER",
                         help=f"{' or '.join(sorted(CONTAINERS))}, "
                              f"or left out for both")
     parser.add_argument("-y", "--yes", action="store_true",
-                        help="do not ask: take every folder, start a stopped "
+                        help="Do not ask: take every folder, start a stopped "
                              "container")
     parser.add_argument("-n", "--dry-run", action="store_true",
-                        help="say what would happen, copy nothing")
+                        help="Say what would happen, copy nothing")
     parser.add_argument("-j", "--jobs", type=int, default=4, metavar="N",
-                        help="traces to convert at a time with trace "
+                        help="Traces or VCDs to convert at a time with jsons "
                              "(default 4)")
     parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR, metavar="DIR",
-                        help=f"where pulled folders land. Defaults to "
+                        help=f"Where pulled folders land. Defaults to "
                              f"{DEFAULT_OUT_DIR}/<container>/")
     args = parser.parse_args()
 
@@ -454,8 +466,8 @@ def main():
 
     missing = [n for n in names if container_exists(n) is False]
     if missing:
-        print(f"[ERROR] No container named {', '.join(missing)}. "
-              f"See the README for how to create one.")
+        print(f"[ERROR] No container named {', '.join(missing)}. Make one "
+              f"with 'python3 scripts/make_containers.py <name> --pull'.")
         names = [n for n in names if n not in missing]
     names = [n for n in names if ensure_running(n, args.yes)]
     if not names:
@@ -470,11 +482,11 @@ def main():
         else:
             hurt, got = do_pull(name, args)
             failed += hurt
-            if args.action == "trace":
-                failed += do_trace(name, args, got)
+            if args.action == "jsons":
+                failed += do_jsons(name, args, got)
             pulled += got
 
-    if args.action in ("pull", "trace"):
+    if args.action in ("pull", "jsons"):
         if pulled:
             print(f"\n[INFO] {len(pulled)} folder(s) under "
                   f"{os.path.abspath(args.out_dir)}")
