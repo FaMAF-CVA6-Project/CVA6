@@ -8,7 +8,7 @@ into one file. This points it at this side of the project instead of the
 viewer's, so the defaults are the cache geometry package, the calibration
 benchmarks and a results folder of its own. Every other flag is passed through.
 
-    python3 scripts/run_CVA6_config_sweep.py --list
+    python3 scripts/run_CVA6_config_sweep.py --dry-run
     python3 scripts/run_CVA6_config_sweep.py --configs 2-8
     python3 scripts/run_CVA6_config_sweep.py --configs 15,16 --no-vcd
 
@@ -39,8 +39,9 @@ OUT_DIR = os.path.join("results", "sweep_CVA6_config")
 
 def beside_script(name, folders):
     """The first of the named folders holding name, looked for beside this
-    script first and then under the working directory, since the container has
-    everything in scripts/ and a checkout keeps it where it belongs."""
+    script, then under the working directory, then under the folder above this
+    script, since a container has everything in scripts/ and a checkout keeps
+    each file where it belongs."""
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(here)
     for base in (here, os.curdir, root):
@@ -52,8 +53,9 @@ def beside_script(name, folders):
 
 
 def first_dir(folders):
-    """The first of the folders that exists, beside this script or under the
-    working directory."""
+    """The first of the folders that exists under the working directory,
+    beside this script or under the folder above it. The working directory
+    comes first, since the sweep is run from the CVA6 root."""
     here = os.path.dirname(os.path.abspath(__file__))
     root = os.path.dirname(here)
     for base in (os.curdir, here, root):
@@ -67,7 +69,7 @@ def first_dir(folders):
 def main():
     parser = argparse.ArgumentParser(
         description="Run the CVA6 cache sweep. Unknown flags go to "
-                    f"{WORKER}, so its --list, --configs, --tests and "
+                    f"{WORKER}, so its --dry-run, --configs, --tests and "
                     "--no-vcd all work here.",
         add_help=False)
     parser.add_argument("-h", "--help", action="store_true",
