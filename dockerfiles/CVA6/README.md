@@ -51,12 +51,13 @@ Output lands under `results/`: the files worth keeping in `results/run/`, and th
 | `scripts/run_all_CVA6_benchmarks.py`   | A whole folder in one go, writing to `results/batch/`, keeping a failed run rather than hiding it                                                                           |
 | `scripts/run_CVA6Flow_sweep.py`        | The **viewer's** sweep: the configuration cuts used while developing CVA6Flow. It swaps a package into `core/include/`, runs, and restores it afterwards                    |
 | `scripts/create_all_CVA6Flow_jsons.py` | Every VCD in a folder to a JSON, passing `--strict`, so a degraded VCD ends the batch with exit 3, its JSON still written                                                   |
+| `scripts/measure_CVA6_overhead.py`     | Measures the overhead profiles `run_CVA6.py` subtracts, from each suite's empty template, and with `--write` puts them into it                                              |
 | `scripts/clean_CVA6_runs.py`           | Deletes what a run writes. It asks about `work-ver` on its own, since rebuilding it is slow                                                                                 |
 | `scripts/run_CVA6_config_sweep.py`     | The **matched configuration** search on the real core: seventeen cuts of L1I and L1D size and associativity plus the baseline, the RTL side of what the gem5 harness sweeps |
 | `scripts/patch_vcd_window.py`          | Applies or reverts the windowed waveform dump                                                                                                                               |
 | `scripts/serve_CVA6Flow.py`            | Serves the viewer over HTTP, since the image has no browser                                                                                                                 |
 
-Every one of them answers `--help`. `patch_vcd_window.py` takes `-n` for a dry run, `clean_CVA6_runs.py` and `run_all_CVA6_benchmarks.py` take `--dry-run`, and both sweeps take `--dry-run` to print the plan without running it.
+Every one of them answers `--help`. `patch_vcd_window.py` and `measure_CVA6_overhead.py` take `-n` for a dry run, `clean_CVA6_runs.py` and `run_all_CVA6_benchmarks.py` take `--dry-run`, and both sweeps take `--dry-run` to print the plan without running it.
 
 ## Use the viewer
 
