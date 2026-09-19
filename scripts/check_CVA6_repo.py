@@ -4,18 +4,25 @@
 Every check here caught a real defect at least once, and each was being run by
 hand. Upstream OpenHW files are not touched: OWN_PATHS is the whole scope.
 
-Each viewer has the same tool for its own repository, sharing this one's
-helpers and check protocol: check_MinorFlow_repo.py and
-check_CVA6Flow_repo.py.
+Each viewer has the same tool for its own repository, check_MinorFlow_repo.py
+and check_CVA6Flow_repo.py. The helpers, the check protocol and main are
+shared blocks, identical in all three, and the shared-blocks check keeps them
+that way. A check returns a list of messages, empty when it passes, and a
+message starting with "SKIP " means it could not run.
 
-    python3 scripts/check_CVA6_repo.py               # everything but the patch round trip
-    python3 scripts/check_CVA6_repo.py --list        # name the checks and stop
-    python3 scripts/check_CVA6_repo.py -k tests      # only checks whose name matches
-    python3 scripts/check_CVA6_repo.py --patch-roundtrip   # also apply the patch (network)
+    python3 scripts/check_CVA6_repo.py                   # all but round trip
+    python3 scripts/check_CVA6_repo.py --list            # name the checks
+    python3 scripts/check_CVA6_repo.py -k test           # names holding test
+    python3 scripts/check_CVA6_repo.py --patch-roundtrip  # also the patch
+    python3 scripts/check_CVA6_repo.py --write-shared-manifest
 """
 import argparse
 import ast
+import difflib
+import glob
+import hashlib
 import io
+import json
 import os
 import re
 import shutil
@@ -25,10 +32,15 @@ import tempfile
 import tokenize
 
 
+# SHARED BEGIN py-repo-root
+
+# Needs: os
+
+
 def repo_root():
-    """The repository this script sits in, found by walking up to the nearest
-    .git. The script lives in scripts/, so counting parents would be one more
-    thing to fix the next time the tree moves."""
+    """The nearest folder above this script holding a .git, so a moved tree
+    needs no parent count fixed. Without one, as in a release archive, the
+    parent of the script's folder, which is the documented layout."""
     here = os.path.dirname(os.path.abspath(__file__))
     path = here
     while True:
@@ -36,26 +48,31 @@ def repo_root():
             return path
         parent = os.path.dirname(path)
         if parent == path:
-            return here
+            return os.path.dirname(here)
         path = parent
+
+# SHARED END py-repo-root
 
 
 REPO = repo_root()
 
-# This project's own files. Everything else in the fork is upstream OpenHW.
+# This project's own files, as far as the checks read them. The root
+# LICENSE.FaMAF, CITATION.cff and .dockerignore are ours too, but no check
+# reads their formats, and .gitignore is mostly upstream's.
 OWN_PATHS = (
     "scripts", "gem5_config_CVA6", "dockerfiles", "verilator_changes",
     "viewers/MinorFlow", "viewers/CVA6Flow", "viewers/FlowCompare.html",
-    "README.md",
+    "README.md", "LICENSE.FaMAF", "CITATION.cff", ".dockerignore",
+    ".gitignore",
 )
 
-# Frozen artefacts. CARLA2026 is the evidence behind a published paper, so it
-# is read-only by policy and must not be held to today's conventions.
+# Frozen artefacts, held to no convention: CARLA2026 is the evidence behind
+# a paper, and old_versions and parser_phases are the viewers' earlier states.
 FROZEN = ("docs/CARLA2026", "docs/old_versions", "docs/parser_phases")
 
-# One tool for two repositories that each need their own .gitignore, so a
-# drift between the copies is a real bug. Every script in the project has a
-# distinct name, so they differ only there, which VIEWERS normalises away.
+# Tools kept as one copy per viewer repository, so a drift between the copies
+# is a real bug. Every script in the project has a distinct name, so they
+# differ only there, which VIEWERS normalises away.
 TWINS = (
     ("viewers/MinorFlow/scripts/ignore_big_MinorFlow_jsons.py",
      "viewers/CVA6Flow/scripts/ignore_big_CVA6Flow_jsons.py"),
@@ -91,13 +108,21 @@ GEM5_RAW = f"https://raw.githubusercontent.com/gem5/gem5/{GEM5_TAG}/"
 # Groups that are the same configuration on purpose, or were already so when
 # this check was written. Anything not listed here is a new collapse and fails.
 KNOWN_DUPLICATE_TESTS = {
-    frozenset({47, 54}): "predates the check",
-    frozenset({61, 65}): "predates the check",
-    frozenset({66, 79}): "predates the check",
-    frozenset({72, 81, 84}): "predates the check",
-    frozenset({77, 78}): "predates the check",
-    frozenset({95, 99}): "TEST 95 is the end of the structural I-side ramp, "
-                         "so it is production by construction",
+    frozenset({48, 55}): "TEST 55 takes the fill phase off 49, which is 48",
+    frozenset({58, 59}): "TEST 59 set only the backward delay 58 lacked, "
+                         "which the baseline now carries",
+    frozenset({62, 66}): "executeFenceSquashesPipeline is already True in "
+                         "PATCH_BASE",
+    frozenset({67, 80}): "fetch2CycleInput is already True in the baseline",
+    frozenset({73, 82, 85}): "fetch2CycleInput and the fence squash are "
+                             "already the baseline",
+    frozenset({78, 79}): "fetch2CycleInput is already True in the baseline",
+}
+
+# Rows whose fuVariant names no CVA6FUPool branch, so they build the
+# baseline pool. Kept under their ids so recorded runs still match them.
+KNOWN_NOOP_VARIANTS = {
+    83: "serdiv_turnaround is already the baseline pool, so TEST 83 is 82",
 }
 
 # Scripts named in our text that are not ours: gem5's and CVA6's own sources,
@@ -107,33 +132,28 @@ EXTERNAL_SCRIPTS = {
     "BaseMinorCPU.py", "BranchPredictor.py", "Cache.py",   # gem5 sources
     "RiscvCPU.py",                                         # gem5 source
     "cva6.py",                                             # verif/sim driver
-    "my_config.py",                                        # an example name
+    "parsetab.py",                         # PLY's table, which gem5 generates
+    # An example name in viewers/MinorFlow's text, which this check reads.
+    "my_config.py",
 }
 
-# The style is 79 columns, which most of the tree already keeps. The budget is
-# a ratchet: it may fall but never rise, so new sprawl fails while old sprawl
-# is not a standing red mark. A calibration table is one line per entry.
+# The style is 79 columns. The budget is a ratchet that may fall but never
+# rise. What remains is the calibration tables, one line per entry, and four
+# gem5 imports whose module path alone runs past the limit.
 MAX_COLS = 79
-WIDTH_BUDGET = 352
+WIDTH_BUDGET = 164
 
 # Comment prose. A semicolon becomes a comma or a period, the tree is ASCII,
 # and a comment on a line of code runs to three lines at most.
 MAX_COMMENT_LINES = 3
 
-# The tracers and the viewer pages are design notes throughout, citing RTL
-# lines and measured counts, so cutting those to three lines would drop the
-# evidence. A ratchet instead: the count may fall but never rise.
-DESIGN_NOTES = ("_tracer.py", ".html")
-DESIGN_NOTE_BUDGET = 84
-
 # Files this check knows how to read. Anything else is data or a licence.
 COMMENTED = (".patch", ".py", ".md", ".html", ".c", ".h", ".cc", ".hh",
              ".sv", ".js", ".S", ".yml")
 
-# Non-ASCII that stays: accented letters spell people's names, and each glyph
-# named here is one the page renders or the tracer prints, so the comment
-# naming it is right to use it.
-NON_ASCII = re.compile("[^\x00-\x7f\u00c0-\u024f\u00b5\u25aa\u2550]")
+# Non-ASCII that stays: accented letters spell people's names. Every other
+# character in a comment or a document is ASCII.
+NON_ASCII = re.compile("[^\x00-\x7f\u00c0-\u024f]")
 
 # A row of a table, and a line of code quoted inside a comment. Both keep
 # their own punctuation, so neither is held to the prose rules.
@@ -150,14 +170,29 @@ CODEISH = re.compile(r"//|\bfor\b.*;|^\s*[\"\'].*[\"\']\s*,?$"
 LICENCE_START = re.compile(r"Copyright \(c\)|Licensed under|SPDX-License")
 LICENCE_END = re.compile(r"SUCH DAMAGE|limitations under the License")
 
-# A docstring is the string token that opens a file, a class or a function.
+# A docstring, as far as the tokeniser can tell: a string that opens a logical
+# line, which is where every file, class and function docstring sits.
 DOCSTRING_AFTER = (tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT,
                    tokenize.NL, tokenize.ENCODING)
 
+# A quoted path to a script, relative to the repository. An absolute one is a
+# destination inside a container, not a file here.
+SCRIPT_PATH = re.compile(
+    r'"((?!/)[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+\.py)"')
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# The formatter whose --check the formatter check runs.
+FORMATTER_SCRIPT = os.path.join("scripts", "format_CVA6_repo.py")
+
+# A container's documentation describes the layout inside the image, so its
+# relative paths are the container's and cannot resolve from here.
+CONTAINER_DOCS = ("dockerfiles/",)
+
+
+# SHARED BEGIN py-check-files
+
+# Needs: os, subprocess, REPO, OWN_PATHS, FROZEN
+
+
 def owned(pattern=None):
     """Our files, from git so ignored artefacts never reach a check."""
     out = []
@@ -170,7 +205,7 @@ def owned(pattern=None):
             continue
         # A submodule has its own index, so ask the right repository.
         # Its .git is a file rather than a directory, which is why this
-        # is exists and not isdir: isdir skipped the submodules whole.
+        # is exists and not isdir: isdir would skip the submodules whole.
         inner = full if os.path.exists(os.path.join(full, ".git")) else REPO
         rel = "." if inner == full else root
         # --others --exclude-standard adds files not yet staged, respecting
@@ -179,6 +214,11 @@ def owned(pattern=None):
         r = subprocess.run(["git", "-C", inner, "ls-files", "--cached",
                             "--others", "--exclude-standard", rel],
                            capture_output=True, text=True)
+        # Outside a checkout git lists nothing and every check would pass on
+        # zero files, so this raises for the check protocol to report.
+        if r.returncode != 0:
+            why = (r.stderr.strip().splitlines() or ["git ls-files failed"])
+            raise RuntimeError(f"not a git checkout: {inner}, {why[0]}")
         # Submodule paths come back relative to the submodule, so they
         # need the prefix here. A root of "." already is the repository.
         prefix = root + "/" if inner == full and root != "." else ""
@@ -196,48 +236,14 @@ def read(rel):
     with open(os.path.join(REPO, rel), encoding="utf-8") as handle:
         return handle.read()
 
-
-def literal(node):
-    """A structural value: literals as themselves, calls and names as tags, so
-    two entries can be compared without importing gem5."""
-    if isinstance(node, ast.Constant):
-        return node.value
-    if isinstance(node, ast.Dict):
-        return {literal(k): literal(v)
-                for k, v in zip(node.keys, node.values)}
-    if isinstance(node, (ast.Tuple, ast.List)):
-        return tuple(literal(e) for e in node.elts)
-    if isinstance(node, ast.Name):
-        return f"<{node.id}>"
-    if isinstance(node, ast.Call):
-        return f"<{ast.unparse(node.func)}()>"
-    return f"<{ast.unparse(node)}>"
+# SHARED END py-check-files
 
 
-def class_defaults(tree, class_name, prefix):
-    """Attribute assignments in a class body, last in source order winning, the
-    way execution leaves them."""
-    found = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ClassDef) and node.name == class_name:
-            hits = []
-            for sub in ast.walk(node):
-                if isinstance(sub, ast.Assign):
-                    for target in sub.targets:
-                        if (isinstance(target, ast.Attribute)
-                                and ast.unparse(target).startswith(prefix)):
-                            hits.append((sub.lineno, target.attr,
-                                         literal(sub.value)))
-            for _, key, value in sorted(hits):
-                found[key] = value
-    return found
+# SHARED BEGIN py-check-comment-scan
+
+# Needs: io, re, tokenize, BANNER, DOCSTRING_AFTER, LICENCE_START, LICENCE_END
 
 
-# ---------------------------------------------------------------------------
-# Comment extraction. Each returns (line, text, kind), where kind is own for a
-# comment on its own line, inline for one after code, and doc for a file
-# header, a docstring or a document, which the line limit does not reach.
-# ---------------------------------------------------------------------------
 def comment_scan(text, marks, block=None, quotes="\"'"):
     """C-family and hash comments in one pass, so a marker inside a string is
     not a comment and an apostrophe inside prose does not open a string."""
@@ -298,19 +304,23 @@ def python_comments(text):
         elif token.type == tokenize.STRING and previous in DOCSTRING_AFTER:
             for offset, line in enumerate(token.string.split("\n")):
                 rows.append((token.start[0] + offset, line, "doc"))
-        if token.type != tokenize.NL:
+        # A comment is passed over like a blank line, so a module docstring
+        # under a #! line still counts as one.
+        if token.type not in (tokenize.NL, tokenize.COMMENT):
             previous = token.type
     return rows
 
 
 def html_comments(text):
-    """The page's own comments, and the JavaScript inside every script tag."""
+    """The page's own comments, and those of the JavaScript and the CSS inside
+    every script and style tag."""
     rows = comment_scan(text, (), ("<!--", "-->"), "")
-    for match in re.finditer(r"<script[^>]*>(.*?)</script>", text,
-                             re.S | re.I):
-        base = text[:match.start(1)].count("\n")
-        rows += [(base + n, body, kind) for n, body, kind
-                 in comment_scan(match.group(1), ("//",), ("/*", "*/"))]
+    for tag, marks in (("script", ("//",)), ("style", ())):
+        for match in re.finditer(rf"<{tag}[^>]*>(.*?)</{tag}>", text,
+                                 re.S | re.I):
+            base = text[:match.start(1)].count("\n")
+            rows += [(base + n, body, kind) for n, body, kind
+                     in comment_scan(match.group(1), marks, ("/*", "*/"))]
     return sorted(rows)
 
 
@@ -398,17 +408,482 @@ def licence_lines(rows):
             left = 0 if LICENCE_END.search(body) else left - 1
     return inside
 
+# SHARED END py-check-comment-scan
+
+
+# SHARED BEGIN py-check-common
+
+# Needs: ast, os, re, shutil, subprocess, sys, tempfile, CODEISH, COMMENTED,
+# EXTERNAL_SCRIPTS, MAX_COLS, MAX_COMMENT_LINES, NON_ASCII, REPO, SCRIPT_PATH,
+# TABULAR, WIDTH_BUDGET, py-check-files, py-check-comment-scan
+
+
+def check_pyflakes():
+    """Every script we own is clean under pyflakes."""
+    if subprocess.run([sys.executable, "-m", "pyflakes", "--version"],
+                      capture_output=True).returncode != 0:
+        return ["SKIP pyflakes is not installed (pip install pyflakes)"]
+    files = [os.path.join(REPO, p) for p in owned(".py")]
+    r = subprocess.run([sys.executable, "-m", "pyflakes"] + files,
+                       capture_output=True, text=True)
+    return [line for line in r.stdout.splitlines() if line.strip()]
+
+
+def check_compiles():
+    """Every Python file we own parses, configurations included."""
+    bad = []
+    for rel in owned(".py"):
+        try:
+            ast.parse(read(rel))
+        except SyntaxError as e:
+            bad.append(f"{rel}:{e.lineno}: {e.msg}")
+    return bad
+
+
+def is_cli(rel):
+    """A script with a command line. A gem5 configuration imports m5, runs
+    only inside gem5 and cannot answer --help here."""
+    text = read(rel)
+    if "import m5" in text or "from m5" in text or "from gem5" in text:
+        return False
+    return "argparse" in text and '__main__' in text
+
+
+def check_help():
+    """Every command-line script answers --help.
+
+    It is the cheapest end-to-end test there is: it runs module-level code and
+    builds the whole parser, which is where a missing import or an argument
+    referenced but never added shows up."""
+    bad = []
+    for rel in owned(".py"):
+        if not is_cli(rel):
+            continue
+        # -B, so the modules a script imports leave no __pycache__ behind.
+        r = subprocess.run([sys.executable, "-B", os.path.join(REPO, rel),
+                            "--help"],
+                           capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            first = (r.stderr.strip().splitlines() or ["no output"])[-1]
+            bad.append(f"{rel} --help exited {r.returncode}: {first}")
+    return bad
+
+
+def check_viewer_js():
+    """The viewer pages' inline JavaScript parses."""
+    if not shutil.which("node"):
+        return ["SKIP node is not on PATH"]
+    bad = []
+    block = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+    for rel in owned(".html"):
+        scripts = block.findall(read(rel))
+        if not scripts:
+            continue
+        handle, path = tempfile.mkstemp(suffix=".js")
+        with os.fdopen(handle, "w") as out:
+            out.write("\n;\n".join(scripts))
+        r = subprocess.run(["node", "--check", path],
+                           capture_output=True, text=True)
+        os.unlink(path)
+        if r.returncode != 0:
+            first = (r.stderr.strip().splitlines() or ["parse error"])
+            detail = next((x for x in first if "Error" in x), first[-1])
+            bad.append(f"{rel}: {detail.strip()}")
+    return bad
+
+
+def heading_anchors(path):
+    """The fragments GitHub gives a document's headings: lower case, anything
+    but letters, digits, hyphens and spaces dropped, spaces as hyphens, and a
+    repeated heading numbered from -1. Fenced code holds no headings."""
+    found, seen, fence = set(), {}, False
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle.read().split("\n"):
+            if line.lstrip().startswith("```"):
+                fence = not fence
+                continue
+            heading = (None if fence
+                       else re.match(r"^#{1,6}\s+(.+?)\s*#*\s*$", line))
+            if not heading:
+                continue
+            slug = re.sub(r"[^\w\- ]", "", heading.group(1).lower())
+            slug = slug.replace(" ", "-")
+            count = seen.get(slug, 0)
+            seen[slug] = count + 1
+            found.add(slug if count == 0 else f"{slug}-{count}")
+    return found
+
+
+def check_script_names():
+    """Every script named in our docs, Dockerfiles and scripts exists.
+
+    Every quoted path to a script inside one of our scripts also resolves,
+    which catches a path left stale by a script moving folder while its name
+    alone would still match."""
+    known = {os.path.basename(p) for p in owned(".py")}
+    bad = []
+    for rel in owned():
+        if not rel.endswith((".md", ".py", "Dockerfile")):
+            continue
+        text = read(rel)
+        for match in re.finditer(r"(?<![\w>])([A-Za-z][A-Za-z0-9_]*\.py)\b",
+                                 text):
+            name = match.group(1)
+            if name in known or name in EXTERNAL_SCRIPTS:
+                continue
+            line = text[:match.start()].count("\n") + 1
+            bad.append(f"{rel}:{line}: {name} does not exist here")
+        if not rel.endswith(".py"):
+            continue
+        for match in SCRIPT_PATH.finditer(text):
+            named = match.group(1)
+            if (os.path.isfile(os.path.join(REPO, named))
+                    or os.path.basename(named) in EXTERNAL_SCRIPTS):
+                continue
+            line = text[:match.start()].count("\n") + 1
+            bad.append(f"{rel}:{line}: {named} is not a path here")
+    return sorted(set(bad))
+
+
+def check_comments():
+    """Comment prose: no semicolons, ASCII, and three lines to a comment.
+
+    File headers, licences and tables are prose of another kind and are not
+    held to the line limit. Docstrings are not comments, so module and
+    function docstrings are exempt from it too. Every other comment over
+    three lines fails, and names its file and line."""
+    bad = []
+    for rel in owned():
+        if not (rel.endswith(COMMENTED)
+                or os.path.basename(rel).startswith("Dockerfile")):
+            continue
+        text = read(rel)
+        rows = comment_rows(rel, text)
+        licensed = licence_lines(rows)
+        commented = {n for n, _, _ in rows}
+        content = next((n for n, line in enumerate(text.split("\n"), 1)
+                        if line.strip() and n not in commented), 1)
+        for n, body, _ in rows:
+            if body != body.rstrip():
+                bad.append(f"{rel}:{n}: trailing whitespace in a comment")
+            odd = sorted(set(NON_ASCII.findall(body)))
+            if odd:
+                bad.append(f"{rel}:{n}: non-ASCII in a comment, "
+                           + " ".join(f"U+{ord(c):04X}" for c in odd))
+            text = comment_text(body)
+            if ";" in text and n not in licensed and not CODEISH.search(text):
+                bad.append(f"{rel}:{n}: semicolon in prose, {text[:44]}")
+        for block in comment_blocks(rows):
+            start, lines = block[0][0], [body for _, body in block]
+            if len(lines) <= MAX_COMMENT_LINES or start < content:
+                continue
+            if sum(bool(TABULAR.search(b)) for b in lines) * 2 >= len(lines):
+                continue
+            bad.append(f"{rel}:{start}: comment of {len(lines)} lines, over "
+                       f"{MAX_COMMENT_LINES}")
+    return bad
+
+
+def check_formatting():
+    """No trailing whitespace, a final newline, and no new over-long lines."""
+    bad, wide = [], 0
+    for rel in owned():
+        name = os.path.basename(rel)
+        if not (rel.endswith((".py", ".md", ".html", ".js", ".sv", ".c", ".h",
+                              ".S", ".sh", ".cff", "Dockerfile"))
+                or name.startswith("LICENSE")
+                or name in (".dockerignore", ".gitignore")):
+            continue
+        text = read(rel)
+        if text and not text.endswith("\n"):
+            bad.append(f"{rel}: no newline at end of file")
+        for number, line in enumerate(text.split("\n"), 1):
+            if line != line.rstrip():
+                bad.append(f"{rel}:{number}: trailing whitespace")
+            if rel.endswith(".py") and len(line) > MAX_COLS:
+                wide += 1
+    if wide > WIDTH_BUDGET:
+        bad.append(f"{wide} lines over {MAX_COLS} columns, up from "
+                   f"{WIDTH_BUDGET}. Wrap the new ones, or raise "
+                   f"WIDTH_BUDGET deliberately")
+    elif WIDTH_BUDGET - wide >= 10:
+        # Only worth saying after a real tidy-up. Wrapping one line while
+        # working on something else should not produce a chore.
+        bad.append(f"SKIP {wide} lines over {MAX_COLS} columns, down from "
+                   f"{WIDTH_BUDGET}. Lower WIDTH_BUDGET to hold the gain")
+    return bad
+
+# SHARED END py-check-common
+
+
+# SHARED BEGIN py-check-shared-blocks
+
+# Needs: difflib, hashlib, json, os, re, sys, REPO, py-check-files
+
+# One fence syntax per language, each closing its comment, and a Python
+# fence at column 0. A line that looks like a fence and fits none fails.
+SHARED_FENCES = {
+    ".html": (
+        re.compile(r"^(?P<indent>\s*)/\* SHARED (?P<edge>BEGIN|END) "
+                   r"(?P<name>\S+) \*/$"),
+        re.compile(r"^(?P<indent>\s*)<!-- SHARED (?P<edge>BEGIN|END) "
+                   r"(?P<name>\S+) -->$"),
+    ),
+    ".py": (
+        re.compile(r"^(?P<indent>)# SHARED (?P<edge>BEGIN|END) "
+                   r"(?P<name>\S+)$"),
+    ),
+}
+SHARED_FENCE_LIKE = re.compile(r"\bSHARED (?:BEGIN|END)\b")
+SHARED_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+SHARED_SUFFIXES = (".html", ".py")
+SHARED_SIBLINGS = ("MinorFlow", "CVA6Flow", "FlowCompare.html")
+# The fork's checker, which carries the check blocks, seen from a viewer
+# inside the fork.
+SHARED_FORK_CHECKER = os.path.join("scripts", "check_CVA6_repo.py")
+SHARED_SKIP_DIRS = {".git", "docs", "tests", "node_modules", "__pycache__"}
+SHARED_MANIFEST = os.path.join("scripts", "shared_blocks.json")
+SHARED_MANIFEST_FORMAT = 1
+SHARED_DIFF_LINES = 8
+
+
+def shared_blocks_in(text, where):
+    """The fenced blocks of one file as {name: (line, text)}, each text
+    dedented to its fence, and the fence errors found."""
+    blocks, errors, begun = {}, [], None
+    fences = SHARED_FENCES[os.path.splitext(where)[1]]
+    lines = text.split("\n")
+    for number, line in enumerate(lines, 1):
+        match = next((m for m in (f.match(line) for f in fences) if m), None)
+        if not match:
+            if SHARED_FENCE_LIKE.search(line):
+                errors.append(f"{where}:{number}: a fence line that follows "
+                              f"no fence syntax for this file")
+            continue
+        name, indent = match.group("name"), match.group("indent")
+        if not SHARED_NAME.match(name):
+            errors.append(f"{where}:{number}: {name} is not a block name")
+        if match.group("edge") == "BEGIN":
+            if begun:
+                errors.append(f"{where}:{number}: {name} begins inside "
+                              f"{begun[0]}")
+            begun = (name, number, indent)
+            continue
+        if not begun or begun[0] != name:
+            errors.append(f"{where}:{number}: {name} ends without a begin")
+            begun = None
+            continue
+        start, begun = begun[1], None
+        body = lines[start:number - 1]
+        if len(body) < 2 or body[0].strip() or body[-1].strip():
+            errors.append(f"{where}:{start}: {name} needs a blank line "
+                          f"after its begin and before its end")
+        rows = []
+        for offset, row in enumerate(body):
+            if row.strip() and not row.startswith(indent):
+                errors.append(f"{where}:{start + offset + 1}: {name} has a "
+                              f"line indented less than its fence")
+            rows.append(row[len(indent):] if row.strip() else "")
+        if name in blocks:
+            errors.append(f"{where}:{start}: {name} appears twice")
+        blocks[name] = (start, "\n".join(rows) + "\n")
+    if begun:
+        errors.append(f"{where}:{begun[1]}: {begun[0]} never ends")
+    return blocks, errors
+
+
+def shared_hash(text):
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def sibling_files():
+    """{absolute path: label} of the .html and .py files of the sibling
+    trees: in viewers/ inside the fork, beside a viewer outside it, and the
+    fork's checker above a viewer inside the fork."""
+    here = os.path.realpath(REPO)
+    mine = {os.path.realpath(os.path.join(REPO, rel)) for rel in owned()}
+    found = {}
+    for base in (os.path.join(REPO, "viewers"), os.path.dirname(here)):
+        for sibling in SHARED_SIBLINGS:
+            top = os.path.join(base, sibling)
+            if not os.path.exists(top) or os.path.realpath(top) == here:
+                continue
+            paths = [top] if os.path.isfile(top) else []
+            for root, dirs, files in os.walk(top):
+                dirs[:] = sorted(d for d in dirs if d not in SHARED_SKIP_DIRS)
+                paths += [os.path.join(root, f) for f in sorted(files)
+                          if f.endswith(SHARED_SUFFIXES)]
+            for path in paths:
+                real = os.path.realpath(path)
+                if real not in mine:
+                    found[real] = os.path.relpath(path, base)
+    fork = os.path.dirname(os.path.dirname(here))
+    checker = os.path.join(fork, SHARED_FORK_CHECKER)
+    if os.path.isfile(checker) and os.path.realpath(checker) not in mine:
+        found[os.path.realpath(checker)] = SHARED_FORK_CHECKER
+    return found
+
+
+def collect_shared_blocks():
+    """Own and sibling blocks as {name: [(where, line, text)]}, and every
+    fence error found in either."""
+    own, siblings, errors = {}, {}, []
+    sources = [(rel, read(rel)) for rel in owned()
+               if rel.endswith(SHARED_SUFFIXES)]
+    for rel, text in sources:
+        blocks, bad = shared_blocks_in(text, rel)
+        errors += bad
+        for name, (line, body) in blocks.items():
+            own.setdefault(name, []).append((rel, line, body))
+    for path, label in sibling_files().items():
+        try:
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        blocks, bad = shared_blocks_in(text, label)
+        errors += bad
+        for name, (line, body) in blocks.items():
+            siblings.setdefault(name, []).append((label, line, body))
+    return own, siblings, errors
+
+
+def shared_difference(name, first, second):
+    """A failure naming both copies, with the start of their diff."""
+    (where_a, line_a, text_a), (where_b, line_b, text_b) = first, second
+    diff = [row for row in difflib.unified_diff(
+        text_a.splitlines(), text_b.splitlines(), lineterm="", n=0)
+        if row[:1] in "+-" and row[:3] not in ("+++", "---")]
+    return ([f"{name}: {where_a}:{line_a} and {where_b}:{line_b} differ"]
+            + [f"    {row}" for row in diff[:SHARED_DIFF_LINES]])
+
+
+def check_shared_blocks():
+    """Shared blocks match their other copies and the manifest."""
+    own, siblings, bad = collect_shared_blocks()
+    for name, copies in sorted(own.items()):
+        for other in copies[1:] + siblings.get(name, []):
+            if other[2] != copies[0][2]:
+                bad += shared_difference(name, copies[0], other)
+    manifest_path = os.path.join(REPO, SHARED_MANIFEST)
+    if not os.path.isfile(manifest_path):
+        return bad + [f"{SHARED_MANIFEST} is missing. Run "
+                      f"--write-shared-manifest to create it."] if own else bad
+    with open(manifest_path, encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    if manifest.get("format") != SHARED_MANIFEST_FORMAT:
+        return bad + [f"{SHARED_MANIFEST} is format {manifest.get('format')}, "
+                      f"and this check reads format "
+                      f"{SHARED_MANIFEST_FORMAT}. Run --write-shared-manifest "
+                      f"to rewrite it."]
+    listed = manifest["blocks"]
+    for name, copies in sorted(own.items()):
+        if listed.get(name) != shared_hash(copies[0][2]):
+            bad.append(f"{name}: changed since {SHARED_MANIFEST} was written. "
+                       f"If the change is deliberate, make it in every "
+                       f"repository that carries the block and run "
+                       f"--write-shared-manifest in each.")
+    bad += [f"{SHARED_MANIFEST} lists {name}, which no file here carries"
+            for name in sorted(set(listed) - set(own))]
+    return bad
+
+
+def write_shared_manifest():
+    """Rewrite the manifest from this repository's own blocks."""
+    own, _siblings, errors = collect_shared_blocks()
+    for name, copies in sorted(own.items()):
+        for other in copies[1:]:
+            if other[2] != copies[0][2]:
+                errors += shared_difference(name, copies[0], other)
+    if errors:
+        for problem in errors:
+            print(f"[ERROR] {problem}", file=sys.stderr)
+        return 1
+    blocks = {name: shared_hash(copies[0][2])
+              for name, copies in sorted(own.items())}
+    with open(os.path.join(REPO, SHARED_MANIFEST), "w") as handle:
+        json.dump({"format": SHARED_MANIFEST_FORMAT, "blocks": blocks},
+                  handle, indent=2)
+        handle.write("\n")
+    print(f"[INFO] Wrote {SHARED_MANIFEST} with {len(blocks)} blocks")
+    return 0
+
+# SHARED END py-check-shared-blocks
+
+
+# SHARED BEGIN py-check-formatter
+
+# Needs: os, subprocess, sys, FORMATTER_SCRIPT, REPO
+
+
+def check_formatter():
+    """Our Python, Markdown and benchmarks are what the formatter produces.
+
+    Python is autopep8's at MAX_COLS. Markdown is Prettier's and is checked
+    only where Prettier can run, since it is usually the editor's copy rather
+    than a tool on PATH. The benchmarks are the formatter's own pass."""
+    script = os.path.join(REPO, FORMATTER_SCRIPT)
+    if not os.path.isfile(script):
+        return [f"SKIP {FORMATTER_SCRIPT} is missing"]
+    done = subprocess.run([sys.executable, script, "--check"],
+                          capture_output=True, text=True, cwd=REPO)
+    out = done.stdout
+    skips = [line[len("[SKIP] "):] for line in out.splitlines()
+             if line.startswith(("[SKIP] autopep8", "[SKIP] prettier"))]
+    if done.returncode == 0:
+        return [f"SKIP {skip}" for skip in skips]
+    files = [ln.strip() for ln in out.splitlines() if ln.startswith("  ")]
+    return [f"{f}: not what the formatter produces" for f in files] or [
+        "some files are not what the formatter produces"]
+
+# SHARED END py-check-formatter
+
 
 # ---------------------------------------------------------------------------
-# Checks. Each returns a list of failure messages, empty when it passes.
+# The checks only this repository runs.
 # ---------------------------------------------------------------------------
+def literal(node):
+    """A structural value: literals as themselves, calls and names as tags, so
+    two entries can be compared without importing gem5."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Dict):
+        return {literal(k): literal(v)
+                for k, v in zip(node.keys, node.values)}
+    if isinstance(node, (ast.Tuple, ast.List)):
+        return tuple(literal(e) for e in node.elts)
+    if isinstance(node, ast.Name):
+        return f"<{node.id}>"
+    if isinstance(node, ast.Call):
+        return f"<{ast.unparse(node.func)}()>"
+    return f"<{ast.unparse(node)}>"
+
+
+def class_defaults(tree, class_name, prefix):
+    """Attribute assignments in a class body, last in source order winning, the
+    way execution leaves them."""
+    found = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            hits = []
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Assign):
+                    for target in sub.targets:
+                        if (isinstance(target, ast.Attribute)
+                                and ast.unparse(target).startswith(prefix)):
+                            hits.append((sub.lineno, target.attr,
+                                         literal(sub.value)))
+            for _, key, value in sorted(hits):
+                found[key] = value
+    return found
+
+
 def check_twins():
     """The scripts kept in two places are still one file, bar their own name.
 
     Reported as a diff rather than a bare mismatch: after normalising the
     viewer name away, every remaining line is a real difference and worth
     seeing."""
-    import difflib
     bad = []
     for a, b in TWINS:
         pa, pb = os.path.join(REPO, a), os.path.join(REPO, b)
@@ -433,7 +908,10 @@ def check_twins():
 
 
 def check_test_tables():
-    """No two calibration entries reduce to the same configuration."""
+    """No two calibration entries reduce to the same configuration.
+
+    Every fuVariant must also name a branch of CVA6FUPool, since an unknown
+    one silently builds the baseline pool and the row measures nothing."""
     bad = []
     for rel in TEST_TABLES:
         try:
@@ -441,7 +919,7 @@ def check_test_tables():
         except OSError:
             bad.append(f"{rel} is missing")
             continue
-        tables = {}
+        tables, consts = {}, {}
         for node in tree.body:
             name = (getattr(node.targets[0], "id", "")
                     if isinstance(node, ast.Assign) else "")
@@ -449,9 +927,38 @@ def check_test_tables():
                 tables[name] = {literal(k): literal(v)
                                 for k, v in zip(node.value.keys,
                                                 node.value.values)}
+            elif name in ("CACHE_BASE_TEST", "PATCH_TIER_START",
+                          "PATCH_BASE"):
+                consts[name] = literal(node.value)
         if "TESTS" not in tables:
             bad.append(f"{rel} has no TESTS table")
             continue
+        # The entries as the harness runs them: from PATCH_TIER_START on laid
+        # over PATCH_BASE, and each cache entry over its resolved base.
+        fields = {1: "cpu", 4: "dcache", 5: "icache", 8: "bp"}
+
+        def laid_over(base, entry):
+            return tuple({**base.get(fields[i], {}), **field}
+                         if i in fields else field
+                         for i, field in enumerate(entry))
+        tier = consts.get("PATCH_TIER_START")
+        if tier is not None:
+            tables["TESTS"] = {
+                number: (laid_over(consts.get("PATCH_BASE", {}), entry)
+                         if number >= tier else entry)
+                for number, entry in tables["TESTS"].items()}
+        # An id missing from the grid would fail every cache run.
+        if "CACHE_TESTS" in tables:
+            cache_base = consts.get("CACHE_BASE_TEST")
+            if cache_base not in tables["TESTS"]:
+                bad.append(f"{rel}: CACHE_BASE_TEST {cache_base} is not an "
+                           f"entry of TESTS")
+                continue
+            base = tables["TESTS"][cache_base]
+            base = {fields[i]: base[i] for i in fields}
+            tables["CACHE_TESTS"] = {
+                number: laid_over(base, entry)
+                for number, entry in tables["CACHE_TESTS"].items()}
         # The harness merges the two tables, so an id in both would silently
         # take whichever was written second.
         shared = sorted(set(tables.get("CACHE_TESTS", {}))
@@ -459,6 +966,19 @@ def check_test_tables():
         if shared:
             bad.append(f"{rel}: id(s) in both tables: "
                        + ", ".join(str(n) for n in shared))
+        known = {c.value for node in ast.walk(tree)
+                 if isinstance(node, ast.Compare)
+                 and getattr(node.left, "id", "") == "variant"
+                 for c in node.comparators if isinstance(c, ast.Constant)}
+        for number, entry in [(n, e) for t in tables.values()
+                              for n, e in t.items()]:
+            bp = entry[8] if len(entry) > 8 else {}
+            variant = bp.get("fuVariant") if isinstance(bp, dict) else None
+            if (variant and variant not in known
+                    and number not in KNOWN_NOOP_VARIANTS):
+                bad.append(f"{os.path.basename(rel)}: TEST {number} names "
+                           f"fuVariant {variant!r}, which CVA6FUPool never "
+                           f"tests for")
         cpu_base = class_defaults(tree, "CVA6CPU", "self.")
         ic_base = class_defaults(tree, "CVA6CacheHierarchy",
                                  "self.l1icaches[i].")
@@ -496,70 +1016,33 @@ def check_test_tables():
     return bad
 
 
-def check_pyflakes():
-    """Every script we own is clean under pyflakes."""
-    if subprocess.run([sys.executable, "-m", "pyflakes", "--version"],
-                      capture_output=True).returncode != 0:
-        return ["SKIP pyflakes is not installed (pip install pyflakes)"]
-    files = [os.path.join(REPO, p) for p in owned(".py")]
-    r = subprocess.run([sys.executable, "-m", "pyflakes"] + files,
-                       capture_output=True, text=True)
-    return [line for line in r.stdout.splitlines() if line.strip()]
-
-
-def check_compiles():
-    """Every script we own parses, gem5 configurations included."""
-    bad = []
-    for rel in owned(".py"):
-        try:
-            ast.parse(read(rel))
-        except SyntaxError as e:
-            bad.append(f"{rel}:{e.lineno}: {e.msg}")
-    return bad
-
-
-def is_cli(rel):
-    """A script with a command line, as opposed to a gem5 configuration, which
-    only runs inside gem5 and cannot answer --help here."""
-    text = read(rel)
-    if "import m5" in text or "from m5" in text or "from gem5" in text:
-        return False
-    return "argparse" in text and '__main__' in text
-
-
-def check_help():
-    """Every command-line script answers --help.
-
-    It is the cheapest end-to-end test there is: it runs module-level code and
-    builds the whole parser, which is where a missing import or an argument
-    referenced but never added shows up."""
-    bad = []
-    for rel in owned(".py"):
-        if not is_cli(rel):
-            continue
-        r = subprocess.run([sys.executable, os.path.join(REPO, rel), "--help"],
-                           capture_output=True, text=True, timeout=60)
-        if r.returncode != 0:
-            first = (r.stderr.strip().splitlines() or ["no output"])[-1]
-            bad.append(f"{rel} --help exited {r.returncode}: {first}")
-    return bad
-
-
 def check_patch_hunks():
-    """Every hunk header in the patch matches the lines under it."""
+    """Every hunk header in the patch matches the lines under it, and starts
+    where the hunks above it in the same file leave it. A hand edit that adds
+    lines to one hunk and not to the headers below it breaks the second."""
     try:
         lines = read(PATCH).split("\n")
     except OSError:
         return [f"{PATCH} is missing"]
-    bad, index = [], 0
+    bad, index, offset = [], 0, 0
     header = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
     while index < len(lines):
+        if lines[index].startswith("diff --git "):
+            offset = 0
         match = header.match(lines[index])
         if not match:
             index += 1
             continue
         want_old = int(match.group(2) or 1)
         want_new = int(match.group(4) or 1)
+        # An empty side names the line before the hunk, so its first line is
+        # one on from the number given.
+        first_old = int(match.group(1)) + (want_old == 0)
+        expected = first_old + offset - (want_new == 0)
+        if int(match.group(3)) != expected:
+            bad.append(f"{PATCH}:{index + 1}: {lines[index].strip()} should "
+                       f"start at +{expected}, after the hunks above it")
+        offset += want_new - want_old
         start, index = index, index + 1
         old = new = 0
         while index < len(lines) and (old < want_old or new < want_new):
@@ -609,6 +1092,20 @@ def check_patch_roundtrip():
         if subprocess.run(["git", "-C", work, "apply", patch],
                           capture_output=True).returncode != 0:
             return [f"{PATCH} does not apply to pristine gem5 {GEM5_TAG}"]
+        # Each index line names the file the patch produces, which a hand edit
+        # leaves stale while the patch still applies.
+        stale = []
+        for rel, after in re.findall(
+                r"^diff --git a/(\S+) b/\S+\n(?:new file mode \d+\n)?"
+                r"index [0-9a-f]+\.\.([0-9a-f]+)", read(PATCH), re.M):
+            got = subprocess.run(["git", "-C", work, "hash-object", rel],
+                                 capture_output=True, text=True).stdout
+            if not got.startswith(after):
+                stale.append(rel)
+        if stale:
+            return [f"{PATCH}: {len(stale)} index line(s) name a file the "
+                    f"patch does not produce, {stale[0]} first. Regenerate it "
+                    f"with scripts/patch_gem5.py create"]
         if subprocess.run(["git", "-C", work, "apply", "-R", patch],
                           capture_output=True).returncode != 0:
             return [f"{PATCH} applies but does not revert"]
@@ -621,37 +1118,16 @@ def check_patch_roundtrip():
         shutil.rmtree(work, ignore_errors=True)
 
 
-def check_viewer_js():
-    """The viewer pages' inline JavaScript parses."""
-    if not shutil.which("node"):
-        return ["SKIP node is not on PATH"]
-    bad = []
-    block = re.compile(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
-    for rel in owned(".html"):
-        scripts = block.findall(read(rel))
-        if not scripts:
-            continue
-        handle, path = tempfile.mkstemp(suffix=".js")
-        with os.fdopen(handle, "w") as out:
-            out.write("\n;\n".join(scripts))
-        r = subprocess.run(["node", "--check", path],
-                           capture_output=True, text=True)
-        os.unlink(path)
-        if r.returncode != 0:
-            first = (r.stderr.strip().splitlines() or ["parse error"])
-            detail = next((x for x in first if "Error" in x), first[-1])
-            bad.append(f"{rel}: {detail.strip()}")
-    return bad
+# SHARED BEGIN py-check-links
 
-
-# A container's documentation describes the layout inside the image, so its
-# relative paths are the container's and cannot resolve from here.
-CONTAINER_DOCS = ("dockerfiles/",)
+# Needs: os, re, CONTAINER_DOCS, REPO, py-check-files, py-check-common
 
 
 def check_links():
-    """Every relative link in our markdown resolves, except in the container
-    documents, whose paths are a container's own."""
+    """Every relative link in our Markdown resolves, anchors included.
+
+    The documents under CONTAINER_DOCS are skipped, since their paths are a
+    container's own."""
     bad = []
     link = re.compile(r"\]\(([^)\s]+)\)")
     for rel in owned(".md"):
@@ -659,49 +1135,19 @@ def check_links():
             continue
         base = os.path.dirname(os.path.join(REPO, rel))
         for target in link.findall(read(rel)):
-            if target.startswith(("http://", "https://", "#", "mailto:")):
+            if target.startswith(("http://", "https://", "mailto:")):
                 continue
-            if not os.path.exists(os.path.join(base, target.split("#")[0])):
+            path, _, anchor = target.partition("#")
+            full = (os.path.join(base, path) if path
+                    else os.path.join(REPO, rel))
+            if not os.path.exists(full):
                 bad.append(f"{rel}: {target}")
+            elif (anchor and full.endswith(".md")
+                    and anchor not in heading_anchors(full)):
+                bad.append(f"{rel}: {target} names no heading there")
     return bad
 
-
-# A quoted path to a script, relative to the repository. An absolute one is a
-# destination inside a container, not a file here.
-SCRIPT_PATH = re.compile(
-    r'"((?!/)[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+\.py)"')
-
-
-def check_script_names():
-    """Every script named in our docs, Dockerfiles and scripts exists, and
-    every path to one resolves.
-
-    A name that moved is caught by the first half. The second catches a path
-    that went stale when a script moved folder, which a name alone cannot:
-    the cleaners moving into scripts/ left one behind for a while."""
-    known = {os.path.basename(p) for p in owned(".py")}
-    bad = []
-    for rel in owned():
-        if not rel.endswith((".md", ".py", "Dockerfile")):
-            continue
-        text = read(rel)
-        for match in re.finditer(r"(?<![\w>])([A-Za-z][A-Za-z0-9_]*\.py)\b",
-                                 text):
-            name = match.group(1)
-            if name in known or name in EXTERNAL_SCRIPTS:
-                continue
-            line = text[:match.start()].count("\n") + 1
-            bad.append(f"{rel}:{line}: {name} does not exist here")
-        if not rel.endswith(".py"):
-            continue
-        for match in SCRIPT_PATH.finditer(text):
-            named = match.group(1)
-            if (os.path.isfile(os.path.join(REPO, named))
-                    or os.path.basename(named) in EXTERNAL_SCRIPTS):
-                continue
-            line = text[:match.start()].count("\n") + 1
-            bad.append(f"{rel}:{line}: {named} is not a path here")
-    return sorted(set(bad))
+# SHARED END py-check-links
 
 
 def ignore_rules():
@@ -728,7 +1174,12 @@ def ignore_match(rel, pattern):
     everything below it."""
     out, i = [], 0
     while i < len(pattern):
-        if pattern.startswith("**", i):
+        # A leading or inner **/ also matches no folder at all, as Docker
+        # reads it, so **/x covers a top-level x too.
+        if pattern.startswith("**/", i):
+            out.append("(?:.*/)?")
+            i += 3
+        elif pattern.startswith("**", i):
             out.append(".*")
             i += 2
         elif pattern[i] in "*?":
@@ -761,7 +1212,6 @@ def check_dockerfiles():
     a moved folder is worth catching here. Existing on disk is not enough: an
     excluded path is absent from the context, and the COPY then ships nothing
     without failing, which is the worse of the two."""
-    import glob
     bad = []
     rules = ignore_rules()
     for rel in owned("Dockerfile"):
@@ -791,109 +1241,6 @@ def check_dockerfiles():
     return bad
 
 
-def check_comments():
-    """Comment prose: no semicolons, ASCII, and three lines to a comment.
-
-    File headers, docstrings, licences and tables are prose of another kind
-    and are not held to the line limit. The tracers and the viewer pages
-    document mechanisms rather than lines of code, so their long comments are
-    ratcheted like the column budget instead of being cut."""
-    bad, notes = [], 0
-    for rel in owned():
-        if not (rel.endswith(COMMENTED)
-                or os.path.basename(rel).startswith("Dockerfile")):
-            continue
-        text = read(rel)
-        rows = comment_rows(rel, text)
-        licensed = licence_lines(rows)
-        # Where the file's own content starts. Everything above it introduces
-        # the file rather than a line of code, however long the banner runs,
-        # which a fixed line count got wrong for the Dockerfiles.
-        commented = {n for n, _, _ in rows}
-        content = next((n for n, line in enumerate(text.split("\n"), 1)
-                        if line.strip() and n not in commented), 1)
-        for n, body, _ in rows:
-            if body != body.rstrip():
-                bad.append(f"{rel}:{n}: trailing whitespace in a comment")
-            odd = sorted(set(NON_ASCII.findall(body)))
-            if odd:
-                bad.append(f"{rel}:{n}: non-ASCII in a comment, "
-                           + " ".join(f"U+{ord(c):04X}" for c in odd))
-            text = comment_text(body)
-            if ";" in text and n not in licensed and not CODEISH.search(text):
-                bad.append(f"{rel}:{n}: semicolon in prose, {text[:44]}")
-        for block in comment_blocks(rows):
-            start, lines = block[0][0], [body for _, body in block]
-            if len(lines) <= MAX_COMMENT_LINES or start < content:
-                continue
-            if sum(bool(TABULAR.search(b)) for b in lines) * 2 >= len(lines):
-                continue
-            if rel.endswith(DESIGN_NOTES):
-                notes += 1
-            else:
-                bad.append(f"{rel}:{start}: comment of {len(lines)} lines, "
-                           f"over {MAX_COMMENT_LINES}")
-    if notes > DESIGN_NOTE_BUDGET:
-        bad.append(f"{notes} design-note comments over {MAX_COMMENT_LINES} "
-                   f"lines, up from {DESIGN_NOTE_BUDGET}. Shorten the new "
-                   f"ones, or raise DESIGN_NOTE_BUDGET deliberately")
-    elif DESIGN_NOTE_BUDGET - notes >= 10:
-        bad.append(f"SKIP {notes} design-note comments over "
-                   f"{MAX_COMMENT_LINES} lines, down from "
-                   f"{DESIGN_NOTE_BUDGET}. Lower DESIGN_NOTE_BUDGET to "
-                   f"hold the gain")
-    return bad
-
-
-def check_formatting():
-    """No trailing whitespace, a final newline, and no new over-long lines."""
-    bad, wide = [], 0
-    for rel in owned():
-        if not rel.endswith((".py", ".md", ".sh", "Dockerfile")):
-            continue
-        text = read(rel)
-        if text and not text.endswith("\n"):
-            bad.append(f"{rel}: no newline at end of file")
-        for number, line in enumerate(text.split("\n"), 1):
-            if line != line.rstrip():
-                bad.append(f"{rel}:{number}: trailing whitespace")
-            if rel.endswith(".py") and len(line) > MAX_COLS:
-                wide += 1
-    if wide > WIDTH_BUDGET:
-        bad.append(f"{wide} lines over {MAX_COLS} columns, up from "
-                   f"{WIDTH_BUDGET}. Wrap the new ones, or raise "
-                   f"WIDTH_BUDGET deliberately")
-    elif WIDTH_BUDGET - wide >= 10:
-        # Only worth saying after a real tidy-up. Wrapping one line while
-        # working on something else should not produce a chore.
-        bad.append(f"SKIP {wide} lines over {MAX_COLS} columns, down from "
-                   f"{WIDTH_BUDGET}. Lower WIDTH_BUDGET to hold the gain")
-    return bad
-
-
-def check_formatter():
-    """Our Python is what autopep8 at MAX_COLS produces.
-
-    Markdown is Prettier's and is checked only where Prettier can run, since
-    it is usually the editor's copy rather than a tool on PATH."""
-    script = os.path.join(REPO, "scripts", "format_CVA6_repo.py")
-    if not os.path.isfile(script):
-        return ["SKIP scripts/format_CVA6_repo.py is missing"]
-    done = subprocess.run([sys.executable, script, "--check"],
-                          capture_output=True, text=True, cwd=REPO)
-    out = done.stdout
-    # The Python half could not run meaningfully, because autopep8 is missing
-    # or is not the toolchain the tree was formatted with. Either is a SKIP,
-    # never a pass and never a list of files that are in fact formatted.
-    python_skip = next((line[len("[SKIP] "):] for line in out.splitlines()
-                        if line.startswith("[SKIP] autopep8")), None)
-    if done.returncode == 0:
-        return [f"SKIP {python_skip}"] if python_skip else []
-    files = [ln.strip() for ln in out.splitlines() if ln.startswith("  ")]
-    return [f"{f}: not what the formatter produces" for f in files] or [
-        "some files are not what the formatter produces"]
-
-
 CHECKS = (
     ("twins", check_twins),
     ("test-tables", check_test_tables),
@@ -902,6 +1249,7 @@ CHECKS = (
     ("help", check_help),
     ("patch-hunks", check_patch_hunks),
     ("viewer-js", check_viewer_js),
+    ("shared-blocks", check_shared_blocks),
     ("dockerfiles", check_dockerfiles),
     ("script-names", check_script_names),
     ("links", check_links),
@@ -911,23 +1259,43 @@ CHECKS = (
 )
 OPTIONAL = (("patch-roundtrip", check_patch_roundtrip),)
 
+# What --help says this checker covers. It differs between the three
+# repositories, as do the constants above and the checks outside the shared
+# blocks.
+DESCRIPTION = ("Check this project's own files. Upstream OpenHW code is "
+               "left alone.")
+
+
+# SHARED BEGIN py-check-main
+
+# Needs: argparse, sys, CHECKS, OPTIONAL, DESCRIPTION, py-check-shared-blocks
+
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Check this project's own files. Upstream OpenHW is left "
-                    "alone.")
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument("-k", "--only", metavar="TEXT",
                         help="Run only the checks whose name contains TEXT")
-    parser.add_argument("--patch-roundtrip", action="store_true",
-                        help="Also apply and revert MinorCPU_CVA6.patch "
-                             "against pristine gem5. Needs the network")
+    # OPTIONAL is empty in the viewers, which carry no gem5 patch, so this
+    # option and the getattr below never apply there. They stay so that main
+    # is one shared block in all three repositories.
+    if OPTIONAL:
+        parser.add_argument("--patch-roundtrip", action="store_true",
+                            help="Also apply and revert MinorCPU_CVA6.patch "
+                                 "against pristine gem5. Needs the network")
     parser.add_argument("--list", action="store_true",
                         help="Name the checks and stop")
     parser.add_argument("-q", "--quiet", action="store_true",
-                        help="Print only the checks that fail")
+                        help="Print only the checks that fail, and the "
+                             "summary")
+    parser.add_argument("--write-shared-manifest", action="store_true",
+                        help="Rewrite scripts/shared_blocks.json from this "
+                             "repository's shared blocks and stop")
     args = parser.parse_args()
 
-    checks = list(CHECKS) + (list(OPTIONAL) if args.patch_roundtrip else [])
+    if args.write_shared_manifest:
+        return write_shared_manifest()
+    optional = getattr(args, "patch_roundtrip", False)
+    checks = list(CHECKS) + (list(OPTIONAL) if optional else [])
     if args.only:
         checks = [c for c in checks if args.only in c[0]]
     if args.list:
@@ -935,14 +1303,14 @@ def main():
             print(f"  {name:16} {(function.__doc__ or '').splitlines()[0]}")
         return 0
     if not checks:
-        print(f"[ERROR] No check matches '{args.only}'")
+        print(f"[ERROR] No check matches '{args.only}'", file=sys.stderr)
         return 2
 
     failed = skipped = 0
     for name, function in checks:
         try:
             problems = function()
-        except Exception as e:                       # a broken check is news
+        except Exception as e:  # so one raising check cannot stop the rest
             problems = [f"the check itself raised {type(e).__name__}: {e}"]
         skips = [p for p in problems if p.startswith("SKIP ")]
         real = [p for p in problems if not p.startswith("SKIP ")]
@@ -964,6 +1332,8 @@ def main():
     print(f"\n{total - failed - skipped} passed, {failed} failed, "
           f"{skipped} skipped, of {total}")
     return 1 if failed else 0
+
+# SHARED END py-check-main
 
 
 if __name__ == "__main__":
