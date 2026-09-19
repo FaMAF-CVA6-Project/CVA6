@@ -20,13 +20,13 @@
 //
 // This file has been modified by the FaMAF CVA6 Project, Universidad Nacional
 // de Cordoba, and is NOT the upstream file. The unmodified original is in this
-// same repository at core/include/cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv
-// and beside this file under that same name.
+// same repository at core/include/cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv.
 //
 // What changed: a table of cache geometries and one selector, CVA6_CONFIG_SEL,
-// were added, and the four cache fields of the configuration struct read the
-// selected values rather than the fixed ones. Nothing else is touched, so
-// CFG_BASELINE elaborates exactly the core the original does.
+// were added, the four cache fields of the configuration struct read the
+// selected values rather than the fixed ones, and the Description line above
+// says so. Nothing else is touched, so CFG_BASELINE elaborates exactly the
+// core the original does.
 //
 // This notice is required by Apache License 2.0 section 4(b), which governs the
 // original file and requires modified files to carry prominent notices stating
@@ -36,27 +36,27 @@
 
 package cva6_config_pkg;
 
-  // Available cache geometries (id : parameter cut : workload). This is the
-  // RTL counterpart of CACHE_TESTS in the gem5 harness, and the same cut has
-  // the same place in both: a CFG id plus 199 is the gem5 TEST id.
-  localparam int CFG_BASELINE      = 1;   // reference, I$ 16K/4w and D$ 32K/8w : all (reference)
-  localparam int CFG_ICACHE_4K     = 2;   // IcacheByteSize 16384 -> 4096   : icache_pressure, matmul_small, full_test
-  localparam int CFG_ICACHE_8K     = 3;   // IcacheByteSize 16384 -> 8192   : icache_pressure, full_test
-  localparam int CFG_ICACHE_32K    = 4;   // IcacheByteSize 16384 -> 32768  : icache_pressure, full_test
-  localparam int CFG_ICACHE_64K    = 5;   // IcacheByteSize 16384 -> 65536  : icache_pressure, matmul_small
-  localparam int CFG_ICACHE_DM     = 6;   // IcacheSetAssoc 4 -> 1          : icache_pressure, full_test, branch_full_test
-  localparam int CFG_ICACHE_ASSOC2 = 7;   // IcacheSetAssoc 4 -> 2          : icache_pressure, full_test
-  localparam int CFG_ICACHE_ASSOC8 = 8;   // IcacheSetAssoc 4 -> 8          : icache_pressure, full_test
-  localparam int CFG_DCACHE_8K     = 9;   // DcacheByteSize 32768 -> 8192   : matmul_small, daxpy, store_fwd
-  localparam int CFG_DCACHE_16K    = 10;  // DcacheByteSize 32768 -> 16384  : matmul_small, store_fwd
-  localparam int CFG_DCACHE_64K    = 11;  // DcacheByteSize 32768 -> 65536  : matmul_small, daxpy
-  localparam int CFG_DCACHE_DM     = 12;  // DcacheSetAssoc 8 -> 1          : matmul_small, store_fwd, atomic_fence
-  localparam int CFG_DCACHE_ASSOC2 = 13;  // DcacheSetAssoc 8 -> 2          : matmul_small, daxpy, store_fwd
-  localparam int CFG_DCACHE_ASSOC4 = 14;  // DcacheSetAssoc 8 -> 4          : matmul_small, store_fwd
-  localparam int CFG_BOTH_SMALL    = 15;  // I$ 4K and D$ 8K                : icache_pressure, matmul_small
-  localparam int CFG_BOTH_LARGE    = 16;  // I$ 64K and D$ 64K              : icache_pressure, matmul_small
-  localparam int CFG_BOTH_DM       = 17;  // both direct mapped             : icache_pressure, matmul_small, store_fwd
-  localparam int CFG_BOTH_DOUBLED  = 18;  // I$ 32K and D$ 64K              : icache_pressure, matmul_small, daxpy
+  // Available cache geometries (id : parameter cut : workload), the RTL twin
+  // of CACHE_TESTS in the gem5 harnesses in the same order: from 2 to 18, a
+  // CFG id plus 199 is the gem5 TEST id, and CFG_BASELINE has no gem5 row.
+  localparam int CFG_BASELINE      = 1;   // L1I 16 KiB 4-way, L1D 32 KiB 8-way : all
+  localparam int CFG_ICACHE_4K     = 2;   // IcacheByteSize 16384 -> 4096   : icache_pressure
+  localparam int CFG_ICACHE_8K     = 3;   // IcacheByteSize 16384 -> 8192   : icache_pressure
+  localparam int CFG_ICACHE_32K    = 4;   // IcacheByteSize 16384 -> 32768  : icache_pressure
+  localparam int CFG_ICACHE_64K    = 5;   // IcacheByteSize 16384 -> 65536  : icache_pressure
+  localparam int CFG_ICACHE_DM     = 6;   // IcacheSetAssoc 4 -> 1          : icache_pressure
+  localparam int CFG_ICACHE_ASSOC2 = 7;   // IcacheSetAssoc 4 -> 2          : icache_pressure
+  localparam int CFG_ICACHE_ASSOC8 = 8;   // IcacheSetAssoc 4 -> 8          : icache_pressure
+  localparam int CFG_DCACHE_8K     = 9;   // DcacheByteSize 32768 -> 8192   : daxpy, full_test, atomic_fence
+  localparam int CFG_DCACHE_16K    = 10;  // DcacheByteSize 32768 -> 16384  : full_test, fetch2_probe
+  localparam int CFG_DCACHE_64K    = 11;  // DcacheByteSize 32768 -> 65536  : daxpy, full_test, atomic_fence
+  localparam int CFG_DCACHE_DM     = 12;  // DcacheSetAssoc 8 -> 1          : daxpy, daxpy_unrolling_4, fetch2_probe
+  localparam int CFG_DCACHE_ASSOC2 = 13;  // DcacheSetAssoc 8 -> 2          : daxpy, daxpy_unrolling_4, fetch2_probe
+  localparam int CFG_DCACHE_ASSOC4 = 14;  // DcacheSetAssoc 8 -> 4          : daxpy, fetch2_probe
+  localparam int CFG_BOTH_SMALL    = 15;  // L1I 4 KiB and L1D 8 KiB        : icache_pressure, full_test
+  localparam int CFG_BOTH_LARGE    = 16;  // L1I 64 KiB and L1D 64 KiB      : icache_pressure, full_test
+  localparam int CFG_BOTH_DM       = 17;  // both direct mapped             : icache_pressure, daxpy, daxpy_unrolling_4
+  localparam int CFG_BOTH_DOUBLED  = 18;  // L1I 32 KiB and L1D 64 KiB      : icache_pressure, full_test, daxpy
 
   // =========================================================================
   // Change this single constant to pick which geometry runs
