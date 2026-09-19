@@ -7,11 +7,12 @@ title: "FaMAF CVA6 Project: the gem5 container"
 abstract: >-
   A Docker image holding gem5 v25.0.0.1 built three times, with the MinorCPU
   configuration matched to the CORE-V CVA6 for a thesis at FaMAF, Universidad
-  Nacional de Cordoba, on how closely a gem5 MinorCPU configuration can be made
+  Nacional de Córdoba, on how closely a gem5 MinorCPU configuration can be made
   to match a real RISC-V core. It ships the stock and patched builds and a third
   for working on the patch, the MinorCPU patch itself, the matched
-  configurations and their calibration harness, the calibration and teaching
-  benchmark sets, the run drivers and sweeps, and the MinorFlow pipeline viewer.
+  configurations and their calibration harnesses, the calibration benchmarks
+  and the programs written while developing the viewer, the run drivers and
+  sweeps, and the MinorFlow pipeline viewer.
 type: software
 authors:
   - family-names: "Nieto"
