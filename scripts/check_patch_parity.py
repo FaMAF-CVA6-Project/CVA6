@@ -41,16 +41,15 @@ STOCK_OUT = os.path.join("results", "parity", "stock")
 PATCH_OUT = os.path.join("results", "parity", "patch")
 
 # The patched build, which the driver needs naming since it is not the
-# default, with the check that refuses a stock config on it turned off.
+# default. Its binary check is turned off, since it refuses a patched binary
+# under --variant stock, which is exactly what this run is.
 PATCH_BUILD = "RISCV_PATCH"
 
-# A metrics block opens with this, and the table's own title line carries the
-# program name.
+# A metrics block opens with this, followed by the program's label.
 BLOCK_MARKER = ">>> "
-TABLE_MARKER = "RESULTS TABLE"
 
-# Counters that are timing in disguise. They are compared with a tolerance,
-# since the last digit of a float is not a behavioural difference.
+# Derived figures, times and ratios rather than counts. They are compared with
+# a tolerance, since the last digit of a float is not a behavioural difference.
 FLOAT_METRICS = ("Sim Seconds", "IPC", "Time")
 FLOAT_TOLERANCE = 1e-9
 
@@ -176,24 +175,29 @@ def main():
         epilog="Run from the gem5 root. The two runs write to separate\n"
                "folders, so both survive for a second look.")
     parser.add_argument("folder", nargs="?", default="benchmarks/config",
-                        help="benchmarks to run. Defaults to "
+                        help="Benchmarks to run. Defaults to "
                              "benchmarks/config")
     parser.add_argument("--compare", nargs=2, metavar=("STOCK", "PATCHED"),
-                        help="compare two gathered metrics files and stop")
-    parser.add_argument("--stock-out", default=STOCK_OUT, metavar="DIR")
-    parser.add_argument("--patch-out", default=PATCH_OUT, metavar="DIR")
+                        help="Compare two gathered metrics files and stop")
+    parser.add_argument("--stock-out", default=STOCK_OUT, metavar="DIR",
+                        help=f"Where the stock run writes. Defaults to "
+                             f"{STOCK_OUT}")
+    parser.add_argument("--patch-out", default=PATCH_OUT, metavar="DIR",
+                        help=f"Where the patched run writes. Defaults to "
+                             f"{PATCH_OUT}")
     parser.add_argument("--fetch-limit", type=int,
                         default=STOCK_FETCH_LIMIT, metavar="N",
-                        help="fetch1FetchLimit for both sides "
+                        help="fetch1FetchLimit for the patched run "
                              f"(default {STOCK_FETCH_LIMIT}, the stock value)")
     parser.add_argument("--fetch2-buffer", type=int,
                         default=STOCK_FETCH2_BUFFER, metavar="N",
-                        help="fetch2InputBufferSize for both sides "
-                             f"(default {STOCK_FETCH2_BUFFER})")
+                        help="fetch2InputBufferSize for the patched run "
+                             f"(default {STOCK_FETCH2_BUFFER}, the stock "
+                             f"value)")
     parser.add_argument("-j", "--jobs", type=int, default=4, metavar="N",
-                        help="benchmarks at a time (default 4)")
+                        help="Benchmarks at a time (default 4)")
     parser.add_argument("-n", "--dry-run", action="store_true",
-                        help="print the commands without running them")
+                        help="Print the commands without running them")
     args = parser.parse_args()
 
     if args.compare:
