@@ -6,10 +6,10 @@ what the image builds and nothing newer. The tree is mirrored rather than
 flattened, unlike get_CVA6_files.py, because that is what lets
 MinorCPU_CVA6.patch apply to the copy as it is.
 
-  python3 scripts/get_gem5_files.py                # fetch into gem5_files/
-  python3 scripts/get_gem5_files.py -o pristine    # a different destination
-  python3 scripts/get_gem5_files.py --dry-run      # list what would be fetched
-  python3 scripts/get_gem5_files.py --check-patch  # then dry-run the patch
+    python3 scripts/get_gem5_files.py                # into gem5_files/
+    python3 scripts/get_gem5_files.py -o pristine    # somewhere else
+    python3 scripts/get_gem5_files.py --dry-run      # list, fetch nothing
+    python3 scripts/get_gem5_files.py --check-patch  # then dry-run the patch
 """
 import argparse
 import datetime
@@ -41,7 +41,8 @@ REPO_ROOT = repo_root()
 DEFAULT_DEST = "gem5_files"
 GEM5_REPO = "https://github.com/gem5/gem5.git"
 
-# The recipe the version is read from, and the patch whose files are fetched.
+# Read rather than restated here, so the version and the file list follow the
+# image and the patch as they change.
 DOCKERFILE = os.path.join("dockerfiles", "gem5", "Dockerfile")
 PATCH = os.path.join("gem5_config_CVA6", "gem5", "configs",
                      "MinorCPU_CVA6.patch")
@@ -149,7 +150,7 @@ def main():
     parser.add_argument("-n", "--dry-run", action="store_true",
                         help="List what would be fetched and stop")
     parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Name every file as it is copied")
+                        help="Name every path fetched, with its file count")
     parser.add_argument("--tag", default=None, metavar="TAG",
                         help="Fetch this tag instead of the one the image "
                              "builds, which is then no longer the same "
