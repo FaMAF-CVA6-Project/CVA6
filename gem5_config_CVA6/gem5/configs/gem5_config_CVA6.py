@@ -3,10 +3,18 @@ import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
-from gem5.components.processors.base_cpu_core import BaseCPUCore  # type: ignore
-from gem5.components.processors.base_cpu_processor import BaseCPUProcessor  # type: ignore
-from gem5.components.memory.simple import SingleChannelSimpleMemory  # type: ignore
-from gem5.components.memory.single_channel import SingleChannelDDR3_1600  # type: ignore
+from gem5.components.processors.base_cpu_core import (  # type: ignore
+    BaseCPUCore,
+)
+from gem5.components.processors.base_cpu_processor import (  # type: ignore
+    BaseCPUProcessor,
+)
+from gem5.components.memory.simple import (  # type: ignore
+    SingleChannelSimpleMemory,
+)
+from gem5.components.memory.single_channel import (  # type: ignore
+    SingleChannelDDR3_1600,
+)
 from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import (  # type: ignore
     PrivateL1CacheHierarchy,
 )
@@ -82,11 +90,9 @@ def _if(cond, then_expr, else_expr):
 
 
 def serdivExtraLatency(base=1):
-    """Data-dependent latency of the CVA6 integer divider.
-
-    base is the constant term added to max(bits(a) - bits(b), 0). The only
-    call site passes 1 explicitly, and the two _testing configurations already
-    default to 1."""
+    """Data-dependent latency of the CVA6 integer divider,
+    max(bits(a) - bits(b), 0) + base. The calibration harnesses pass 0 for
+    TEST 21, so base stays a parameter."""
     bits_a = _un('timingExprSizeInBits', _src(0))
     bits_b = _un('timingExprSizeInBits', _src(1))
     diff = _bin('timingExprSub', bits_a, bits_b)
@@ -200,11 +206,13 @@ class CVA6FUPool(MinorFUPool):
         simd_complex.opClasses = minorMakeOpClassSet([
             'SimdAddAcc', 'SimdCvt', 'SimdMult', 'SimdMultAcc',
             'SimdFloatAdd', 'SimdFloatAlu', 'SimdFloatCmp', 'SimdFloatCvt',
-            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc', 'SimdFloatExt',
+            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc',
+            'SimdFloatExt',
             'SimdReduceAdd', 'SimdReduceAlu', 'SimdReduceCmp',
             'SimdFloatReduceAdd', 'SimdFloatReduceCmp',
             'SimdAes', 'SimdAesMix', 'SimdSha1Hash', 'SimdSha1Hash2',
-            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2', 'SimdShaSigma3'
+            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2',
+            'SimdShaSigma3'
         ])
         simd_complex.timings = [MinorFUTiming(
             description='SimdComplex', srcRegsRelativeLats=[2])]
@@ -245,7 +253,8 @@ class CVA6FUPool(MinorFUPool):
             'SimdWholeRegisterLoad', 'SimdWholeRegisterStore'
         ])
         vec_mem_fast.timings = [MinorFUTiming(
-            description='VecMemFast', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemFast', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_fast.opLat = 2
         vec_mem_fast.issueLat = 1
 
@@ -258,7 +267,8 @@ class CVA6FUPool(MinorFUPool):
             'SimdStrideSegmentedLoad', 'SimdStrideSegmentedStore'
         ])
         vec_mem_slow.timings = [MinorFUTiming(
-            description='VecMemSlow', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemSlow', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_slow.opLat = 10
         vec_mem_slow.issueLat = 4
 
@@ -283,8 +293,8 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeFuncUnits = CVA6FUPool()
 
         # Pipeline.
-        # The two configs differ here while the fetch depth is undecided, so
-        # a parity run against stock needs a way to make them equal.
+        # The patched config adopts depth 3 and this one keeps 2, so a parity
+        # run against the patched build needs a way to make them equal.
         self.fetch1FetchLimit = (
             2 if fetch_limit is None else fetch_limit)
         self.fetch1LineSnapWidth = 4
@@ -398,7 +408,8 @@ parser.add_argument("--fetch2-buffer", type=int, default=None, metavar="N",
                          "reason as --fetch-limit")
 parser.add_argument("--ddr3", action="store_true",
                     help="Use the DDR3-1600 device instead of a flat memory "
-                         "at MEM_LATENCY. Matches the Verilator DDR3 model.")
+                         "at MEM_LATENCY. Matches the Verilator DDR3 model in "
+                         "verilator_changes/ddr3_memory.")
 args = parser.parse_args()
 
 binary = BinaryResource(args.binary)
