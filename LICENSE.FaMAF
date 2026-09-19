@@ -2,17 +2,17 @@ This licence covers only the work added to this repository by the FaMAF CVA6
 Project:
 
   - gem5_config_CVA6/      the gem5 configuration matched to CVA6, its
-                           calibration harness and sweep, the MinorCPU patch,
-                           the benchmark programs on both sides and the paired
-                           runs from both sides
-  - scripts/               the repository's own drivers, checks and sync tools
+                           calibration harnesses, the MinorCPU patch and the
+                           benchmark programs on both sides
+  - scripts/               the repository's own sweeps, checks, formatters and
+                           container tools
   - dockerfiles/           the Docker files used to build the images
   - viewers/FlowCompare.html   the side-by-side comparison viewer, which
                            exists only in this repository
   - README.md and the other documentation written for this fork
 
-  - verilator_changes/     PARTLY, and only the modifications. Both files
-                           tracked here, custom_size_vcds/ariane_tb.cpp and
+  - verilator_changes/     PARTLY, and only the modifications. The two code
+                           files, custom_size_vcds/ariane_tb.cpp and
                            custom_size_vcds/Makefile, are modified copies of
                            files belonging to the OpenHW Group and ETH Zurich.
                            The changes made to them are this project's. The
@@ -27,7 +27,7 @@ It does not cover the CVA6 core or its dependencies, which are the work of the
 OpenHW Group and contributors and stay under their original licences: see
 LICENSE, LICENSE.Berkeley and LICENSE.SiFive, all preserved here.
 
-The two visualizers under viewers/CVA6Flow and viewers/MinorFlow are git
+The two viewers under viewers/CVA6Flow and viewers/MinorFlow are git
 submodules. They are not part of this repository's tree and carry this same MIT
 licence in their own repositories. viewers/FlowCompare.html is not a submodule:
 it is a tracked file of this repository and is covered above.
