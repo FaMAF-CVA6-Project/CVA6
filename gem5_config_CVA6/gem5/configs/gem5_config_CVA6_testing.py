@@ -3,10 +3,18 @@ import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
-from gem5.components.processors.base_cpu_core import BaseCPUCore  # type: ignore
-from gem5.components.processors.base_cpu_processor import BaseCPUProcessor  # type: ignore
-from gem5.components.memory.simple import SingleChannelSimpleMemory  # type: ignore
-from gem5.components.memory.single_channel import SingleChannelDDR3_1600  # type: ignore
+from gem5.components.processors.base_cpu_core import (  # type: ignore
+    BaseCPUCore,
+)
+from gem5.components.processors.base_cpu_processor import (  # type: ignore
+    BaseCPUProcessor,
+)
+from gem5.components.memory.simple import (  # type: ignore
+    SingleChannelSimpleMemory,
+)
+from gem5.components.memory.single_channel import (  # type: ignore
+    SingleChannelDDR3_1600,
+)
 from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import (  # type: ignore
     PrivateL1CacheHierarchy,
 )
@@ -41,35 +49,33 @@ from m5.objects import (  # type: ignore
     TimingExprIf,
 )
 
-# Calibration harness for the CVA6 gem5 MinorCPU configuration.
+# Calibration harness for the CVA6 gem5 MinorCPU configuration, on an
+# UNMODIFIED gem5 v25.0.0.1. TEST 1 is the stock gem5_config_CVA6.py, and every
+# other TEST perturbs it, most single-knob, front of the pipeline first.
 #
-# CVA6 calibration harness for UNMODIFIED gem5 v25.0.0.1. TEST 1 is the frozen
-# CPU-side baseline, every other TEST a single-knob perturbation,
-# grouped by the part of the machine it touches, front of the pipeline first.
+# TESTS 1 to 39 are the whole grid here. gem5_config_CVA6_patch_testing.py
+# repeats them on the same baseline, then continues at TEST 40 with full
+# production and the entries that set patch parameters.
 #
-# TESTS 1 to 39 are the whole table here, and carry the same numbers as in
-# gem5_config_CVA6_patch_testing.py. That file continues at TEST 40 with the
-# entries that need a patched gem5.
-#
-# TEST table fields (unchanged shape):
+# TEST table fields:
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
 #
-# Special keys: bp_overrides["fuVariant"] picks a CVA6FUPool variant, and
-# dcache_overrides takes "_membus_width" in bytes and "_mem_bandwidth" as a
-# SimpleMemory string.
+# Special keys: cpu_overrides["branchPred"] picks LocalBP or TournamentBP,
+# bp_overrides["fuVariant"] a CVA6FUPool variant. dcache_overrides takes
+# "_membus_width" in bytes and "_mem_bandwidth" as a SimpleMemory string.
 #
 #   1   adopted baseline                          workload: all
 #   --- fetch geometry ---
 #   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
 #   3   fetch1FetchLimit 2 -> 3                   workload: matmul_small
-#   4   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   4   fetch lines 8 bytes, fetch2 buffer 8      workload: all
 #   5   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
 #   --- instruction cache ---
 #   6   L1I random -> LRU                         workload: full_test
 #   7   L1I response_latency 0 -> 1               workload: daxpy
 #   8   L1I response_latency 0 -> 2               workload: daxpy
-#   9   L1I 4KiB                                  workload: daxpy
+#   9   L1I 4 KiB                                 workload: daxpy
 #   --- decode buffer ---
 #  10   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
 #  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
@@ -88,14 +94,14 @@ from m5.objects import (  # type: ignore
 #  21   serdiv base 1 -> 0                        workload: int_div
 #  22   fp_addmul without the double mask         workload: fp_addmul
 #  23   FP mem classes back on vec_mem_fast       workload: daxpy
-#  24   atomic occupancy entries removed          workload: atomic_fence
+#  24   LR/SC, AMO and fence occupancy removed    workload: atomic_fence
 #   --- data cache ---
-#  25   L1D PLRU -> true LRU                      workload: full_test
+#  25   L1D random -> LRU                         workload: full_test
 #  26   response_latency 4 -> 5                   workload: daxpy
 #  27   response_latency 4 -> 6                   workload: daxpy
 #  28   response_latency 4 -> 3                   workload: daxpy
-#  29   L1D 16KiB                                 workload: daxpy
-#  30   L1D 64KiB                                 workload: daxpy
+#  29   L1D 16 KiB                                workload: daxpy
+#  30   L1D 64 KiB                                workload: daxpy
 #  31   L1D assoc 8 -> 2                          workload: daxpy
 #  32   L1D mshrs 8 -> 1                          workload: daxpy
 #  33   L1D write_buffers 8 -> 2                  workload: daxpy
@@ -103,32 +109,33 @@ from m5.objects import (  # type: ignore
 #   --- memory system ---
 #  35   membus width 8 -> 16                      workload: daxpy
 #  36   membus width 8 -> 4                       workload: daxpy
-#  37   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
-#  38   mem latency 0 -> 60ns                     workload: daxpy
+#  37   memory bandwidth 12.8 GiB/s -> 0.4 GiB/s  workload: daxpy
+#  38   mem latency 0 -> 60 ns                    workload: daxpy
 #   --- core-wide ---
 #  39   threadPolicy -> RoundRobin                workload: daxpy
 #
 #   --- cache geometry ---
 # CACHE_TESTS is a table of its own: nothing in it touches the CPU, only L1I
-# and L1D size and associativity, and each entry runs over more of the
-# benchmark set than a single-knob calibration row does.
-# 201   L1I 4KiB                                  workload: icache_pressure, matmul_small, full_test
-# 202   L1I 8KiB                                  workload: icache_pressure, full_test
-# 203   L1I 32KiB                                 workload: icache_pressure, full_test
-# 204   L1I 64KiB                                 workload: icache_pressure, matmul_small
-# 205   L1I direct mapped, assoc 4 -> 1           workload: icache_pressure, full_test, branch_full_test
-# 206   L1I assoc 4 -> 2                          workload: icache_pressure, full_test
-# 207   L1I assoc 4 -> 8                          workload: icache_pressure, full_test
-# 208   L1D 8KiB                                  workload: matmul_small, daxpy, store_fwd
-# 209   L1D 16KiB                                 workload: matmul_small, store_fwd
-# 210   L1D 64KiB                                 workload: matmul_small, daxpy
-# 211   L1D direct mapped, assoc 8 -> 1           workload: matmul_small, store_fwd, atomic_fence
-# 212   L1D assoc 8 -> 2                          workload: matmul_small, daxpy, store_fwd
-# 213   L1D assoc 8 -> 4                          workload: matmul_small, store_fwd
-# 214   both small, L1I 4KiB and L1D 8KiB         workload: icache_pressure, matmul_small
-# 215   both large, L1I 64KiB and L1D 64KiB       workload: icache_pressure, matmul_small
-# 216   both direct mapped                        workload: icache_pressure, matmul_small, store_fwd
-# 217   both doubled, L1I 32KiB and L1D 64KiB     workload: icache_pressure, matmul_small, daxpy
+# and L1D size and associativity. Each entry runs the workloads its cut moves
+# on CACHE_BASE_TEST, this file's TEST 1 baseline, since the production
+# stack needs the patch.
+# 201   L1I 4 KiB                                 workload: icache_pressure
+# 202   L1I 8 KiB                                 workload: icache_pressure
+# 203   L1I 32 KiB                                workload: icache_pressure
+# 204   L1I 64 KiB                                workload: icache_pressure
+# 205   L1I direct mapped, assoc 4 -> 1           workload: icache_pressure
+# 206   L1I assoc 4 -> 2                          workload: icache_pressure
+# 207   L1I assoc 4 -> 8                          workload: icache_pressure
+# 208   L1D 8 KiB                                 workload: daxpy, full_test, atomic_fence
+# 209   L1D 16 KiB                                workload: full_test, fetch2_probe
+# 210   L1D 64 KiB                                workload: daxpy, full_test, atomic_fence
+# 211   L1D direct mapped, assoc 8 -> 1           workload: daxpy, daxpy_unrolling_4, fetch2_probe
+# 212   L1D assoc 8 -> 2                          workload: daxpy, daxpy_unrolling_4, fetch2_probe
+# 213   L1D assoc 8 -> 4                          workload: daxpy, fetch2_probe
+# 214   both small, L1I 4 KiB and L1D 8 KiB       workload: icache_pressure, full_test
+# 215   both large, L1I 64 KiB and L1D 64 KiB     workload: icache_pressure, full_test
+# 216   both direct mapped                        workload: icache_pressure, daxpy, daxpy_unrolling_4
+# 217   both doubled, L1I 32 KiB and L1D 64 KiB   workload: icache_pressure, full_test, daxpy
 
 TEST = 1
 
@@ -176,7 +183,7 @@ TESTS = {
          {"fuVariant": "addmul_flat"}),
     23: ("FP mem classes on vec unit",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "fp_on_vec"}),
-    24: ("atomic occupancy removed",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    24: ("occupancy entries removed",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "no_occupancy"}),
     # --- data cache ---
     25: ("L1D random->LRU",              {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "0ns", {}),
@@ -198,9 +205,14 @@ TESTS = {
     39: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
 }
 
-# Cache geometry, kept apart from the grid above. These vary nothing but L1I
-# and L1D size and associativity, which is what the calibration needs the
-# sensitivity of, so they are selected from their own id range.
+# The entry every cache geometry is laid over: TEST 1, the stock baseline,
+# since the production stack needs the patch. Each cut is merged into it
+# when the harness runs, so the list follows the baseline when 1 changes.
+CACHE_BASE_TEST = 1
+
+# Cache geometry, kept apart from the grid above so a plain sweep leaves it
+# out. These vary nothing but L1I and L1D size and associativity, and their
+# ids start at 201, so an id says which table it came from.
 CACHE_TESTS = {
     201: ("L1I 4KiB",                       {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     202: ("L1I 8KiB",                       {}, "8KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
@@ -224,6 +236,33 @@ CACHE_TESTS = {
 # TEST picks from either table. The two id ranges do not overlap, so a number
 # is enough and the caller never has to say which list it came from.
 ALL_TESTS = {**TESTS, **CACHE_TESTS}
+
+
+# Each base can set these fields of a TEST tuple, by position.
+OVERRIDE_FIELDS = {1: "cpu", 4: "dcache", 5: "icache", 8: "bp"}
+
+
+def laid_over(base, entry):
+    """entry with each override dict merged over base's, entry's keys winning.
+    base maps a field name to its dict, as PATCH_BASE does."""
+    merged = list(entry)
+    for field, name in OVERRIDE_FIELDS.items():
+        merged[field] = {**base.get(name, {}), **entry[field]}
+    return tuple(merged)
+
+
+def as_base(entry):
+    """A TEST tuple's override dicts, keyed as PATCH_BASE is."""
+    return {name: entry[field] for field, name in OVERRIDE_FIELDS.items()}
+
+
+def resolve(test):
+    """The TEST entry with the base it sits on merged in: a cache entry over
+    CACHE_BASE_TEST, the grid as written."""
+    entry = ALL_TESTS[test]
+    if test in CACHE_TESTS:
+        return laid_over(as_base(ALL_TESTS[CACHE_BASE_TEST]), entry)
+    return entry
 
 
 def _lit(value):
@@ -279,7 +318,8 @@ def minorMakeOpClassSet(op_classes):
 
 class CVA6FUPool(MinorFUPool):
     # variant selects one FU-level perturbation, "baseline" is the adopted
-    # configuration, identical to gem5_config_CVA6.py.
+    # configuration, identical to gem5_config_CVA6.py. An unknown name
+    # also gives the baseline.
     def __init__(self, variant="baseline"):
         super().__init__()
 
@@ -388,11 +428,13 @@ class CVA6FUPool(MinorFUPool):
         simd_complex.opClasses = minorMakeOpClassSet([
             'SimdAddAcc', 'SimdCvt', 'SimdMult', 'SimdMultAcc',
             'SimdFloatAdd', 'SimdFloatAlu', 'SimdFloatCmp', 'SimdFloatCvt',
-            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc', 'SimdFloatExt',
+            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc',
+            'SimdFloatExt',
             'SimdReduceAdd', 'SimdReduceAlu', 'SimdReduceCmp',
             'SimdFloatReduceAdd', 'SimdFloatReduceCmp',
             'SimdAes', 'SimdAesMix', 'SimdSha1Hash', 'SimdSha1Hash2',
-            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2', 'SimdShaSigma3'
+            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2',
+            'SimdShaSigma3'
         ])
         simd_complex.timings = [MinorFUTiming(
             description='SimdComplex', srcRegsRelativeLats=[2])]
@@ -437,7 +479,8 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_fast = MinorFU()
         vec_mem_fast.opClasses = minorMakeOpClassSet(vec_fast_classes)
         vec_mem_fast.timings = [MinorFUTiming(
-            description='VecMemFast', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemFast', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_fast.opLat = 2
         vec_mem_fast.issueLat = 1
 
@@ -450,7 +493,8 @@ class CVA6FUPool(MinorFUPool):
             'SimdStrideSegmentedLoad', 'SimdStrideSegmentedStore'
         ])
         vec_mem_slow.timings = [MinorFUTiming(
-            description='VecMemSlow', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemSlow', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_slow.opLat = 10
         vec_mem_slow.issueLat = 4
 
@@ -471,7 +515,7 @@ class CVA6FUPool(MinorFUPool):
 class MorillasFUPool(MinorFUPool):
     # Morillas 2025 as published (thesis Table 6.2). Its op-class groupings
     # differ from ours, and integer divide is one averaged latency of 35, the
-    # midpoint of the RTL range 2 to 64 with the uniform plus two added.
+    # midpoint of the RTL range 2 to 64, plus two.
     def __init__(self):
         super().__init__()
 
@@ -523,7 +567,8 @@ class MorillasFUPool(MinorFUPool):
         mem_fu.opLat = 3
         mem_fu.issueLat = 1
 
-        # Catch-all for any op class not named above.
+        # An op class no unit provides never issues, so the classes the
+        # published table leaves out share this catch-all.
         defined_ops = set(int_alu_ops + int_mul_ops + int_div_ops + fp_fast_ops
                           + fp_slow_ops + fp_div_ops + fp_cmp_ops + mem_ops)
         misc_ops_list = ['IprAccess']
@@ -560,7 +605,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
-        self.fetch1ToFetch2BackwardDelay = 1
+        self.fetch1ToFetch2BackwardDelay = 0
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = True
@@ -618,7 +663,7 @@ class CVA6CPU(RiscvMinorCPU):
 
 
 class MorillasCPU(RiscvMinorCPU):
-    # Faithful transcription of the Morillas 2025 configuration (thesis
+    # Transcription of the Morillas 2025 configuration (thesis
     # Table 6.1 and Table 6.3). Parameters absent here are absent in the
     # published configuration and therefore keep their gem5 defaults.
     def __init__(self):
@@ -771,9 +816,10 @@ if USE_MORILLAS:
 else:
     if TEST not in ALL_TESTS:
         raise ValueError(
-            f"TEST={TEST} is not in the test table. Valid IDs: {sorted(ALL_TESTS.keys())}")
+            f"TEST={TEST} is not in the test table. "
+            f"Valid IDs: {sorted(ALL_TESTS.keys())}")
     (test_name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
-     icache_overrides, clk_freq, mem_latency, bp_overrides) = ALL_TESTS[TEST]
+     icache_overrides, clk_freq, mem_latency, bp_overrides) = resolve(TEST)
     mem_bandwidth = dict(dcache_overrides).get("_mem_bandwidth", "12.8GiB/s")
 
 print("=" * 70)
@@ -781,6 +827,9 @@ if USE_MORILLAS:
     print("   MORILLAS 2025 FULL CONFIGURATION")
 else:
     print(f"   CVA6 HARNESS  -  TEST {TEST}: {test_name}")
+    if TEST in CACHE_TESTS:
+        print(f"   Laid over     : TEST {CACHE_BASE_TEST}, "
+              f"{TESTS[CACHE_BASE_TEST][0]}")
     print(f"   CPU overrides : {cpu_overrides}")
     print(f"   BP overrides  : {bp_overrides}")
     print(f"   Mem latency   : {mem_latency}   Bandwidth: {mem_bandwidth}")
