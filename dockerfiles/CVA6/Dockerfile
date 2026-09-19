@@ -106,6 +106,7 @@ RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     && cp /CVA6/CVA6Flow/scripts/run_CVA6.py \
     /CVA6/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
     /CVA6/CVA6Flow/scripts/clean_CVA6_runs.py \
+    /CVA6/CVA6Flow/scripts/measure_CVA6_overhead.py \
     /CVA6/CVA6Flow/scripts/run_CVA6Flow_sweep.py \
     /CVA6/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py \
     /CVA6/CVA6Flow/scripts/make_CVA6Flow_sample.py \
