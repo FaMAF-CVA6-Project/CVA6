@@ -453,8 +453,6 @@ def main():
         print("[ERROR] docker is not on PATH")
         return 2
 
-    # One container is named CVA6 and the other gem5, so the case typed
-    # at the prompt is not held against the reader.
     folded = {name.lower(): name for name in CONTAINERS}
     asked = [folded.get(n.lower(), n) for n in args.container]
     unknown = [n for n in asked if n not in CONTAINERS]
