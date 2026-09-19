@@ -1,8 +1,10 @@
 # ==============================================================================
 # CVA6 + Verilator image for the FaMAF CVA6 project
 # ==============================================================================
-# Builds the Verilated cv64a6_imafdc_sv39_hpdcache_wb harness from THIS working
-# tree rather than from a clone, so an edited RTL file reaches the container.
+# Builds the RISC-V toolchain, Verilator and Spike for the
+# cv64a6_imafdc_sv39_hpdcache_wb flow, and copies the RTL from THIS working tree
+# rather than a clone, so an edited RTL file reaches the container. The first
+# run compiles the Verilated model into work-ver/.
 #
 # Build from the ROOT of this repository, not from this folder:
 #
@@ -88,8 +90,9 @@ RUN bash -c "source ./verif/regress/install-verilator.sh" \
     | grep -q "$(git -C "${SPIKE_SRC_DIR}" log -1 --pretty=tformat:%h)"
 
 # ---- the design and this project's own files --------------------------------
-# Everything else, last, so an edit here rebuilds one small layer. .dockerignore
-# keeps the run artefacts, the traces and the git history out.
+# Everything else, after the expensive layers, so an edit here rebuilds only
+# what follows. .dockerignore keeps the run artefacts, the traces and VCDs and
+# the git history out.
 COPY . /CVA6/
 
 # The gem5 side, the fork's host tools and the viewer's second copies have no
@@ -104,7 +107,9 @@ RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/CVA6Flow/scripts/run_all_CVA6_benchmarks.py \
     /CVA6/CVA6Flow/scripts/clean_CVA6_runs.py \
     /CVA6/CVA6Flow/scripts/run_CVA6Flow_sweep.py \
-    /CVA6/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py /CVA6/scripts/ \
+    /CVA6/CVA6Flow/scripts/create_all_CVA6Flow_jsons.py \
+    /CVA6/CVA6Flow/scripts/make_CVA6Flow_sample.py \
+    /CVA6/CVA6Flow/scripts/serve_CVA6Flow.py /CVA6/scripts/ \
     && cp /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.c \
     /CVA6/gem5_config_CVA6/CVA6/benchmarks/*.S \
     /CVA6/gem5_config_CVA6/CVA6/benchmarks/.overhead_suite \
@@ -123,8 +128,7 @@ RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/gem5_config_CVA6 /CVA6/verilator_changes/ddr3_memory \
     && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
-COPY viewers/CVA6Flow/scripts/serve_CVA6Flow.py /CVA6/scripts/
-COPY scripts/patch_vcd_window.py  /CVA6/scripts/patch_vcd_window.py
+COPY scripts/patch_vcd_window.py /CVA6/scripts/patch_vcd_window.py
 COPY scripts/run_CVA6_config_sweep.py /CVA6/scripts/
 
 # The cache geometry package this side sweeps, beside the viewer's. It is
