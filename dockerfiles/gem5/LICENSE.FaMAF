@@ -2,12 +2,15 @@ This licence covers only the work added to this container by the FaMAF CVA6
 Project. Every path below is a path inside the container:
 
   - scripts/                 the run drivers, the two sweeps, the parity check,
-                             the patch tool, the cleaner and the viewer server
-  - gem5_configs/            the MinorCPU configurations matched to CVA6, the
-                             calibration harness and the frozen paper copy
+                             the patch tool, the batch JSON converter, the
+                             cleaner and the viewer server
+  - gem5_configs/            the MinorCPU configurations matched to CVA6, their
+                             calibration harnesses, the configurations used
+                             while developing the viewer and the frozen paper
+                             copy
   - benchmarks/config/       the calibration programs, written for the CVA6
                              comparison
-  - benchmarks/viewer/       the teaching programs written for the viewer
+  - benchmarks/viewer/       the programs written while developing the viewer
   - MinorFlow/               the MinorFlow viewer and its tracer, offered under
                              this same MIT licence in its own repository at
                              https://github.com/FaMAF-CVA6-Project/MinorFlow
