@@ -5,7 +5,7 @@
 # pristine sources, then build/RISCV_PATCH after applying MinorCPU_CVA6.patch,
 # then build/RISCV_EXP from the same patched sources for working on the patch.
 # That order matters, since the driver tells the builds apart by a SimObject
-# only the patch adds.
+# only the patch adds. Like the CVA6 image, it carries no git history.
 #
 # Build from the ROOT of this repository, not from this folder:
 #
@@ -44,7 +44,12 @@ RUN echo 'int main(void){return 0;}' > /tmp/probe.c && \
     echo "[ok] toolchain accepts the benchmark -march string"
 
 # ---- gem5, pristine ---------------------------------------------------------
-RUN git clone --depth 1 --branch ${GEM5_TAG} https://github.com/gem5/gem5.git /gem5
+# The clone is for its sources only, so its history goes in the same layer
+# and never reaches the image. The pristine src/ stays behind as a 4 MB
+# archive, which scripts/patch_gem5.py create diffs the tree against.
+RUN git clone --depth 1 --branch ${GEM5_TAG} https://github.com/gem5/gem5.git /gem5 \
+    && XZ_OPT=-T0 tar -C /gem5 -cJf /gem5/.pristine_src.tar.xz src \
+    && rm -rf /gem5/.git
 WORKDIR /gem5
 
 # build/RISCV must come from the unpatched tree, see the note at the top.
@@ -52,6 +57,8 @@ RUN scons defconfig build/RISCV build_opts/RISCV \
     && scons build/RISCV/gem5.opt -j${JOBS}
 
 # ---- the patch, then the second build --------------------------------------
+# git apply needs no repository, and unlike patch it refuses a patch that
+# does not apply exactly.
 COPY gem5_config_CVA6/gem5/configs/MinorCPU_CVA6.patch /gem5/MinorCPU_CVA6.patch
 RUN git apply --check MinorCPU_CVA6.patch \
     && git apply MinorCPU_CVA6.patch \
@@ -67,23 +74,25 @@ RUN scons defconfig build/RISCV_EXP build_opts/RISCV \
     && scons build/RISCV_EXP/gem5.opt -j${JOBS}
 
 # ---- what this project adds -------------------------------------------------
-# Copied last, so editing a configuration or a benchmark rebuilds one small
-# layer rather than gem5. They keep the place they have in the repository and
-# still run with the root as the working directory, where build/ is.
-COPY viewers/MinorFlow/scripts/run_gem5.py                /gem5/scripts/
-COPY viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py /gem5/scripts/
-COPY viewers/MinorFlow/scripts/clean_gem5_runs.py         /gem5/scripts/
-COPY viewers/MinorFlow/scripts/run_MinorFlow_sweep.py     /gem5/scripts/
-COPY scripts/run_gem5_config_sweep.py                   /gem5/scripts/
-COPY scripts/check_patch_parity.py                        /gem5/scripts/
-COPY scripts/patch_gem5.py                                /gem5/scripts/
-COPY viewers/MinorFlow/scripts/serve_MinorFlow.py        /gem5/scripts/
+# Copied last, so editing a configuration or a benchmark rebuilds small layers
+# rather than gem5. The tools all land in scripts/ and run with the root as the
+# working directory, where build/ is.
+COPY viewers/MinorFlow/scripts/run_gem5.py                   /gem5/scripts/
+COPY viewers/MinorFlow/scripts/run_all_gem5_benchmarks.py    /gem5/scripts/
+COPY viewers/MinorFlow/scripts/clean_gem5_runs.py            /gem5/scripts/
+COPY viewers/MinorFlow/scripts/measure_gem5_overhead.py      /gem5/scripts/
+COPY viewers/MinorFlow/scripts/run_MinorFlow_sweep.py        /gem5/scripts/
+COPY scripts/run_gem5_config_sweep.py                        /gem5/scripts/
+COPY scripts/check_patch_parity.py                           /gem5/scripts/
+COPY scripts/patch_gem5.py                                   /gem5/scripts/
+COPY viewers/MinorFlow/scripts/serve_MinorFlow.py            /gem5/scripts/
 COPY viewers/MinorFlow/scripts/create_all_MinorFlow_jsons.py /gem5/scripts/
-COPY viewers/MinorFlow/                                   /gem5/MinorFlow/
+COPY viewers/MinorFlow/scripts/make_MinorFlow_sample.py      /gem5/scripts/
+COPY viewers/MinorFlow/                                      /gem5/MinorFlow/
 
-# The viewer arrives whole, so its scripts/, configs/ and benchmarks/ would be
-# second copies of what /gem5 holds, and its README, licence and citation
-# describe the viewer's own repository rather than this container.
+# The viewer arrives whole. Its scripts/, configs/ and benchmarks/ would be
+# second copies of what /gem5 holds, and its README, licence, citation, git
+# and Pages files, tests/README.md and docs/CARLA2026 are its repository's.
 RUN rm -rf /gem5/MinorFlow/scripts /gem5/MinorFlow/configs \
     /gem5/MinorFlow/benchmarks /gem5/MinorFlow/docs/CARLA2026 \
     /gem5/MinorFlow/README.md /gem5/MinorFlow/LICENSE \
@@ -107,9 +116,9 @@ COPY viewers/MinorFlow/benchmarks/*.c \
     viewers/MinorFlow/benchmarks/*.S /gem5/benchmarks/viewer/
 COPY viewers/MinorFlow/benchmarks/.overhead_suite /gem5/benchmarks/viewer/
 
-# results/ is made here rather than left to the first run. The patch is read
-# from gem5_configs/, so the copy the build applied goes, and scons leaves a
-# __pycache__ in every folder it touched, which is build state.
+# results/ is made now, so a fresh container already has the folder the docs
+# and the copy commands name. The applied copy of the patch goes, since it is
+# read from gem5_configs/, and so does every __pycache__ scons left behind.
 RUN mkdir -p /gem5/results \
     && rm -f /gem5/MinorCPU_CVA6.patch \
     && find /gem5 -name __pycache__ -type d -prune -exec rm -rf {} + \
@@ -122,13 +131,13 @@ COPY dockerfiles/gem5/README.md     /gem5/README.md
 COPY dockerfiles/gem5/LICENSE.FaMAF /gem5/LICENSE.FaMAF
 COPY dockerfiles/gem5/CITATION.cff  /gem5/CITATION.cff
 
-# git in here reports changed gem5 sources, so this project's own folders go
-# into the ignore list. make_containers.py finds its marker and adds nothing.
+# There is no repository here, but gem5's .gitignore stays, with this
+# project's own files added, so one made later shows changed gem5 sources only.
 COPY dockerfiles/gem5/gitignore.extra /gem5/.gitignore.extra
 RUN cat /gem5/.gitignore.extra >> /gem5/.gitignore \
     && rm /gem5/.gitignore.extra
 
-# The viewers are served rather than opened in the container
+# The viewer is served rather than opened in the container.
 EXPOSE 8000
 
 WORKDIR /gem5
