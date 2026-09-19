@@ -1257,7 +1257,7 @@ def _decode(let, fmt, index):
 
     is_sub = let.bind(_eq(e(), _lit(0)))
     sig = let.bind(_if(is_sub(), x(), _add(f(), _lit(1 << 52))))
-    # biased exponent, 1 - sh for a subnormal (ct_vfdsu_ff1.v frac_bin_val)
+    # biased exponent, 1 - sh for a subnormal
     exp = let.bind(_if(is_sub(), _sub(_lit(1), sh()), e()))
     zero = _and(_eq(e(), _lit(0)), _eq(f(), _lit(0)))
     special = let.bind(_or(_eq(e(), _lit(emax)), zero))
@@ -1289,7 +1289,6 @@ def _div_rounds(fmt):
             r_prev = r
             r = let.bind(mod_b(lambda rp=r_prev: _mul(_lit(16), rp())))
 
-    # srt_ctrl_skip_srt, ct_vfdsu_srt.v 295-300, 391-417
     diff = let.bind(_sub(a['exp'](), b['exp']()))
     of_lim, uf_lim = (1024, -1075) if fmt == 'd' else (128, -150)
     skip = _or(_or(a['special'](), b['special']()),
@@ -1304,7 +1303,6 @@ def _sqrt_rounds(fmt):
     a = _decode(let, fmt, 0)
 
     # radicand at the double scale, doubled when the unbiased exponent is odd
-    # (ex1_sqrt_expnt_odd, ct_vfdsu_prepare.v 462 and 625-627)
     exp = a['exp']
     odd = _eq(_sub(exp(), _mul(_div(exp(), _lit(2)), _lit(2))), _lit(0))
     c = let.bind(_if(odd, _mul(a['sig'](), _lit(2)), a['sig']()))

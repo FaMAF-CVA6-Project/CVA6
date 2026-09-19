@@ -219,7 +219,6 @@ def _decode(let, fmt, index):
 
     is_sub = let.bind(_eq(e(), _lit(0)))
     sig = let.bind(_if(is_sub(), x(), _add(f(), _lit(1 << 52))))
-    # biased exponent, 1 - sh for a subnormal (ct_vfdsu_ff1.v frac_bin_val)
     exp = let.bind(_if(is_sub(), _sub(_lit(1), sh()), e()))
     zero = _and(_eq(e(), _lit(0)), _eq(f(), _lit(0)))
     special = let.bind(_or(_eq(e(), _lit(emax)), zero))
