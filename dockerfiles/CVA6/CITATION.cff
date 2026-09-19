@@ -6,11 +6,12 @@ message: >-
 title: "FaMAF CVA6 Project: the CVA6 container"
 abstract: >-
   A Docker image holding the frozen CORE-V CVA6 fork used as the real-hardware
-  side of a thesis at FaMAF, Universidad Nacional de Cordoba, on how closely a
+  side of a thesis at FaMAF, Universidad Nacional de Córdoba, on how closely a
   gem5 MinorCPU configuration can be made to match a real RISC-V core. It ships
   the core with a built RISC-V toolchain, Verilator and Spike, the calibration
-  and teaching benchmark sets, the Verilator run drivers and sweep, the windowed
-  waveform dump, and the CVA6Flow pipeline viewer.
+  benchmarks and the programs written while developing the viewer, the
+  Verilator run drivers and both sweeps, the windowed waveform dump, and the
+  CVA6Flow pipeline viewer.
 type: software
 authors:
   - family-names: "Nieto"
@@ -37,7 +38,7 @@ references:
       The upstream core this container carries. Everything under core/,
       corev_apu/, common/, vendor/ and verif/ is upstream's work unless a file
       says otherwise.
-    version: "5.3.0"
+    version: "v5.3.0"
     repository-code: "https://github.com/openhwgroup/cva6"
     url: "https://github.com/openhwgroup/cva6"
     authors:
