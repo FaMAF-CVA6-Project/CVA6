@@ -56,10 +56,10 @@ Bender.lock
 temp/
 CVA6_files/
 gem5_files/
+verilator_changes/ddr3_memory
 
 # The upstream copies scripts/patch_vcd_window.py keeps while it is applied.
 *.upstream
-verilator_changes/ddr3_memory
 
 # Files too big to be tracked.
 *.vcd
@@ -72,9 +72,9 @@ verilator_changes/ddr3_memory
 
 ## END oversized JSONs
 
-# Temporal
+# The local JSONs each side keeps under tests/, too big to track.
 /gem5_config_CVA6/CVA6/tests/
 /gem5_config_CVA6/gem5/tests/
 
-# docker_sync.py pull
+# Where docker_sync.py pull lands.
 container_results/
