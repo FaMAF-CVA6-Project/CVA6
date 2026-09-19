@@ -6,7 +6,7 @@ Prettier for Markdown. Both are what the tree was last formatted with, so
 running this leaves a clean tree clean.
 
     python3 scripts/format_CVA6_repo.py              # format in place
-    python3 scripts/format_CVA6_repo.py --check      # report and change nothing
+    python3 scripts/format_CVA6_repo.py --check      # report, change nothing
     python3 scripts/format_CVA6_repo.py --python     # one language
     python3 scripts/format_CVA6_repo.py -v           # name every file
 
@@ -61,10 +61,11 @@ ASM_INSTR = re.compile(r"^(\s+)(\S+)(\s+)(\S.*)$")
 
 
 def format_asm(text):
-    """Operands two spaces past the file's longest mnemonic.
+    """Mnemonics two spaces in, operands one space past the file's longest
+    mnemonic.
 
-    Per file rather than per block, which is what the tree already follows:
-    23 of its 31 assembly sources reproduce under this rule untouched."""
+    Per file rather than per block, since most of the tree's assembly was
+    written that way before this pass existed."""
     lines = [ln.rstrip() for ln in text.split("\n")]
 
     def instruction(ln):
@@ -161,7 +162,8 @@ def prettier_base():
 
 
 def run_python(files, check, verbose):
-    """Returns the files that changed, or that would change under --check."""
+    """(files that changed or would change under --check, the reason the
+    pass was skipped or None)."""
     if not files:
         return [], None
     if not have_autopep8():
@@ -238,10 +240,10 @@ def main():
                         help="Name every file as it is handled")
     args = parser.parse_args()
 
-    both = not (args.python or args.markdown or args.benchmarks)
+    every = not (args.python or args.markdown or args.benchmarks)
     changed, skipped = [], []
 
-    if args.python or both:
+    if args.python or every:
         files = python_files()
         got, why = run_python(files, args.check, args.verbose)
         if why:
@@ -251,7 +253,7 @@ def main():
             print(f"[INFO] Python: {len(files)} file(s) at {PY_COLS} columns, "
                   f"{len(got)} {'unformatted' if args.check else 'changed'}")
 
-    if args.markdown or both:
+    if args.markdown or every:
         files = markdown_files()
         got, why = run_markdown(files, args.check, args.verbose)
         if why:
@@ -261,7 +263,7 @@ def main():
             print(f"[INFO] Markdown: {len(files)} file(s), "
                   f"{len(got)} {'unformatted' if args.check else 'changed'}")
 
-    if args.benchmarks or both:
+    if args.benchmarks or every:
         files = benchmark_files()
         got, why = run_benchmarks(files, args.check, args.verbose)
         if why:
@@ -277,10 +279,9 @@ def main():
         print(f"  {rel}")
 
     if args.check and changed:
-        print("[ERROR] Run 'python3 scripts/format_CVA6_repo.py' to fix these.")
+        print("[ERROR] Run 'python3 scripts/format_CVA6_repo.py' to fix "
+              "these.")
         return 1
-    if skipped and not changed:
-        return 0
     return 0
 
 
