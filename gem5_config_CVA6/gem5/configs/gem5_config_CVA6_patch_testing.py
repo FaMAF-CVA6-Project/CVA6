@@ -3,10 +3,18 @@ import os
 
 from m5.params import NULL  # type: ignore
 from gem5.components.boards.simple_board import SimpleBoard  # type: ignore
-from gem5.components.processors.base_cpu_core import BaseCPUCore  # type: ignore
-from gem5.components.processors.base_cpu_processor import BaseCPUProcessor  # type: ignore
-from gem5.components.memory.simple import SingleChannelSimpleMemory  # type: ignore
-from gem5.components.memory.single_channel import SingleChannelDDR3_1600  # type: ignore
+from gem5.components.processors.base_cpu_core import (  # type: ignore
+    BaseCPUCore,
+)
+from gem5.components.processors.base_cpu_processor import (  # type: ignore
+    BaseCPUProcessor,
+)
+from gem5.components.memory.simple import (  # type: ignore
+    SingleChannelSimpleMemory,
+)
+from gem5.components.memory.single_channel import (  # type: ignore
+    SingleChannelDDR3_1600,
+)
 from gem5.components.cachehierarchies.classic.private_l1_cache_hierarchy import (  # type: ignore
     PrivateL1CacheHierarchy,
 )
@@ -43,24 +51,29 @@ from m5.objects import (  # type: ignore
     TimingExprUn,
     TimingExprBin,
     TimingExprIf,
+    TimingExprLet,
+    TimingExprRef,
 )
 
 # Calibration harness for the CVA6 gem5 MinorCPU configuration.
 #
-# TEST 1 is the frozen CPU-side baseline, TEST 99 the full production
-# configuration. Every other TEST is a single-knob perturbation of the
-# calibration campaign, with its observation in the entry's own comment.
+# TEST 1 is the stock gem5_config_CVA6.py and TEST 40 full production, the
+# gem5_config_CVA6_patch.py. Every other TEST is a perturbation of the
+# campaign, most single-knob, and a row marked duplicate reduces to another.
 #
-# The table is ordered by what a TEST needs to run. TESTS 1 to 39 use nothing
-# the patch adds and match gem5_config_CVA6_testing.py entry for entry. TESTS
-# 40 to 95 and TEST 99 need MinorCPU_CVA6.patch.
+# TESTS 1 to 39 are gem5_config_CVA6_testing.py's on the same stock baseline,
+# setting no patch parameter. From TEST 40 on, every entry is laid over
+# PATCH_BASE, the patch parameters the campaign adopted first.
 #
-# TEST table fields (unchanged shape):
+# TEST table fields:
 #   (name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
 #    icache_overrides, clk_freq, mem_latency, bp_overrides)
 #
 # Special keys:
+#   cpu_overrides["branchPred"]      LocalBP or TournamentBP
 #   bp_overrides["fuVariant"]        selects a CVA6FUPool variant (below)
+#   bp_overrides["directTargetsFromDecode"], ["indirectBranchPred"],
+#   ["btbTagBits"] and ["rasNoRecovery"] set the built predictor
 #   dcache_overrides["_membus_width"]   crossbar payload width in bytes
 #   dcache_overrides["_mem_bandwidth"]  SimpleMemory bandwidth string
 #   dcache_overrides["_port_model"]     splice the axi2mem single-port model
@@ -69,13 +82,13 @@ from m5.objects import (  # type: ignore
 #   --- fetch geometry ---
 #   2   fetch1FetchLimit 2 -> 1                   workload: matmul_small
 #   3   fetch1FetchLimit 2 -> 3                   workload: matmul_small
-#   4   fetch 8B/8B, fetch2 buffer 8              workload: all
+#   4   fetch lines 8 bytes, fetch2 buffer 8      workload: all
 #   5   fetch2InputBufferSize 2 -> 4              workload: fetch2_probe
 #   --- instruction cache ---
 #   6   L1I random -> LRU                         workload: full_test
 #   7   L1I response_latency 0 -> 1               workload: daxpy
 #   8   L1I response_latency 0 -> 2               workload: daxpy
-#   9   L1I 4KiB                                  workload: daxpy
+#   9   L1I 4 KiB                                 workload: daxpy
 #   --- decode buffer ---
 #  10   decodeInputBufferSize 1 -> 4              workload: daxpy, full_test
 #  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
@@ -94,14 +107,14 @@ from m5.objects import (  # type: ignore
 #  21   serdiv base 1 -> 0                        workload: int_div
 #  22   fp_addmul without the double mask         workload: fp_addmul
 #  23   FP mem classes back on vec_mem_fast       workload: daxpy
-#  24   atomic occupancy entries removed          workload: atomic_fence
+#  24   LR/SC, AMO and fence occupancy removed    workload: atomic_fence
 #   --- data cache ---
-#  25   L1D PLRU -> true LRU                      workload: full_test
+#  25   L1D random -> LRU                         workload: full_test
 #  26   response_latency 4 -> 5                   workload: daxpy
 #  27   response_latency 4 -> 6                   workload: daxpy
 #  28   response_latency 4 -> 3                   workload: daxpy
-#  29   L1D 16KiB                                 workload: daxpy
-#  30   L1D 64KiB                                 workload: daxpy
+#  29   L1D 16 KiB                                workload: daxpy
+#  30   L1D 64 KiB                                workload: daxpy
 #  31   L1D assoc 8 -> 2                          workload: daxpy
 #  32   L1D mshrs 8 -> 1                          workload: daxpy
 #  33   L1D write_buffers 8 -> 2                  workload: daxpy
@@ -109,108 +122,130 @@ from m5.objects import (  # type: ignore
 #   --- memory system ---
 #  35   membus width 8 -> 16                      workload: daxpy
 #  36   membus width 8 -> 4                       workload: daxpy
-#  37   memory bandwidth 12.8GiB/s -> 0.4GiB/s    workload: daxpy
-#  38   mem latency 0 -> 60ns                     workload: daxpy
+#  37   memory bandwidth 12.8 GiB/s -> 0.4 GiB/s  workload: daxpy
+#  38   mem latency 0 -> 60 ns                    workload: daxpy
 #   --- core-wide ---
 #  39   threadPolicy -> RoundRobin                workload: daxpy
-#   === every TEST below needs MinorCPU_CVA6.patch ===
+#   === from here on, every entry is laid over PATCH_BASE ===
+#   --- full production ---
+#  40   full production                           workload: all
 #   --- store-to-load forwarding ---
-#  40   store forwarding re-enabled               workload: store_fwd
-#  41   replay delay 2 -> 0                       workload: store_fwd
+#  41   store forwarding re-enabled               workload: store_fwd
+#  42   replay delay 2 -> 0                       workload: store_fwd
 #   --- data-cache stack ---
-#  42   port model alone                          workload: daxpy
-#  43   + evict-on-allocate                       workload: daxpy
-#  44   + victim readout stall                    workload: daxpy
-#  45   + HPDcache bit-PLRU                       workload: daxpy
-#  46   + HPDcache random                         workload: daxpy
-#  47   + victim readable until fill              workload: daxpy
-#  48   + fill phase, the production stack        workload: daxpy
+#  43   port model alone                          workload: daxpy
+#  44   + evict-on-allocate                       workload: daxpy
+#  45   + victim readout stall                    workload: daxpy
+#  46   + HPDcache bit-PLRU                       workload: daxpy
+#  47   + HPDcache random, on 45 not 46           workload: daxpy
+#  48   + victim readable until fill              workload: daxpy
+#  49   + fill phase, the production stack        workload: daxpy
 #   --- production stack, ablations and geometry ---
-#  49   production stack, L1D 16 KiB              workload: daxpy
-#  50   production stack, L1D 64 KiB              workload: daxpy
-#  51   production minus the port model           workload: daxpy
-#  52   production minus the readout stall        workload: daxpy
-#  53   production with bit-PLRU instead          workload: daxpy
-#  54   production minus the fill phase           workload: daxpy
-#  55   fill delay without the random policy      workload: daxpy
+#  50   production stack, L1D 16 KiB              workload: daxpy
+#  51   production stack, L1D 64 KiB              workload: daxpy
+#  52   production minus the port model           workload: daxpy
+#  53   production minus the readout stall        workload: daxpy
+#  54   production with bit-PLRU instead          workload: daxpy
+#  55   duplicate of 48, minus the fill phase     workload: daxpy
+#  56   fill delay, gem5 RandomRP policy          workload: daxpy
 #   --- fence and instruction-cache policy ---
-#  56   + fence flushes the L1D                   workload: atomic_fence
-#  57   + transcribed L1I policy                  workload: all
+#  57   + fence flushes the L1D                   workload: atomic_fence
+#  58   + transcribed L1I policy                  workload: all
 #   --- front end, direct targets and the BTB ---
-#  58   production minus direct targets           workload: btb_pressure
-#  59   same-cycle fetch2 redirect                workload: all
-#  60   BTB as the JALR store                     workload: all
-#  61   tagless BTB                               workload: all
+#  59   duplicate of 58, the delay is baseline    workload: btb_pressure
+#  60   59 + decode direct targets                workload: all
+#  61   BTB as the JALR store, redirect delay 1   workload: all
+#  62   tagless BTB                               workload: all
 #   --- fill timing ---
-#  62   dirty-only fill delay                     workload: all
+#  63   dirty-only fill delay                     workload: all
 #   --- refill window ---
-#  63   refill window + clean fill                workload: all
-#  64   refill window alone, isolation            workload: all
-#  65   fence pipeline squash, rule F5            workload: all
-#  66   RAS no-recovery                           workload: all
-#  67   store-class readout extra, isolation      workload: all
-#  68   the tier 0 plus 2 pair                    workload: all
-#  69   all candidates together                   workload: all
-#  70   pair + class x and z                      workload: all
+#  64   refill window + clean fill                workload: all
+#  65   refill window alone, isolation            workload: all
+#  66   duplicate of 62, F5 squash is baseline    workload: all
+#  67   RAS no-recovery                           workload: all
+#  68   store-class readout extra, isolation      workload: all
+#  69   clean fill + class z                      workload: all
+#  70   all candidates together                   workload: all
+#  71   pair + class x and z                      workload: all
 #   --- accept-and-charge ---
-#  71   accept-and-charge, dirty-only fill        workload: all
-#  72   accept-and-charge with the class law      workload: all
-#  73   accept-and-charge, the full pair          workload: all
-#  74   accept-and-charge refill window           workload: all
+#  72   accept-and-charge, dirty-only fill        workload: all
+#  73   accept-and-charge with the class law      workload: all
+#  74   accept-and-charge, the full pair          workload: all
+#  75   accept-and-charge refill window           workload: all
 #   --- the fetch supply beat, basic_test's owner ---
-#  75   fetch1FetchLimit 2 -> 4                   workload: all
-#  76   fetch1FetchLimit 4, fetch2 buffer 2 -> 1  workload: all
-#  77   fetch limit 4, fetch2 buffer 2 -> 4       workload: all
-#   --- the per-line cadence, the beat's real owner ---
-#  78   fetch2CycleInput False -> True            workload: all
-#  79   fetch2CycleInput True, fetch & buffer 2   workload: all
+#  76   fetch1FetchLimit 2 -> 4                   workload: all
+#  77   fetch1FetchLimit 4, fetch2 buffer 2 -> 1  workload: all
+#  78   fetch limit 4, fetch2 buffer 2 -> 4       workload: all
+#   --- the per-line cadence, already the baseline ---
+#  79   duplicate of 78, cycle input is baseline  workload: all
+#  80   duplicate of 67, cycle input is baseline  workload: all
 #   --- the class law without the fill-0 phase artefact ---
-#  80   flat fill, accept-and-charge              workload: all
-#  81   TEST 72 stack on the 79 frontend          workload: all
-#  82   adopted stack plus the serdiv turnaround  workload: all
-#  83   adopted stack plus the divsqrt format law workload: all
-#  84   adopted stack plus all                    workload: all
+#  81   flat fill, accept-and-charge              workload: all
+#  82   duplicate of 73, 80 front end is baseline workload: all
+#  83   duplicate of 73, turnaround is baseline   workload: all
+#  84   adopted stack + C910 divider law          workload: all
+#  85   duplicate of 73, fence squash is baseline workload: all
 #   --- the final-check probes, on the adopted stack ---
-#  85   L1I mshrs 2 -> 1, the I-side retry tax    workload: all
-#  86   fetch limit 3, fetch2 buffer 3,           workload: all
-#  87   fetch limit 4, fetch2 buffer 3            workload: all
-#  88   L1I reopen at ready                       workload: all
-#  89   structural I-side, mshrs 1 with           workload: all
-#  90   ablation of 89 without reopen at ready    workload: all
-#  91   the 89 with fetch limit 3 and buffer 3    workload: all
+#  86   L1I mshrs 2 -> 1, the I-side retry tax    workload: all
+#  87   fetch limit 3, fetch2 buffer 3            workload: all
+#  88   fetch limit 4, fetch2 buffer 3            workload: all
+#  89   L1I reopen at ready                       workload: all
+#   --- the structural I-side ---
+#  90   mshrs 1, reopen at ready, fetch1 holds    workload: all
+#  91   ablation of 90 without reopen at ready    workload: all
 #  92   the 90 with fetch limit 3 and buffer 3    workload: all
-#  93   the 92 with the fill readable at the fill workload: all
-#  94   the 93 with kill on redirect              workload: all
-#  95   the whole structural I-side, TEST 99      workload: all
-#   --- full patch baseline ---
-#  99   full production                           workload: all
+#  93   the 91 with fetch limit 3 and buffer 3    workload: all
+#  94   the 93 with the fill readable at the fill workload: all
+#  95   the 94 with kill on redirect              workload: all
+#  96   previous full production                  workload: all
+#   --- final adoptions, each taken back out ---
+#  97   production minus fill at the response     workload: all
+#  98   production minus the C910 divider law     workload: all
+#  99   production minus the divider queue        workload: all
+#   --- direct targets against the stack ---
+# 100   production minus direct targets           workload: all
+#   --- the killed-line drop against the stack ---
+# 101   production minus the killed-line drop     workload: all
 #
 #   --- cache geometry ---
 # CACHE_TESTS is a table of its own: nothing in it touches the CPU, only L1I
-# and L1D size and associativity, and each entry runs over more of the
-# benchmark set than a single-knob calibration row does.
-# 201   L1I 4KiB                                  workload: icache_pressure, matmul_small, full_test
-# 202   L1I 8KiB                                  workload: icache_pressure, full_test
-# 203   L1I 32KiB                                 workload: icache_pressure, full_test
-# 204   L1I 64KiB                                 workload: icache_pressure, matmul_small
-# 205   L1I direct mapped, assoc 4 -> 1           workload: icache_pressure, full_test, branch_full_test
-# 206   L1I assoc 4 -> 2                          workload: icache_pressure, full_test
-# 207   L1I assoc 4 -> 8                          workload: icache_pressure, full_test
-# 208   L1D 8KiB                                  workload: matmul_small, daxpy, store_fwd
-# 209   L1D 16KiB                                 workload: matmul_small, store_fwd
-# 210   L1D 64KiB                                 workload: matmul_small, daxpy
-# 211   L1D direct mapped, assoc 8 -> 1           workload: matmul_small, store_fwd, atomic_fence
-# 212   L1D assoc 8 -> 2                          workload: matmul_small, daxpy, store_fwd
-# 213   L1D assoc 8 -> 4                          workload: matmul_small, store_fwd
-# 214   both small, L1I 4KiB and L1D 8KiB         workload: icache_pressure, matmul_small
-# 215   both large, L1I 64KiB and L1D 64KiB       workload: icache_pressure, matmul_small
-# 216   both direct mapped                        workload: icache_pressure, matmul_small, store_fwd
-# 217   both doubled, L1I 32KiB and L1D 64KiB     workload: icache_pressure, matmul_small, daxpy
+# and L1D size and associativity. Each entry runs the workloads its cut moves
+# on CACHE_BASE_TEST, this file's TEST 40, the full production configuration,
+# so a cut differs from what ships by the cut alone.
+# 201   L1I 4 KiB                                 workload: icache_pressure
+# 202   L1I 8 KiB                                 workload: icache_pressure
+# 203   L1I 32 KiB                                workload: icache_pressure
+# 204   L1I 64 KiB                                workload: icache_pressure
+# 205   L1I direct mapped, assoc 4 -> 1           workload: icache_pressure
+# 206   L1I assoc 4 -> 2                          workload: icache_pressure
+# 207   L1I assoc 4 -> 8                          workload: icache_pressure
+# 208   L1D 8 KiB                                 workload: daxpy, full_test, atomic_fence
+# 209   L1D 16 KiB                                workload: full_test, fetch2_probe
+# 210   L1D 64 KiB                                workload: daxpy, full_test, atomic_fence
+# 211   L1D direct mapped, assoc 8 -> 1           workload: daxpy, daxpy_unrolling_4, fetch2_probe
+# 212   L1D assoc 8 -> 2                          workload: daxpy, daxpy_unrolling_4, fetch2_probe
+# 213   L1D assoc 8 -> 4                          workload: daxpy, fetch2_probe
+# 214   both small, L1I 4 KiB and L1D 8 KiB       workload: icache_pressure, full_test
+# 215   both large, L1I 64 KiB and L1D 64 KiB     workload: icache_pressure, full_test
+# 216   both direct mapped                        workload: icache_pressure, daxpy, daxpy_unrolling_4
+# 217   both doubled, L1I 32 KiB and L1D 64 KiB   workload: icache_pressure, full_test, daxpy
 
 TEST = 1
 
 # When True, ignore the TEST table and run the full Morillas 2025 config.
 USE_MORILLAS = False
+
+# From PATCH_TIER_START on, every entry is laid over PATCH_BASE, the patch
+# parameters the campaign adopted before it varied anything else. The entry's
+# own overrides win, so an ablation sets the value it takes away.
+PATCH_TIER_START = 40
+PATCH_BASE = {
+    "cpu": {"executeLSQNoStoreForwarding": True,
+            "executeLSQStoreCollisionReplayDelay": 2,
+            "executeLSQFenceSignalsDcache": True,
+            "executeFenceSquashesPipeline": True},
+    "icache": {"mshrs": 2},
+}
 
 
 TESTS = {
@@ -253,10 +288,10 @@ TESTS = {
          {"fuVariant": "addmul_flat"}),
     23: ("FP mem classes on vec unit",   {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "fp_on_vec"}),
-    24: ("atomic occupancy removed",     {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    24: ("occupancy entries removed",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"fuVariant": "no_occupancy"}),
     # --- data cache ---
-    25: ("L1D PLRU->LRU",                {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "0ns", {}),
+    25: ("L1D random->LRU",              {}, "16KiB", "32KiB", {"replacement_policy": LRURP()}, {}, "50MHz", "0ns", {}),
     26: ("response_latency 4->5",        {}, "16KiB", "32KiB", {"response_latency": 5}, {}, "50MHz", "0ns", {}),
     27: ("response_latency 4->6",        {}, "16KiB", "32KiB", {"response_latency": 6}, {}, "50MHz", "0ns", {}),
     28: ("response_latency 4->3",        {}, "16KiB", "32KiB", {"response_latency": 3}, {}, "50MHz", "0ns", {}),
@@ -273,86 +308,108 @@ TESTS = {
     38: ("legacy 60ns memory",           {}, "16KiB", "32KiB", {}, {}, "50MHz", "60ns", {}),
     # --- core-wide ---
     39: ("threadPolicy RoundRobin",      {"threadPolicy": "RoundRobin"}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    # === every TEST below needs MinorCPU_CVA6.patch ===
+    # === from here on, every entry is laid over PATCH_BASE ===
+    # --- full production ---
+    40: ("full production",
+         {"fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+          "fetch1DropsKilledLines": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0, "fill_at_response": True,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True, "reopen_at_ready": True},
+         "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "divsqrt_c910_queue"}),
     # --- store-to-load forwarding ---
-    40: ("store forwarding on",          {"executeLSQNoStoreForwarding": False,
+    41: ("store forwarding on",          {"executeLSQNoStoreForwarding": False,
                                           "executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
-    41: ("replay delay 2->0",            {"executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
+    42: ("replay delay 2->0",            {"executeLSQStoreCollisionReplayDelay": 0}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     # --- data-cache stack ---
-    42: ("port model alone",              {}, "16KiB", "32KiB",
+    43: ("port model alone",              {}, "16KiB", "32KiB",
          {"_port_model": True}, {}, "50MHz", "0ns", {}),
-    43: ("port + evict-on-allocate",      {}, "16KiB", "32KiB",
+    44: ("port + evict-on-allocate",      {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True}, {}, "50MHz", "0ns", {}),
-    44: ("+ victim readout stall",        {}, "16KiB", "32KiB",
+    45: ("+ victim readout stall",        {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True}, {}, "50MHz", "0ns", {}),
-    45: ("+ bit-PLRU counterfactual",     {}, "16KiB", "32KiB",
+    46: ("+ bit-PLRU counterfactual",     {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcachePLRURP()}, {}, "50MHz", "0ns", {}),
-    46: ("+ random, configured branch",   {}, "16KiB", "32KiB",
+    47: ("+ random, configured branch",   {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP()}, {}, "50MHz", "0ns", {}),
-    47: ("+ victim readable until fill",  {}, "16KiB", "32KiB",
+    48: ("+ victim readable until fill",  {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True}, {}, "50MHz", "0ns", {}),
-    48: ("production stack",              {}, "16KiB", "32KiB",
+    49: ("production stack",              {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
     # --- production stack, ablations and geometry ---
-    49: ("production stack, L1D 16KiB",   {}, "16KiB", "16KiB",
+    50: ("production stack, L1D 16KiB",   {}, "16KiB", "16KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
-    50: ("production stack, L1D 64KiB",   {}, "16KiB", "64KiB",
+    51: ("production stack, L1D 64KiB",   {}, "16KiB", "64KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
-    51: ("production minus port model",   {}, "16KiB", "32KiB",
+    52: ("production minus port model",   {}, "16KiB", "32KiB",
          {"evict_on_allocate": True, "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
-    52: ("production minus readout stall", {}, "16KiB", "32KiB",
+    53: ("production minus readout stall", {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
-    53: ("production with bit-PLRU",      {}, "16KiB", "32KiB",
+    54: ("production with bit-PLRU",      {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcachePLRURP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
-    54: ("production minus fill phase",   {}, "16KiB", "32KiB",
+    55: ("duplicate of 48, minus fill phase", {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True}, {}, "50MHz", "0ns", {}),
-    55: ("fill delay, TreePLRU policy",   {}, "16KiB", "32KiB",
+    56: ("fill delay, gem5 RandomRP policy", {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2}, {}, "50MHz", "0ns", {}),
     # --- fence and instruction-cache policy ---
-    56: ("+ fence flushes the L1D",       {}, "16KiB", "32KiB",
+    57: ("+ fence flushes the L1D",       {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
           "victim_readable_until_fill": True,
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True}, {}, "50MHz", "0ns", {}),
-    57: ("+ transcribed L1I policy",      {}, "16KiB", "32KiB",
+    58: ("+ transcribed L1I policy",      {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -361,8 +418,8 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
     # --- front end, direct targets and the BTB ---
-    58: ("production minus direct targets",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    59: ("duplicate of 58, the backward delay is baseline",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -370,7 +427,7 @@ TESTS = {
           "response_latency": 2, "fill_delay": 2,
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns", {}),
-    59: ("same-cycle fetch2 redirect",   {"fetch1ToFetch2BackwardDelay": 0},
+    60: ("59 with decode direct targets", {},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -380,7 +437,7 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True}),
-    60: ("BTB as the JALR store",        {}, "16KiB", "32KiB",
+    61: ("BTB as the JALR store, redirect delay 1", {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -389,8 +446,8 @@ TESTS = {
           "fence_flushes_dcache": True},
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL}),
-    61: ("tagless BTB",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    62: ("tagless BTB",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -401,8 +458,8 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
     # --- fill timing ---
-    62: ("dirty-only fill delay",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    63: ("dirty-only fill delay",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -413,8 +470,8 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
     # --- refill window ---
-    63: ("refill window + clean fill (the pair)",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    64: ("refill window + clean fill (the pair)",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -425,8 +482,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    64: ("refill window alone, isolation",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    65: ("refill window alone, isolation",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -437,10 +494,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    # --- final tests ---
-    65: ("fence pipeline squash, rule F5",
-         {"fetch1ToFetch2BackwardDelay": 0,
-          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+    66: ("duplicate of 62, F5 squash is baseline",
+         {"executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -450,8 +505,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    66: ("RAS no-recovery",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    67: ("RAS no-recovery",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -462,8 +517,8 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0,
           "rasNoRecovery": True}),
-    67: ("store-class readout extra, isolation",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    68: ("store-class readout extra, isolation",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -474,8 +529,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    68: ("the pair with class z",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    69: ("clean fill with class z",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -486,9 +541,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    69: ("all candidates together",
-         {"fetch1ToFetch2BackwardDelay": 0,
-          "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
+    70: ("all candidates together",
+         {"executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -500,8 +554,8 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0,
           "rasNoRecovery": True}),
-    70: ("pair with class x and z",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    71: ("pair with class x and z",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -513,9 +567,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0}),
-    # --- accept-and-charge, the form conversion ---
-    71: ("accept-and-charge, dirty-only fill",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    # --- accept-and-charge ---
+    72: ("accept-and-charge, dirty-only fill",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -526,8 +580,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    72: ("accept-and-charge with the class law",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    73: ("accept-and-charge with the class law",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -540,8 +594,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    73: ("accept-and-charge, the full pair",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    74: ("accept-and-charge, the full pair",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
           "replacement_policy": HPDcacheRandomRP(),
@@ -555,8 +609,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    74: ("accept-and-charge refill window, flat fill",
-         {"fetch1ToFetch2BackwardDelay": 0}, "16KiB", "32KiB",
+    75: ("accept-and-charge refill window, flat fill",
+         {}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": False,
           "replacement_policy": HPDcacheRandomRP(),
@@ -568,9 +622,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    # --- the fetch supply beat ---
-    75: ("fetch1FetchLimit 2->4, the supply beat",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4},
+    # --- the fetch supply beat, basic_test's owner ---
+    76: ("fetch1FetchLimit 2->4, the supply beat",
+         {"fetch1FetchLimit": 4},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -581,8 +635,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    76: ("fetch limit 4, fetch2 buffer 1",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+    77: ("fetch limit 4, fetch2 buffer 1",
+         {"fetch1FetchLimit": 4,
           "fetch2InputBufferSize": 1},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -594,8 +648,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    77: ("fetch limit 4, fetch2 buffer 4",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+    78: ("fetch limit 4, fetch2 buffer 4",
+         {"fetch1FetchLimit": 4,
           "fetch2InputBufferSize": 4},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -607,9 +661,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    # --- the per-line cadence ---
-    78: ("fetch2CycleInput True, limit 4, buffer 4",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch1FetchLimit": 4,
+    # --- the per-line cadence, already the baseline ---
+    79: ("duplicate of 78, fetch2CycleInput is baseline",
+         {"fetch1FetchLimit": 4,
           "fetch2InputBufferSize": 4, "fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -621,8 +675,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    79: ("fetch2CycleInput True, production queues",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+    80: ("duplicate of 67, fetch2CycleInput is baseline",
+         {"fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -633,9 +687,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    # --- the class law on the 79 frontend ---
-    80: ("flat fill, class extras accept-and-charge",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+    # --- the class law without the fill-0 phase artefact ---
+    81: ("flat fill, class extras accept-and-charge",
+         {"fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -649,8 +703,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    81: ("TEST 72 stack on the 79 frontend",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+    82: ("duplicate of 73, the 80 front end is baseline",
+         {"fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -664,8 +718,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    82: ("adopted stack, serdiv turnaround",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+    83: ("duplicate of 73, serdiv_turnaround is no variant",
+         {"fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -680,8 +734,8 @@ TESTS = {
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True,
           "fuVariant": "serdiv_turnaround"}),
-    83: ("adopted stack, divsqrt format law",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True},
+    84: ("adopted stack + C910 divider law",
+         {"fetch2CycleInput": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -695,9 +749,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True,
-          "fuVariant": "divsqrt_format_law"}),
-    84: ("adopted stack, fence squash",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+          "fuVariant": "divsqrt_c910_law"}),
+    85: ("duplicate of 73, fence squash is baseline",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True},
          "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -712,9 +766,9 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    # --- full patch baseline ---
-    85: ("adopted stack, L1I mshrs 1, the retry tax",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    # --- the final-check probes, on the adopted stack ---
+    86: ("adopted stack, L1I mshrs 1, the retry tax",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -728,8 +782,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    86: ("adopted stack, fetch limit 3, buffer 3",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    87: ("adopted stack, fetch limit 3, buffer 3",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -744,8 +798,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    87: ("adopted stack, fetch limit 4, buffer 3",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    88: ("adopted stack, fetch limit 4, buffer 3",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1FetchLimit": 4, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -760,8 +814,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP()}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    88: ("adopted stack, L1I reopen at ready",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    89: ("adopted stack, L1I reopen at ready",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -776,8 +830,9 @@ TESTS = {
           "reopen_at_ready": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    89: ("structural I-side: mshrs 1, reopen at ready, fetch1 holds",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    # --- the structural I-side ---
+    90: ("structural I-side: mshrs 1, reopen at ready, fetch1 holds",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -793,8 +848,8 @@ TESTS = {
           "reopen_at_ready": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    90: ("ablation: mshrs 1, fetch1 holds, no reopen at ready",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    91: ("ablation: mshrs 1, fetch1 holds, no reopen at ready",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
@@ -809,8 +864,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    91: ("structural I-side with fetch limit 3 and buffer 3",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    92: ("structural I-side with fetch limit 3 and buffer 3",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
@@ -827,8 +882,8 @@ TESTS = {
           "reopen_at_ready": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    92: ("ablation 90 with fetch limit 3 and buffer 3",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    93: ("ablation 91 with fetch limit 3 and buffer 3",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
@@ -844,8 +899,8 @@ TESTS = {
          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    93: ("the 92 stack with the fill readable at the fill",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    94: ("the 93 stack with the fill readable at the fill",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
@@ -862,8 +917,8 @@ TESTS = {
           "fill_ready_at_fill": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    94: ("the 93 stack with kill on redirect",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    95: ("the 94 stack with kill on redirect",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3,
@@ -881,8 +936,8 @@ TESTS = {
           "fill_ready_at_fill": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    95: ("the 94 stack with reopen at ready, the full shape",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    96: ("previous full production, the 95 stack with reopen at ready",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3,
@@ -900,10 +955,12 @@ TESTS = {
           "fill_ready_at_fill": True, "reopen_at_ready": True}, "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
           "btbTagBits": 0, "rasNoRecovery": True}),
-    99: ("full production",
-         {"fetch1ToFetch2BackwardDelay": 0, "fetch2CycleInput": True,
+    # --- the final adoptions, each taken back out ---
+    97: ("production minus the fill at the core response",
+         {"fetch2CycleInput": True,
           "executeFenceSquashesPipeline": True,
           "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+          "fetch1DropsKilledLines": True,
           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
          {"_port_model": True, "evict_on_allocate": True,
           "victim_readout_stall": True,
@@ -918,12 +975,103 @@ TESTS = {
           "fill_ready_at_fill": True, "reopen_at_ready": True},
          "50MHz", "0ns",
          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
-          "btbTagBits": 0, "rasNoRecovery": True}),
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "divsqrt_c910_queue"}),
+    98: ("production minus the C910 divider law",
+         {"fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+          "fetch1DropsKilledLines": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0, "fill_at_response": True,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True, "reopen_at_ready": True},
+         "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "divsqrt_flat_queue"}),
+    99: ("production minus the divider queue",
+         {"fetch2CycleInput": True,
+          "executeFenceSquashesPipeline": True,
+          "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+          "fetch1DropsKilledLines": True,
+          "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3}, "16KiB", "32KiB",
+         {"_port_model": True, "evict_on_allocate": True,
+          "victim_readout_stall": True,
+          "replacement_policy": HPDcacheRandomRP(),
+          "victim_readable_until_fill": True,
+          "response_latency": 2, "fill_delay": 0, "fill_at_response": True,
+          "victim_readout_store_extra": 4,
+          "victim_readout_first_load_extra": 1,
+          "window_accept_and_charge": True,
+          "fence_flushes_dcache": True},
+         {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+          "fill_ready_at_fill": True, "reopen_at_ready": True},
+         "50MHz", "0ns",
+         {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+          "btbTagBits": 0, "rasNoRecovery": True,
+          "fuVariant": "divsqrt_c910_law"}),
+    # --- direct targets against the stack ---
+    100: ("production minus direct targets",
+          {"fetch2CycleInput": True,
+           "executeFenceSquashesPipeline": True,
+           "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+           "fetch1DropsKilledLines": True,
+           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3},
+          "16KiB", "32KiB",
+          {"_port_model": True, "evict_on_allocate": True,
+           "victim_readout_stall": True,
+           "replacement_policy": HPDcacheRandomRP(),
+           "victim_readable_until_fill": True,
+           "response_latency": 2, "fill_delay": 0, "fill_at_response": True,
+           "victim_readout_store_extra": 4,
+           "victim_readout_first_load_extra": 1,
+           "window_accept_and_charge": True,
+           "fence_flushes_dcache": True},
+          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+           "fill_ready_at_fill": True, "reopen_at_ready": True},
+          "50MHz", "0ns",
+          {"rasNoRecovery": True, "fuVariant": "divsqrt_c910_queue"}),
+    # --- the killed-line drop against the stack ---
+    101: ("production minus the killed-line drop",
+          {"fetch2CycleInput": True,
+           "executeFenceSquashesPipeline": True,
+           "fetch1WaitsForIcache": True, "fetch1KillsOnRedirect": True,
+           "fetch1FetchLimit": 3, "fetch2InputBufferSize": 3},
+          "16KiB", "32KiB",
+          {"_port_model": True, "evict_on_allocate": True,
+           "victim_readout_stall": True,
+           "replacement_policy": HPDcacheRandomRP(),
+           "victim_readable_until_fill": True,
+           "response_latency": 2, "fill_delay": 0, "fill_at_response": True,
+           "victim_readout_store_extra": 4,
+           "victim_readout_first_load_extra": 1,
+           "window_accept_and_charge": True,
+           "fence_flushes_dcache": True},
+          {"replacement_policy": CVA6IcacheRandomRP(), "mshrs": 1,
+           "fill_ready_at_fill": True, "reopen_at_ready": True},
+          "50MHz", "0ns",
+          {"directTargetsFromDecode": True, "indirectBranchPred": NULL,
+           "btbTagBits": 0, "rasNoRecovery": True,
+           "fuVariant": "divsqrt_c910_queue"}),
 }
 
-# Cache geometry, kept apart from the grid above. These vary nothing but L1I
-# and L1D size and associativity, which is what the calibration needs the
-# sensitivity of, so they are selected from their own id range.
+# The entry every cache geometry is laid over: TEST 40, the full production
+# configuration, which is gem5_config_CVA6_patch.py. Each cut is merged into
+# it when the harness runs, so the list follows production when 40 changes.
+CACHE_BASE_TEST = 40
+
+# Cache geometry, kept apart from the grid above so a plain sweep leaves it
+# out. These vary nothing but L1I and L1D size and associativity, and their
+# ids start at 201, so an id says which table it came from.
 CACHE_TESTS = {
     201: ("L1I 4KiB",                       {}, "4KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     202: ("L1I 8KiB",                       {}, "8KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
@@ -949,9 +1097,40 @@ CACHE_TESTS = {
 ALL_TESTS = {**TESTS, **CACHE_TESTS}
 
 
+# Each base can set these fields of a TEST tuple, by position.
+OVERRIDE_FIELDS = {1: "cpu", 4: "dcache", 5: "icache", 8: "bp"}
+
+
+def laid_over(base, entry):
+    """entry with each override dict merged over base's, entry's keys winning.
+    base maps a field name to its dict, as PATCH_BASE does."""
+    merged = list(entry)
+    for field, name in OVERRIDE_FIELDS.items():
+        merged[field] = {**base.get(name, {}), **entry[field]}
+    return tuple(merged)
+
+
+def as_base(entry):
+    """A TEST tuple's override dicts, keyed as PATCH_BASE is."""
+    return {name: entry[field] for field, name in OVERRIDE_FIELDS.items()}
+
+
+def resolve(test):
+    """The TEST entry with the bases it sits on merged in: a cache entry over
+    CACHE_BASE_TEST, and the grid from PATCH_TIER_START on over PATCH_BASE."""
+    entry = ALL_TESTS[test]
+    if test in CACHE_TESTS:
+        return laid_over(as_base(resolve(CACHE_BASE_TEST)), entry)
+    if test >= PATCH_TIER_START:
+        return laid_over(PATCH_BASE, entry)
+    return entry
+
+
 def _lit(value):
+    # The literal is a UInt64, so a negative bound goes in as its two's
+    # complement, which the signed comparisons read back.
     e = TimingExprLiteral()
-    e.value = value
+    e.value = value & 0xFFFFFFFFFFFFFFFF
     return e
 
 
@@ -994,6 +1173,218 @@ def serdivExtraLatency(base=1):
     return _bin('timingExprAdd', clamped, _lit(base))
 
 
+# The C910 radix-16 SRT divider CVA6 runs (fpnew DivSqrtSel THMULTI) stops a
+# round after its partial remainder reaches zero, so an exact short result
+# runs short. Each timing's consumers wait for its commit, the latency unseen.
+def _add(a, b): return _bin('timingExprAdd', a, b)
+def _sub(a, b): return _bin('timingExprSub', a, b)
+def _mul(a, b): return _bin('timingExprUMul', a, b)
+def _div(a, b): return _bin('timingExprUDiv', a, b)
+def _eq(a, b): return _bin('timingExprEqual', a, b)
+def _ne(a, b): return _bin('timingExprNotEqual', a, b)
+def _ult(a, b): return _bin('timingExprULessThan', a, b)
+def _sgt(a, b): return _bin('timingExprSGreaterThan', a, b)
+def _slt(a, b): return _bin('timingExprSLessThan', a, b)
+def _and(a, b): return _bin('timingExprAnd', a, b)   # logical
+def _or(a, b): return _bin('timingExprOr', a, b)     # logical
+
+
+class _Let:
+    """One TimingExprLet. bind() stores a subterm once and returns a factory
+    of fresh TimingExprRef nodes, so no SimObject has two parents and no
+    subterm is evaluated twice (timing_expr.cc memoises Refs per Let)."""
+
+    def __init__(self):
+        self.defns = []
+
+    def bind(self, expr):
+        self.defns.append(expr)
+        index = len(self.defns) - 1
+
+        def ref():
+            e = TimingExprRef()
+            e.index = index
+            return e
+        return ref
+
+    def build(self, body):
+        e = TimingExprLet()
+        e.defns = self.defns
+        e.expr = body
+        return e
+
+
+def _mod_pow2(x_ref, k):
+    """x mod 2**k, with x already bound."""
+    p = 1 << k
+    return _sub(x_ref(), _mul(_div(x_ref(), _lit(p)), _lit(p)))
+
+
+# ------------------------------------------------------ operand decoding
+
+
+def _decode(let, fmt, index):
+    """Bind sign, biased exponent, fraction and the normalised 53-bit
+    significand of source `index`."""
+    if fmt == 'd':
+        v = let.bind(_src(index))
+        sign = let.bind(_div(v(), _lit(1 << 63)))
+        e = let.bind(_div(_mod_pow2(v, 63), _lit(1 << 52)))
+        f = let.bind(_mod_pow2(v, 52))
+        emax = 0x7FF
+    else:
+        v64 = let.bind(_src(index))
+        v = let.bind(_mod_pow2(v64, 32))
+        sign = let.bind(_div(v(), _lit(1 << 31)))
+        e = let.bind(_div(_mod_pow2(v, 31), _lit(1 << 23)))
+        f = let.bind(_mul(_mod_pow2(v, 23), _lit(1 << 29)))
+        emax = 0xFF
+
+    # Subnormal normalisation, a six-step binary shift network. c_j is 1 when
+    # the step shifts by 2**j, and the total shift sh = 53 - bitlen(f).
+    x = f
+    shift_terms = []
+    for j, limit in ((5, 21), (4, 37), (3, 45), (2, 49), (1, 51), (0, 52)):
+        c = let.bind(_ult(x(), _lit(1 << limit)))
+        x_prev = x
+        x = let.bind(_if(c(), _mul(x_prev(), _lit(1 << (1 << j))), x_prev()))
+        shift_terms.append((c, 1 << j))
+    sh = None
+    for c, w in shift_terms:
+        term = _mul(c(), _lit(w))
+        sh = term if sh is None else _add(sh, term)
+    sh = let.bind(sh)
+
+    is_sub = let.bind(_eq(e(), _lit(0)))
+    sig = let.bind(_if(is_sub(), x(), _add(f(), _lit(1 << 52))))
+    # biased exponent, 1 - sh for a subnormal (ct_vfdsu_ff1.v frac_bin_val)
+    exp = let.bind(_if(is_sub(), _sub(_lit(1), sh()), e()))
+    zero = _and(_eq(e(), _lit(0)), _eq(f(), _lit(0)))
+    special = let.bind(_or(_eq(e(), _lit(emax)), zero))
+    return dict(sign=sign, e=e, f=f, sig=sig, exp=exp, special=special)
+
+
+# ------------------------------------------------------------ the law
+
+
+def _div_rounds(fmt):
+    """m for fdiv.{s,d}."""
+    N = 13 if fmt == 'd' else 6
+    let = _Let()
+    a = _decode(let, fmt, 0)
+    b = _decode(let, fmt, 1)
+    A, B = a['sig'], b['sig']
+
+    # rem_zero after round k  <=>  B divides A * 2**(4k-2)
+    # (Q = A / 4B, the first quotient digit weighs 1/16). r_k is that
+    # residue, r_1 = 4A mod B and r_{k+1} = 16 r_k mod B. Zero is absorbing.
+    def mod_b(x_factory):
+        return _sub(x_factory(), _mul(_div(x_factory(), B()), B()))
+
+    r = let.bind(mod_b(lambda: _mul(_lit(4), A())))
+    rounds = _lit(1)
+    for k in range(1, N):
+        rounds = _add(rounds, _ne(r(), _lit(0)))
+        if k < N - 1:
+            r_prev = r
+            r = let.bind(mod_b(lambda rp=r_prev: _mul(_lit(16), rp())))
+
+    # srt_ctrl_skip_srt, ct_vfdsu_srt.v 295-300, 391-417
+    diff = let.bind(_sub(a['exp'](), b['exp']()))
+    of_lim, uf_lim = (1024, -1075) if fmt == 'd' else (128, -150)
+    skip = _or(_or(a['special'](), b['special']()),
+               _or(_sgt(diff(), _lit(of_lim)), _slt(diff(), _lit(uf_lim))))
+    return let.build(_if(skip, _lit(0), rounds))
+
+
+def _sqrt_rounds(fmt):
+    """m for fsqrt.{s,d}."""
+    N = 13 if fmt == 'd' else 6
+    let = _Let()
+    a = _decode(let, fmt, 0)
+
+    # radicand at the double scale, doubled when the unbiased exponent is odd
+    # (ex1_sqrt_expnt_odd, ct_vfdsu_prepare.v 462 and 625-627)
+    exp = a['exp']
+    odd = _eq(_sub(exp(), _mul(_div(exp(), _lit(2)), _lit(2))), _lit(0))
+    c = let.bind(_if(odd, _mul(a['sig'](), _lit(2)), a['sig']()))
+
+    # y = isqrt(c) by integer Newton from above, c in [2**52, 2**54)
+    y = let.bind(_lit(1 << 27))
+    for _ in range(6):
+        y_prev = y
+        y = let.bind(_div(_add(y_prev(), _div(c(), y_prev())), _lit(2)))
+
+    # root significand y / 2**26, and rem_zero after round k
+    # <=>  2**(28-4k) divides y
+    exact = _eq(_mul(y(), y()), c())
+    rounds = _lit(1)
+    for k in range(1, N):
+        if 28 - 4 * k <= 0:
+            break
+        rounds = _add(rounds, _ne(_mod_pow2(y, 28 - 4 * k), _lit(0)))
+
+    skip = _or(a['special'](), _ne(a['sign'](), _lit(0)))
+    return let.build(_if(skip, _lit(0),
+                         _if(exact, rounds, _lit(N))))
+
+
+# ------------------------------------------------------- MinorFUTiming
+
+# funct7 [31:25] and opcode [6:0] of OP-FP
+_MASK = 0xFE00007F
+_MATCH = {
+    ('div', 's'): (0x0C << 25) | 0x53,
+    ('div', 'd'): (0x0D << 25) | 0x53,
+    ('sqrt', 's'): (0x2C << 25) | 0x53,
+    ('sqrt', 'd'): (0x2D << 25) | 0x53,
+}
+
+# Issue to writeback is 8 + R with R = m + 1 SRT rounds: five hand-offs lead
+# into the first round and four follow the last, so opLat is 9 and the
+# expression adds m to that.
+FP_DIVSQRT_BASE_LAT = 9
+
+# A divide or root arriving while the unit is busy waits in fpnew's input
+# register and starts in the WB cycle of the one ahead, so it writes back
+# 6 + m after that one, 3 cycles sooner than a start at the writeback.
+FP_DIVSQRT_QUEUE_OVERLAP = 3
+
+
+def fpDivSqrtTimings(extra=0):
+    timings = []
+    for (op, fmt), match in _MATCH.items():
+        expr = _div_rounds(fmt) if op == 'div' else _sqrt_rounds(fmt)
+        if extra:
+            expr = _add(expr, _lit(extra))
+        timings.append(MinorFUTiming(
+            description=f'FpDivSqrt_{op}_{fmt}',
+            srcRegsRelativeLats=[0],
+            mask=_MASK,
+            match=match,
+            extraCommitLatExpr=expr,
+            consumersWaitForCommit=True))
+    return timings
+
+
+def flatDivSqrtTimings(extra=0):
+    # The flat law, 15 cycles and 7 more for a double.
+    timings = [MinorFUTiming(
+        description='FpDivSqrtDouble',
+        srcRegsRelativeLats=[0],
+        mask=0x06000000,
+        match=0x02000000,
+        extraCommitLat=7 + extra)]
+    if extra:
+        timings.append(MinorFUTiming(
+            description='FpDivSqrtSingle',
+            srcRegsRelativeLats=[0],
+            mask=0x06000000,
+            match=0x00000000,
+            extraCommitLat=extra))
+    return timings
+
+
 def minorMakeOpClassSet(op_classes):
     def boxOpClass(op_class):
         return MinorOpClass(opClass=op_class)
@@ -1002,7 +1393,8 @@ def minorMakeOpClassSet(op_classes):
 
 class CVA6FUPool(MinorFUPool):
     # variant selects one FU-level perturbation, "baseline" is the adopted
-    # configuration, identical to gem5_config_CVA6.py.
+    # configuration, identical to gem5_config_CVA6.py. An unknown name
+    # also gives the baseline.
     def __init__(self, variant="baseline"):
         super().__init__()
 
@@ -1051,6 +1443,15 @@ class CVA6FUPool(MinorFUPool):
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
+        # fpnew's input register, and a divider that writes back out of order.
+        # The overlap moves out of opLat into the extra latency, where a held
+        # operation skips it.
+        overlap = 0
+        if variant == "divsqrt_c910_queue" or variant == "divsqrt_flat_queue":
+            overlap = FP_DIVSQRT_QUEUE_OVERLAP
+            fp_divsqrt.holdWhileBusy = True
+            fp_divsqrt.heldLatencyOverlap = overlap
+            fp_divsqrt.extraCommitLatFromFUEnd = True
         if variant == "divsqrt_legacy":
             fp_divsqrt.opLat = 2
             fp_divsqrt.issueLat = 2
@@ -1058,24 +1459,14 @@ class CVA6FUPool(MinorFUPool):
                 description='FpDivSqrtLegacy',
                 srcRegsRelativeLats=[0],
                 extraCommitLat=2)]
-        elif variant == "divsqrt_format_law":
-            fp_divsqrt.opLat = 12
-            fp_divsqrt.issueLat = 12
-            fp_divsqrt.timings = [MinorFUTiming(
-                description='FpDivSqrtFp64',
-                srcRegsRelativeLats=[0],
-                mask=0x06000000,
-                match=0x02000000,
-                extraCommitLat=7)]
+        elif variant == "divsqrt_c910_law" or variant == "divsqrt_c910_queue":
+            fp_divsqrt.opLat = FP_DIVSQRT_BASE_LAT - overlap
+            fp_divsqrt.issueLat = FP_DIVSQRT_BASE_LAT - overlap
+            fp_divsqrt.timings = fpDivSqrtTimings(overlap)
         else:
-            fp_divsqrt.opLat = 15
-            fp_divsqrt.issueLat = 15
-            fp_divsqrt.timings = [MinorFUTiming(
-                description='FpDivSqrtDouble',
-                srcRegsRelativeLats=[0],
-                mask=0x06000000,
-                match=0x02000000,
-                extraCommitLat=7)]
+            fp_divsqrt.opLat = 15 - overlap
+            fp_divsqrt.issueLat = 15 - overlap
+            fp_divsqrt.timings = flatDivSqrtTimings(overlap)
 
         mem_classes = ['MemRead', 'MemWrite']
         if variant != "fp_on_vec":
@@ -1120,11 +1511,13 @@ class CVA6FUPool(MinorFUPool):
         simd_complex.opClasses = minorMakeOpClassSet([
             'SimdAddAcc', 'SimdCvt', 'SimdMult', 'SimdMultAcc',
             'SimdFloatAdd', 'SimdFloatAlu', 'SimdFloatCmp', 'SimdFloatCvt',
-            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc', 'SimdFloatExt',
+            'SimdFloatMisc', 'SimdFloatMult', 'SimdFloatMultAcc',
+            'SimdFloatExt',
             'SimdReduceAdd', 'SimdReduceAlu', 'SimdReduceCmp',
             'SimdFloatReduceAdd', 'SimdFloatReduceCmp',
             'SimdAes', 'SimdAesMix', 'SimdSha1Hash', 'SimdSha1Hash2',
-            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2', 'SimdShaSigma3'
+            'SimdSha256Hash', 'SimdSha256Hash2', 'SimdShaSigma2',
+            'SimdShaSigma3'
         ])
         simd_complex.timings = [MinorFUTiming(
             description='SimdComplex', srcRegsRelativeLats=[2])]
@@ -1169,7 +1562,8 @@ class CVA6FUPool(MinorFUPool):
         vec_mem_fast = MinorFU()
         vec_mem_fast.opClasses = minorMakeOpClassSet(vec_fast_classes)
         vec_mem_fast.timings = [MinorFUTiming(
-            description='VecMemFast', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemFast', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_fast.opLat = 2
         vec_mem_fast.issueLat = 1
 
@@ -1182,7 +1576,8 @@ class CVA6FUPool(MinorFUPool):
             'SimdStrideSegmentedLoad', 'SimdStrideSegmentedStore'
         ])
         vec_mem_slow.timings = [MinorFUTiming(
-            description='VecMemSlow', srcRegsRelativeLats=[1], extraAssumedLat=2)]
+            description='VecMemSlow', srcRegsRelativeLats=[1],
+            extraAssumedLat=2)]
         vec_mem_slow.opLat = 10
         vec_mem_slow.issueLat = 4
 
@@ -1203,7 +1598,7 @@ class CVA6FUPool(MinorFUPool):
 class MorillasFUPool(MinorFUPool):
     # Morillas 2025 as published (thesis Table 6.2). Its op-class groupings
     # differ from ours, and integer divide is one averaged latency of 35, the
-    # midpoint of the RTL range 2 to 64 with the uniform plus two added.
+    # midpoint of the RTL range 2 to 64, plus two.
     def __init__(self):
         super().__init__()
 
@@ -1255,7 +1650,8 @@ class MorillasFUPool(MinorFUPool):
         mem_fu.opLat = 3
         mem_fu.issueLat = 1
 
-        # Catch-all for any op class not named above.
+        # An op class no unit provides never issues, so the classes the
+        # published table leaves out share this catch-all.
         defined_ops = set(int_alu_ops + int_mul_ops + int_div_ops + fp_fast_ops
                           + fp_slow_ops + fp_div_ops + fp_cmp_ops + mem_ops)
         misc_ops_list = ['IprAccess']
@@ -1287,11 +1683,13 @@ class CVA6CPU(RiscvMinorCPU):
 
         self.executeFuncUnits = CVA6FUPool(variant=fu_variant)
 
+        # The stock baseline, identical to gem5_config_CVA6.py. PATCH_BASE
+        # adds the patch parameters from PATCH_TIER_START on.
         self.fetch1FetchLimit = 2
         self.fetch1LineSnapWidth = 4
         self.fetch1LineWidth = 4
         self.fetch1ToFetch2ForwardDelay = 1
-        self.fetch1ToFetch2BackwardDelay = 1
+        self.fetch1ToFetch2BackwardDelay = 0
         self.fetch2InputBufferSize = 2
         self.fetch2ToDecodeForwardDelay = 1
         self.fetch2CycleInput = True
@@ -1318,11 +1716,6 @@ class CVA6CPU(RiscvMinorCPU):
         self.executeAllowEarlyMemoryIssue = True
         self.threadPolicy = 'SingleThreaded'
         self.enableIdling = False
-        # Requires the MinorCPU patch.
-        self.executeLSQNoStoreForwarding = True
-        self.executeLSQStoreCollisionReplayDelay = 2
-        self.executeLSQFenceSignalsDcache = True
-        self.executeFenceSquashesPipeline = True
 
         bp_class_name = overrides.pop("branchPred", "LocalBP")
         for key, value in overrides.items():
@@ -1362,7 +1755,7 @@ class CVA6CPU(RiscvMinorCPU):
 
 
 class MorillasCPU(RiscvMinorCPU):
-    # Faithful transcription of the Morillas 2025 configuration (thesis
+    # Transcription of the Morillas 2025 configuration (thesis
     # Table 6.1 and Table 6.3). Parameters absent here are absent in the
     # published configuration and therefore keep their gem5 defaults.
     def __init__(self):
@@ -1473,7 +1866,7 @@ class CVA6CacheHierarchy(PrivateL1CacheHierarchy):
             self.l1icaches[i].tag_latency = 1
             self.l1icaches[i].data_latency = 1
             self.l1icaches[i].response_latency = 0
-            self.l1icaches[i].mshrs = 2
+            self.l1icaches[i].mshrs = 1
             self.l1icaches[i].tgts_per_mshr = 16
             self.l1icaches[i].is_read_only = True
             self.l1icaches[i].sequential_access = False
@@ -1534,9 +1927,10 @@ if USE_MORILLAS:
 else:
     if TEST not in ALL_TESTS:
         raise ValueError(
-            f"TEST={TEST} is not in the test table. Valid IDs: {sorted(ALL_TESTS.keys())}")
+            f"TEST={TEST} is not in the test table. "
+            f"Valid IDs: {sorted(ALL_TESTS.keys())}")
     (test_name, cpu_overrides, l1i_size, l1d_size, dcache_overrides,
-     icache_overrides, clk_freq, mem_latency, bp_overrides) = ALL_TESTS[TEST]
+     icache_overrides, clk_freq, mem_latency, bp_overrides) = resolve(TEST)
     mem_bandwidth = dict(dcache_overrides).get("_mem_bandwidth", "12.8GiB/s")
 use_port_model = bool(dict(dcache_overrides).get("_port_model", False))
 
@@ -1545,6 +1939,11 @@ if USE_MORILLAS:
     print("   MORILLAS 2025 FULL CONFIGURATION")
 else:
     print(f"   CVA6 HARNESS  -  TEST {TEST}: {test_name}")
+    if TEST in CACHE_TESTS:
+        print(f"   Laid over     : TEST {CACHE_BASE_TEST}, "
+              f"{TESTS[CACHE_BASE_TEST][0]}")
+    elif TEST >= PATCH_TIER_START:
+        print(f"   Laid over     : PATCH_BASE {PATCH_BASE}")
     print(f"   CPU overrides : {cpu_overrides}")
     print(f"   BP overrides  : {bp_overrides}")
     print(f"   Mem latency   : {mem_latency}   Bandwidth: {mem_bandwidth}")
