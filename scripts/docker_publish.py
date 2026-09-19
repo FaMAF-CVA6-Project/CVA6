@@ -10,7 +10,7 @@ step with .dockerignore, which is the point.
     python3 scripts/docker_publish.py gem5         # one side
     python3 scripts/docker_publish.py --check      # say what would be pushed
     python3 scripts/docker_publish.py -n           # print the commands
-    python3 scripts/docker_publish.py --tag latest # override the tag policy
+    python3 scripts/docker_publish.py --tag testing  # override the tag
 
 The tag follows the branch: master publishes latest, anything else publishes
 testing. Both also get sha-<short>, so a moving tag stays traceable to a
@@ -19,7 +19,9 @@ hours. This is for every rebuild after it.
 """
 import argparse
 import importlib.util
+import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -44,6 +46,11 @@ REPO = repo_root()
 RELEASE_BRANCH = "master"
 RELEASE_TAG = "latest"
 TESTING_TAG = "testing"
+
+# The keys docker login has filed Docker Hub under. The first is what the CLI
+# writes today, the rest are what older and newer clients have used.
+HUB_KEYS = ("https://index.docker.io/v1/", "index.docker.io", "docker.io",
+            "registry-1.docker.io")
 
 
 def load_module(rel, name):
@@ -85,13 +92,41 @@ def registry_name(side):
     return SIDES[side]["published"].rsplit(":", 1)[0]
 
 
+def docker_config():
+    """The client's config.json, where docker login records a login."""
+    folder = (os.environ.get("DOCKER_CONFIG")
+              or os.path.join(os.path.expanduser("~"), ".docker"))
+    return os.path.join(folder, "config.json")
+
+
 def logged_in():
-    """The Docker Hub user, or None. A push fails late without one, after the
-    build has already spent its time."""
-    done = docker(["system", "info", "--format", "{{.Username}}"],
-                  capture_output=True, text=True)
-    user = done.stdout.strip() if done.returncode == 0 else ""
-    return user or None
+    """Whether docker login has left credentials for Docker Hub. A push fails
+    late without them, after the build has already spent its time.
+
+    Read from config.json, since docker info no longer names a user. A
+    credential store is asked with list, which answers server and user names
+    only, so no secret is ever read, let alone printed."""
+    try:
+        with open(docker_config(), encoding="utf-8") as handle:
+            config = json.load(handle)
+    except (OSError, ValueError):
+        return False
+    auths = config.get("auths") or {}
+    entry = next((auths[k] for k in HUB_KEYS if k in auths), None)
+    if entry and (entry.get("auth") or entry.get("identitytoken")):
+        return True
+    helpers = config.get("credHelpers") or {}
+    store = next((helpers[k] for k in HUB_KEYS if helpers.get(k)),
+                 config.get("credsStore"))
+    binary = shutil.which(f"docker-credential-{store}") if store else None
+    if binary is None:
+        return False
+    done = subprocess.run([binary, "list"], capture_output=True, text=True)
+    try:
+        servers = json.loads(done.stdout) if done.returncode == 0 else {}
+    except ValueError:
+        return False
+    return any(k in servers for k in HUB_KEYS)
 
 
 def tag_policy(override):
@@ -120,7 +155,7 @@ def cache_args(side):
 
     BUILDKIT_INLINE_CACHE writes cache metadata into the image being pushed,
     which is what lets a later pull seed a build. --cache-from offers the
-    published image as that seed when it is here."""
+    published image and the local build as seeds, each when it is here."""
     args = ["--build-arg", "BUILDKIT_INLINE_CACHE=1"]
     published = SIDES[side]["published"]
     if image_id(published) is not None:
@@ -158,9 +193,9 @@ def needs_push(side, moving, changed):
         return True
     local = SIDES[side]["local_tag"]
     target = f"{registry_name(side)}:{moving}"
-    # Unifying the namespaces makes these one reference, and the test below
-    # would then compare a tag with itself and skip for ever. A local tag
-    # says nothing about the registry anyway, so push.
+    # With --tag build the target is the local tag itself, and the test below
+    # would compare a tag with itself and skip for ever. A local tag says
+    # nothing about the registry anyway, so push.
     if normalised(local) == normalised(target):
         return True
     here = image_id(local)
@@ -205,23 +240,23 @@ def main():
                f"{RELEASE_BRANCH} publishes {RELEASE_TAG}, every other "
                f"branch publishes\n{TESTING_TAG}. Both also get sha-<short>.")
     parser.add_argument("side", nargs="?", choices=sorted(SIDES) + ["both"],
-                        default="both",
-                        help="which side to publish. Defaults to both")
+                        default="both", type=str.lower,
+                        help="Which side to publish. Defaults to both")
     parser.add_argument("--tag", metavar="NAME",
-                        help="publish under this moving tag instead of the "
+                        help="Publish under this moving tag instead of the "
                              "one the branch implies")
     parser.add_argument("--jobs", type=int, default=None, metavar="N",
-                        help="override the computed build job count")
+                        help="Override the computed build job count")
     parser.add_argument("--force", action="store_true",
-                        help="publish even when the rebuild changed nothing, "
-                             "and from a branch that is not "
-                             f"{RELEASE_BRANCH}")
+                        help="Publish even when the rebuild changed nothing, "
+                             f"and publish {RELEASE_TAG} from a branch that "
+                             f"is not {RELEASE_BRANCH}")
     parser.add_argument("--check", action="store_true",
-                        help="say what would be rebuilt and pushed, and stop")
+                        help="Say what would be rebuilt and pushed, and stop")
     parser.add_argument("-y", "--yes", action="store_true",
-                        help="do not ask before pushing")
+                        help="Do not ask before pushing")
     parser.add_argument("-n", "--dry-run", action="store_true",
-                        help="print the commands without running them")
+                        help="Print the commands without running them")
     args = parser.parse_args()
 
     moving, why = tag_policy(args.tag)
@@ -233,7 +268,8 @@ def main():
     branch = git_out(["rev-parse", "--abbrev-ref", "HEAD"])
     if moving == RELEASE_TAG and branch != RELEASE_BRANCH and not args.force:
         print(f"[ERROR] {RELEASE_TAG} is the tag readers pull, and this is "
-              f"{branch}, not {RELEASE_BRANCH}. Add --force to mean it.")
+              f"{branch or 'an unknown branch'}, not {RELEASE_BRANCH}. Add "
+              f"--force to mean it.")
         return 2
 
     print(f"[INFO] Publishing to {moving} ({why})")
@@ -273,8 +309,9 @@ def main():
               f"{published}. That only helps if it was pushed with inline "
               f"cache, so this rebuild may run in full.")
 
-    if not args.dry_run and logged_in() is None:
-        print("[ERROR] Not logged in to Docker Hub. Run 'docker login'.")
+    if not args.dry_run and not logged_in():
+        print(f"[ERROR] No Docker Hub login in {docker_config()}. Run "
+              f"'docker login'.")
         return 2
 
     os.chdir(REPO)
