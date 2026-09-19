@@ -3,14 +3,14 @@ message: >-
   If you use this repository, please cite it as below. This is a fork of the
   OpenHW Group's CORE-V CVA6 carrying the FaMAF CVA6 Project's additions. The
   upstream core and its paper are cited under references.
-title: "FaMAF CVA6 Project: a CVA6 fork calibrated against gem5's MinorCPU"
+title: "FaMAF CVA6 Project: a CVA6 fork as the reference for calibrating gem5's MinorCPU"
 abstract: >-
   A frozen fork of the OpenHW Group CORE-V CVA6, used as the real-hardware side
-  of a thesis at FaMAF, Universidad Nacional de Cordoba, on how
-  closely a gem5 MinorCPU configuration can be made to match a real RISC-V core. 
-  It adds the matched gem5 configurations and the gem5 patch they depend on, 
-  the calibration benchmark set and its sweep harness, the Verilator and gem5 
-  run drivers, and the Docker images that run both sides.
+  of a thesis at FaMAF, Universidad Nacional de Córdoba, on how closely a gem5
+  MinorCPU configuration can be made to match a real RISC-V core. It adds the
+  matched gem5 configurations and the gem5 patch they depend on, the
+  calibration benchmark set and its sweep harness, the sweep drivers for both
+  sides, and the Dockerfiles for the images that run them.
 type: software
 authors:
   - family-names: "Nieto"
@@ -36,7 +36,7 @@ references:
       The upstream core this repository forks. Everything under core/,
       corev_apu/, common/, vendor/ and verif/ is upstream's work unless a file
       says otherwise.
-    version: "5.3.0"
+    version: "v5.3.0"
     repository-code: "https://github.com/openhwgroup/cva6"
     url: "https://github.com/openhwgroup/cva6"
     authors:
