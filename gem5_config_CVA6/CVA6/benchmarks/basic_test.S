@@ -1,7 +1,7 @@
   .section  .text
   .global   main
 
-# Direction to CSRs
+# CSR addresses
   .equ      CSR_MCOUNTINHIBIT, 0x320
   .equ      CSR_MHPMEVENT3, 0x323
   .equ      CSR_MHPMEVENT4, 0x324
@@ -26,26 +26,26 @@ main:
 # ---------------------------------------------------------
 # CONFIGURATION OF PERFORMANCE COUNTERS
 # ---------------------------------------------------------
-# Pause counters during setup
+# Reserve the snapshot frame, and pause the counters during setup
   addi      sp, sp, -80
   li        t0, -1
   csrw      CSR_MCOUNTINHIBIT, t0
 
 # Configure events to count
   li        t0, 1
-  csrw      CSR_MHPMEVENT3, t0       # L1 I-Cache Miss
+  csrw      CSR_MHPMEVENT3, t0       # L1 I-cache Miss
   li        t0, 2
-  csrw      CSR_MHPMEVENT4, t0       # L1 D-Cache Miss
+  csrw      CSR_MHPMEVENT4, t0       # L1 D-cache Miss
   li        t0, 16
-  csrw      CSR_MHPMEVENT5, t0       # L1 I-Cache Access
+  csrw      CSR_MHPMEVENT5, t0       # L1 I-cache Access
   li        t0, 17
-  csrw      CSR_MHPMEVENT6, t0       # L1 D-Cache Access
+  csrw      CSR_MHPMEVENT6, t0       # L1 D-cache Access
   li        t0, 9
   csrw      CSR_MHPMEVENT7, t0       # Branch Instr
   li        t0, 10
   csrw      CSR_MHPMEVENT8, t0       # Branch Mispredict + Unpredicted
 
-# Reset counters to zero
+# Zero the event counters, so a raw read of them counts from here
   csrw      CSR_MHPMCOUNTER3, zero
   csrw      CSR_MHPMCOUNTER4, zero
   csrw      CSR_MHPMCOUNTER5, zero
@@ -53,7 +53,7 @@ main:
   csrw      CSR_MHPMCOUNTER7, zero
   csrw      CSR_MHPMCOUNTER8, zero
 
-# Enable counting
+# Let lower privilege read the counters, then start them
   li        t0, -1
   csrw      mcounteren, t0
   csrw      CSR_MCOUNTINHIBIT, zero
@@ -90,36 +90,36 @@ __region_start:
 basic_loop:
 # ---------------------------------------------------------
 # SECTION 1 - Initialize integer registers
-# Hits IntALU (li expands to lui+addiw or just addi).
+# Hits IntAlu (li expands to lui+addiw or just addi).
 # ---------------------------------------------------------
   li        t0, 0x1234
   li        t1, 0x00FF
   li        t2, 0xAAAA
   li        t3, 0x5555
-  li        t4, 0x40490000           # 3.140625f, a full-count mantissa
-  li        t5, 0x402E0000           # 2.71875f, a full-count mantissa
-  li        a4, 0x00000010           # 16
-  li        a5, 0x00000004           # 4
+  li        t4, 0x40490000           # 3.140625f, a 7-bit mantissa
+  li        t5, 0x402E0000           # 2.71875f, a 6-bit mantissa
+  li        a4, 0x00000010
+  li        a5, 0x00000004
   li        a6, 0xFFFFFFFF           # all-ones (sign-extends to 64-bit)
   li        a7, 0x0000FFFF
 
 # ---------------------------------------------------------
 # SECTION 2 - Move into FP regs and build doubles
-# FloatMisc (fmv.w.x), then FPCvt (fcvt.d.s) to populate doubles.
+# FloatMisc (fmv.w.x), then FloatCvt (fcvt.d.s) to populate doubles.
 # ---------------------------------------------------------
-  fmv.w.x   f0, t4                   # f0 = 3.140625f
-  fmv.w.x   f1, t5                   # f1 = 2.71875f
-  fcvt.d.s  f2, f0                   # f2 = 3.140625 (double)
-  fcvt.d.s  f3, f1                   # f3 = 2.71875 (double)
+  fmv.w.x   f0, t4
+  fmv.w.x   f1, t5
+  fcvt.d.s  f2, f0
+  fcvt.d.s  f3, f1
 
 # ---------------------------------------------------------
 # SECTION 3 - Integer ALU, register-register
 # ---------------------------------------------------------
-  add       s0, a4, a5               # 0x14
-  sub       s1, a4, a5               # 0x0C
-  sll       s2, a4, a5               # 0x100
-  srl       s3, a4, a5               # 0x1
-  sra       s4, a6, a5               # signed >>4
+  add       s0, a4, a5
+  sub       s1, a4, a5
+  sll       s2, a4, a5
+  srl       s3, a4, a5
+  sra       s4, a6, a5
   and       s5, a6, a7
   or        s6, a4, a7
   xor       s7, a4, a7
@@ -253,22 +253,22 @@ __region_end:
   ld        t0, 8(sp)
   sub       s3, s3, t0
 
-# x20 (s4) = I-Cache Miss
+# x20 (s4) = I-cache Miss
   csrr      s4, CSR_MHPMCOUNTER3
   ld        t0, 16(sp)
   sub       s4, s4, t0
 
-# x21 (s5) = D-Cache Miss
+# x21 (s5) = D-cache Miss
   csrr      s5, CSR_MHPMCOUNTER4
   ld        t0, 24(sp)
   sub       s5, s5, t0
 
-# x22 (s6) = I-Cache Access
+# x22 (s6) = I-cache Access
   csrr      s6, CSR_MHPMCOUNTER5
   ld        t0, 32(sp)
   sub       s6, s6, t0
 
-# x23 (s7) = D-Cache Access
+# x23 (s7) = D-cache Access
   csrr      s7, CSR_MHPMCOUNTER6
   ld        t0, 40(sp)
   sub       s7, s7, t0

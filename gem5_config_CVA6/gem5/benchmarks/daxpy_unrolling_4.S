@@ -31,24 +31,25 @@ main:
   .balign  4096
 __region_start:
   la       t0, N
-  ld       t1, 0(t0)      # t1 = N (4096)
+  ld       t1, 0(t0)
 
   la       t2, Alpha
   ld       t3, 0(t2)
-  fcvt.d.l f10, t3        # f10 = Alpha (double)
+  fcvt.d.l f10, t3
 
   la       s2, X
   la       s3, Y
   la       s4, Z
 
-  mv       s5, s2         # Pointer X
-  mv       s6, s3         # Pointer Y
-  mv       s7, s4         # Pointer Z
+  mv       s5, s2
+  mv       s6, s3
+  mv       s7, s4
 
-  srli     t5, t1, 2      # t5 = N >> 2
+  srli     t5, t1, 2
 
   li       t4, 0
 
+# The daxpy kernel unrolled to four elements a pass, over the same streams
   .align   4
 loop:
 # Block 1 (Offset 0)
@@ -83,7 +84,6 @@ loop:
   addi     s6, s6, 32
   addi     s7, s7, 32
 
-# Loop control
   addi     t4, t4, 1
   blt      t4, t5, loop
 __region_end:

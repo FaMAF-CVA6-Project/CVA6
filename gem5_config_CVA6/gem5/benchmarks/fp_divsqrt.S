@@ -24,7 +24,7 @@ __region_start:
   fadd.d   f2, f2, f3
   .endr
 
-# fsqrt.d dependent chain: converges towards about 3.2
+# fsqrt.d dependent chain: converges towards about 3.32
   li       t0, 0x4024000000000000 # 10.0
   fmv.d.x  f4, t0
   .rept    32

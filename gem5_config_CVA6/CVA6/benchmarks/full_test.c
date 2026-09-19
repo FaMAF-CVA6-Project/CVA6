@@ -51,10 +51,10 @@ void configure_pmu()
     asm volatile("csrw 0x320, %0" ::"r"(-1));
 
     // Configure PMU to count specific events
-    write_csr(mhpmevent3, 1);  // ID 1:  L1 I-Cache Misses
-    write_csr(mhpmevent4, 2);  // ID 2:  L1 D-Cache Misses
-    write_csr(mhpmevent5, 16); // ID 16: L1 I-Cache Access
-    write_csr(mhpmevent6, 17); // ID 17: L1 D-Cache Access
+    write_csr(mhpmevent3, 1);  // ID 1:  L1 I-cache Misses
+    write_csr(mhpmevent4, 2);  // ID 2:  L1 D-cache Misses
+    write_csr(mhpmevent5, 16); // ID 16: L1 I-cache Access
+    write_csr(mhpmevent6, 17); // ID 17: L1 D-cache Access
     write_csr(mhpmevent7, 9);  // ID 9:  Branch Instr
     write_csr(mhpmevent8, 10); // ID 10: Branch Mispredict + Unpredicted
 
@@ -94,7 +94,7 @@ int main()
 
     // Phase 1: initialisation. Every array is touched once, so this is the
     // cold miss phase, and the integer to double conversions exercise the
-    // fpnew CONV group (LAT_CONV = 2) which no earlier kernel reached
+    // fpnew CONV group (LAT_CONV = 2), which no other phase reaches.
     for (int i = 0; i < SP_VEC; i++)
     {
         fp_x[i] = (double)(i & 63) + 1.0;
@@ -117,7 +117,7 @@ int main()
 
     // Phase 2: floating point vector update, the daxpy shape. Exercises the
     // fpnew ADDMUL group at LAT_COMP_FP64 = 3 and streams two arrays past the
-    // D-cache, so it also leans on the miss penalty and the memory latency
+    // D-cache, so it also leans on the miss penalty and the memory latency.
     for (int rep = 0; rep < SP_FP_REPS; rep++)
     {
         double a = 2.5;
@@ -127,9 +127,9 @@ int main()
         }
     }
 
-    // Phase 3: integer matrix multiply. Exercises the one cycle multiplier and
-    // a working set small enough to hit, so the D-cache hit path and the stack
-    // store-to-load collisions dominate here rather than the miss path
+    // Phase 3: integer matrix multiply. Exercises the one-register multiplier
+    // and a working set small enough to hit, so the D-cache hit path and the
+    // stack store-to-load collisions dominate here rather than the miss path.
     for (int rep = 0; rep < SP_MM_REPS; rep++)
     {
         for (int i = 0; i < SP_MM_N; i++)
@@ -147,7 +147,7 @@ int main()
     }
 
     // Phase 4a: well predicted loops. The BHT counters saturate and stay
-    // saturated, so this is the branch accuracy baseline
+    // saturated, so this is the branch accuracy baseline.
     for (int rep = 0; rep < SP_BR_REPS; rep++)
     {
         for (int i = 0; i < 64; i++)
@@ -183,7 +183,7 @@ int main()
     }
 
     // Phase 4c: indirect calls. One call site whose target rotates over eight
-    // functions, so the BTB entry for that PC is overwritten constantly
+    // functions, so the BTB entry for that PC is overwritten constantly.
     for (int rep = 0; rep < SP_BR_REPS; rep++)
     {
         for (int i = 0; i < 32; i++)
@@ -197,7 +197,7 @@ int main()
     }
 
     // Phase 4d: call nesting four deep against the depth 2 RAS, so the two
-    // inner returns mispredict and the two outer ones hit
+    // inner returns hit and the two outer ones mispredict.
     for (int rep = 0; rep < SP_BR_REPS; rep++)
     {
         for (int i = 0; i < 32; i++)
@@ -219,7 +219,7 @@ int main()
 
     // Phase 6: everything at once. Unpredictable branches selecting between
     // floating point paths, an integer multiply, and a strided load, so no
-    // single mechanism is isolated and the phases interact
+    // single mechanism is isolated and the phases interact.
     for (int i = 0; i < SP_VEC; i++)
     {
         rs ^= rs << 13;

@@ -36,10 +36,10 @@ void configure_pmu()
     asm volatile("csrw 0x320, %0" ::"r"(-1));
 
     // Configure PMU to count specific events
-    write_csr(mhpmevent3, 1);  // ID 1:  L1 I-Cache Misses
-    write_csr(mhpmevent4, 2);  // ID 2:  L1 D-Cache Misses
-    write_csr(mhpmevent5, 16); // ID 16: L1 I-Cache Access
-    write_csr(mhpmevent6, 17); // ID 17: L1 D-Cache Access
+    write_csr(mhpmevent3, 1);  // ID 1:  L1 I-cache Misses
+    write_csr(mhpmevent4, 2);  // ID 2:  L1 D-cache Misses
+    write_csr(mhpmevent5, 16); // ID 16: L1 I-cache Access
+    write_csr(mhpmevent6, 17); // ID 17: L1 D-cache Access
     write_csr(mhpmevent7, 9);  // ID 9:  Branch Instr
     write_csr(mhpmevent8, 10); // ID 10: Branch Mispredict + Unpredicted
 
@@ -78,7 +78,7 @@ int main()
 
     // Phase A: well predicted loops. The backward branch is taken 63 times
     // out of 64, so the 2-bit counters saturate and stay saturated. This is
-    // the accuracy baseline for the BHT
+    // the accuracy baseline for the BHT.
     for (int rep = 0; rep < PHASE_A_REPS; rep++)
     {
         for (int i = 0; i < 64; i++)
@@ -115,7 +115,7 @@ int main()
 
     // Phase C: indirect calls through a function pointer table. One call site
     // whose target rotates over eight functions, so the BTB entry for that PC
-    // is overwritten constantly and most target predictions miss
+    // is overwritten constantly and most target predictions miss.
     for (int rep = 0; rep < PHASE_C_REPS; rep++)
     {
         for (int i = 0; i < 32; i++)
@@ -129,8 +129,8 @@ int main()
     }
 
     // Phase D: call nesting four deep against a depth 2 RAS. The two inner
-    // returns find the stack already overwritten, so they mispredict, while
-    // the two outer ones hit
+    // returns hit, while the two outer ones find their return addresses
+    // pushed out of the stack and mispredict.
     for (int rep = 0; rep < PHASE_D_REPS; rep++)
     {
         for (int i = 0; i < 32; i++)

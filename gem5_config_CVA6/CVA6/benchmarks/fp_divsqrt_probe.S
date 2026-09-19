@@ -1,7 +1,7 @@
   .section .text
   .global  main
 
-# Direction to CSRs
+# CSR addresses
   .equ     CSR_MCOUNTINHIBIT, 0x320
   .equ     CSR_MHPMEVENT3, 0x323
   .equ     CSR_MHPMEVENT4, 0x324
@@ -26,26 +26,26 @@ main:
 # ---------------------------------------------------------
 # CONFIGURATION OF PERFORMANCE COUNTERS
 # ---------------------------------------------------------
-# Pause counters during setup
+# Reserve the snapshot frame, and pause the counters during setup
   addi     sp, sp, -80
   li       t0, -1
   csrw     CSR_MCOUNTINHIBIT, t0
 
 # Configure events to count
   li       t0, 1
-  csrw     CSR_MHPMEVENT3, t0       # L1 I-Cache Miss
+  csrw     CSR_MHPMEVENT3, t0       # L1 I-cache Miss
   li       t0, 2
-  csrw     CSR_MHPMEVENT4, t0       # L1 D-Cache Miss
+  csrw     CSR_MHPMEVENT4, t0       # L1 D-cache Miss
   li       t0, 16
-  csrw     CSR_MHPMEVENT5, t0       # L1 I-Cache Access
+  csrw     CSR_MHPMEVENT5, t0       # L1 I-cache Access
   li       t0, 17
-  csrw     CSR_MHPMEVENT6, t0       # L1 D-Cache Access
+  csrw     CSR_MHPMEVENT6, t0       # L1 D-cache Access
   li       t0, 9
   csrw     CSR_MHPMEVENT7, t0       # Branch Instr
   li       t0, 10
   csrw     CSR_MHPMEVENT8, t0       # Branch Mispredict + Unpredicted
 
-# Reset counters to zero
+# Zero the event counters, so a raw read of them counts from here
   csrw     CSR_MHPMCOUNTER3, zero
   csrw     CSR_MHPMCOUNTER4, zero
   csrw     CSR_MHPMCOUNTER5, zero
@@ -53,7 +53,7 @@ main:
   csrw     CSR_MHPMCOUNTER7, zero
   csrw     CSR_MHPMCOUNTER8, zero
 
-# Enable counting
+# Let lower privilege read the counters, then start them
   li       t0, -1
   csrw     mcounteren, t0
   csrw     CSR_MCOUNTINHIBIT, zero
@@ -108,7 +108,7 @@ __region_start:
   fmv.w.x  f12, t0
 
 # ---------------------------------------------------------
-# BLOCK 1 - fdiv.d, zero mantissas, the basic_test operands
+# BLOCK 1 - fdiv.d, zero mantissas, 1.0 and 2.0
 # 1.0 / 2.0 = 0.5, then multiply back by 2.0 to restore
 # ---------------------------------------------------------
   fmv.d    f5, f0
@@ -145,7 +145,7 @@ __region_start:
   .endr
 
 # ---------------------------------------------------------
-# BLOCK 5 - fsqrt.d, converging on the fixed point near 2.28
+# BLOCK 5 - fsqrt.d, converging on the fixed point near 3.32
 # ---------------------------------------------------------
   fmv.d    f6, f2
   .rept    32
@@ -163,8 +163,8 @@ __region_start:
   .endr
 
 # ---------------------------------------------------------
-# BLOCK 7 - fdiv.d, exact power-of-two divisor, one bit of
-# quotient mantissa, the operand-law probe against block 1
+# BLOCK 7 - fdiv.d, exact power-of-two divisor, a full-mantissa
+# quotient (pi / 2), the operand-law probe against block 1
 # ---------------------------------------------------------
   fmv.d    f5, f2
   .rept    32
@@ -210,22 +210,22 @@ __region_end:
   ld       t0, 8(sp)
   sub      s3, s3, t0
 
-# x20 (s4) = I-Cache Miss
+# x20 (s4) = I-cache Miss
   csrr     s4, CSR_MHPMCOUNTER3
   ld       t0, 16(sp)
   sub      s4, s4, t0
 
-# x21 (s5) = D-Cache Miss
+# x21 (s5) = D-cache Miss
   csrr     s5, CSR_MHPMCOUNTER4
   ld       t0, 24(sp)
   sub      s5, s5, t0
 
-# x22 (s6) = I-Cache Access
+# x22 (s6) = I-cache Access
   csrr     s6, CSR_MHPMCOUNTER5
   ld       t0, 32(sp)
   sub      s6, s6, t0
 
-# x23 (s7) = D-Cache Access
+# x23 (s7) = D-cache Access
   csrr     s7, CSR_MHPMCOUNTER6
   ld       t0, 40(sp)
   sub      s7, s7, t0

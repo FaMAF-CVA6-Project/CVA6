@@ -18,7 +18,7 @@ Z:
   .section .text
   .global  main
 
-# Direction to CSRs
+# CSR addresses
   .equ     CSR_MCOUNTINHIBIT, 0x320
   .equ     CSR_MHPMEVENT3, 0x323
   .equ     CSR_MHPMEVENT4, 0x324
@@ -43,26 +43,26 @@ main:
 # ---------------------------------------------------------
 # CONFIGURATION OF PERFORMANCE COUNTERS
 # ---------------------------------------------------------
-# Pause counters during setup
+# Reserve the snapshot frame, and pause the counters during setup
   addi     sp, sp, -80
   li       t0, -1
   csrw     CSR_MCOUNTINHIBIT, t0
 
 # Configure events to count
   li       t0, 1
-  csrw     CSR_MHPMEVENT3, t0       # L1 I-Cache Miss
+  csrw     CSR_MHPMEVENT3, t0       # L1 I-cache Miss
   li       t0, 2
-  csrw     CSR_MHPMEVENT4, t0       # L1 D-Cache Miss
+  csrw     CSR_MHPMEVENT4, t0       # L1 D-cache Miss
   li       t0, 16
-  csrw     CSR_MHPMEVENT5, t0       # L1 I-Cache Access
+  csrw     CSR_MHPMEVENT5, t0       # L1 I-cache Access
   li       t0, 17
-  csrw     CSR_MHPMEVENT6, t0       # L1 D-Cache Access
+  csrw     CSR_MHPMEVENT6, t0       # L1 D-cache Access
   li       t0, 9
   csrw     CSR_MHPMEVENT7, t0       # Branch Instr
   li       t0, 10
   csrw     CSR_MHPMEVENT8, t0       # Branch Mispredict + Unpredicted
 
-# Reset counters to zero
+# Zero the event counters, so a raw read of them counts from here
   csrw     CSR_MHPMCOUNTER3, zero
   csrw     CSR_MHPMCOUNTER4, zero
   csrw     CSR_MHPMCOUNTER5, zero
@@ -70,7 +70,7 @@ main:
   csrw     CSR_MHPMCOUNTER7, zero
   csrw     CSR_MHPMCOUNTER8, zero
 
-# Enable counting
+# Let lower privilege read the counters, then start them
   li       t0, -1
   csrw     mcounteren, t0
   csrw     CSR_MCOUNTINHIBIT, zero
@@ -102,37 +102,38 @@ main:
 
   .balign  4096
 __region_start:
-  la       t0, N                    # Address of N
-  ld       t1, 0(t0)                # t1 = N
+  la       t0, N
+  ld       t1, 0(t0)
 
-  la       t2, Alpha                # Address of Alpha
-  ld       t3, 0(t2)                # t3 = Alpha (integer)
-  fcvt.d.l f10, t3                  # f10 = (double) Alpha
+  la       t2, Alpha
+  ld       t3, 0(t2)
+  fcvt.d.l f10, t3
 
-  la       s2, X                    # Base of X
-  la       s3, Y                    # Base of Y
-  la       s4, Z                    # Base of Z
+  la       s2, X
+  la       s3, Y
+  la       s4, Z
 
-  mv       s5, s2                   # Offset X -> s5
-  mv       s6, s3                   # Offset Y -> s6
-  mv       s7, s4                   # Offset Z -> s7
+  mv       s5, s2
+  mv       s6, s3
+  mv       s7, s4
 
-  li       t4, 0                    # Loop index i = 0
+  li       t4, 0
 
+# Z[i] = alpha * X[i] + Y[i], three 32 KiB streams through the 32 KiB D-cache
   .align   4
 loop:
-  fld      f5, 0(s5)                # f5 = X[i]
-  fld      f6, 0(s6)                # f6 = Y[i]
-  fmul.d   f7, f10, f5              # f7 = alpha * X[i]
-  fadd.d   f8, f7, f6               # f8 = f7 + Y[i]
-  fsd      f8, 0(s7)                # Z[i] = f8
+  fld      f5, 0(s5)
+  fld      f6, 0(s6)
+  fmul.d   f7, f10, f5
+  fadd.d   f8, f7, f6
+  fsd      f8, 0(s7)
 
   addi     s5, s5, 8
   addi     s6, s6, 8
   addi     s7, s7, 8
 
-  addi     t4, t4, 1                # i++
-  blt      t4, t1, loop             # while i < N
+  addi     t4, t4, 1
+  blt      t4, t1, loop
 __region_end:
 # ---------------------------------------------------------
 # END OF MAIN PROGRAM
@@ -151,22 +152,22 @@ __region_end:
   ld       t0, 8(sp)
   sub      s3, s3, t0
 
-# x20 (s4) = I-Cache Miss
+# x20 (s4) = I-cache Miss
   csrr     s4, CSR_MHPMCOUNTER3
   ld       t0, 16(sp)
   sub      s4, s4, t0
 
-# x21 (s5) = D-Cache Miss
+# x21 (s5) = D-cache Miss
   csrr     s5, CSR_MHPMCOUNTER4
   ld       t0, 24(sp)
   sub      s5, s5, t0
 
-# x22 (s6) = I-Cache Access
+# x22 (s6) = I-cache Access
   csrr     s6, CSR_MHPMCOUNTER5
   ld       t0, 32(sp)
   sub      s6, s6, t0
 
-# x23 (s7) = D-Cache Access
+# x23 (s7) = D-cache Access
   csrr     s7, CSR_MHPMCOUNTER6
   ld       t0, 40(sp)
   sub      s7, s7, t0

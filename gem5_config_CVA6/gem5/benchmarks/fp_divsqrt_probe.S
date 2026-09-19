@@ -36,7 +36,7 @@ __region_start:
   fmv.w.x  f12, t0
 
 # ---------------------------------------------------------
-# BLOCK 1 - fdiv.d, zero mantissas, the basic_test operands
+# BLOCK 1 - fdiv.d, zero mantissas, 1.0 and 2.0
 # 1.0 / 2.0 = 0.5, then multiply back by 2.0 to restore
 # ---------------------------------------------------------
   fmv.d    f5, f0
@@ -73,7 +73,7 @@ __region_start:
   .endr
 
 # ---------------------------------------------------------
-# BLOCK 5 - fsqrt.d, converging on the fixed point near 2.28
+# BLOCK 5 - fsqrt.d, converging on the fixed point near 3.32
 # ---------------------------------------------------------
   fmv.d    f6, f2
   .rept    32
@@ -91,8 +91,8 @@ __region_start:
   .endr
 
 # ---------------------------------------------------------
-# BLOCK 7 - fdiv.d, exact power-of-two divisor, one bit of
-# quotient mantissa, the operand-law probe against block 1
+# BLOCK 7 - fdiv.d, exact power-of-two divisor, a full-mantissa
+# quotient (pi / 2), the operand-law probe against block 1
 # ---------------------------------------------------------
   fmv.d    f5, f2
   .rept    32
