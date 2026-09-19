@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Find the tracer JSONs too big to push and add them to .gitignore. GitHub
+"""Find the JSONs too big to push and add them to .gitignore. GitHub
 warns above 50 MiB and refuses above 100 MiB, and git has no size test, so the
-measuring happens here. A tracked file is reported rather than ignored.
+measuring happens here. A tracked file is reported rather than ignored. -n
+stays beside --dry-run, as in the fork's other scripts, though the viewers'
+own copies dropped it.
 
-  python3 ignore_big_CVA6_repo_jsons.py             # list, then ask
-  python3 ignore_big_CVA6_repo_jsons.py -y          # write without asking
-  python3 ignore_big_CVA6_repo_jsons.py --dry-run   # list only
-  python3 ignore_big_CVA6_repo_jsons.py -l 20       # a different threshold, in MiB
-  python3 ignore_big_CVA6_repo_jsons.py --prune     # also drop entries no longer oversized
+    python3 scripts/ignore_big_CVA6_repo_jsons.py            # list, then ask
+    python3 scripts/ignore_big_CVA6_repo_jsons.py -y         # write, no ask
+    python3 scripts/ignore_big_CVA6_repo_jsons.py --dry-run  # list only
+    python3 scripts/ignore_big_CVA6_repo_jsons.py -l 20      # limit in MiB
+    python3 scripts/ignore_big_CVA6_repo_jsons.py --prune    # drop the shrunk
 """
 import os
 import re
@@ -15,7 +17,7 @@ import sys
 import argparse
 import subprocess
 
-# The folders this .gitignore can actually act on, relative to this script.
+# The folders this .gitignore can actually act on, relative to the root.
 SEARCH_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
@@ -31,8 +33,8 @@ SUBMODULES = [
                  "scripts", "ignore_big_CVA6Flow_jsons.py"),
 ]
 
-# The tracer output: the viewer JSON, and the .js that wraps it for local
-# loading. Both hold the same trace and grow at the same rate.
+# A tracer JSON, and the sample .js a viewer's make_<Viewer>_sample.py wraps
+# one in. Both hold a JSON and grow at the same rate.
 SUFFIXES = (".json", ".js")
 
 # GitHub warns here and refuses at 100.
@@ -159,8 +161,8 @@ def read_gitignore():
     rest = lines[start + 1:]
     if END not in rest:
         print(f"[ERROR] {GITIGNORE} has our opening marker but no closing "
-              f"'{END}'. Fix that by hand first, refusing to guess where the "
-              f"block ends.")
+              f"'{END}'. This script will not guess where the block ends, so "
+              f"fix that by hand first.")
         sys.exit(1)
 
     stop = start + 1 + rest.index(END)
@@ -169,8 +171,9 @@ def read_gitignore():
     return lines[:start], entries, lines[stop + 1:]
 
 
-def write_gitignore(before, entries, after, limit_mib):
-    """Put the block back, with the rest of the file untouched."""
+def write_gitignore(before, entries, after):
+    """Put the block back, with the rest of the file unchanged but for the
+    blank lines around the block, which are normalised to one each."""
     block = [BEGIN, *entries, END]
 
     while before and not before[-1].strip():
@@ -188,7 +191,7 @@ def write_gitignore(before, entries, after, limit_mib):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Add the tracer JSONs too big for GitHub to .gitignore.")
+        description="Add the JSONs too big for GitHub to .gitignore.")
     parser.add_argument("-y", "--yes", action="store_true",
                         help="Write .gitignore without asking")
     parser.add_argument("-n", "--dry-run", action="store_true",
@@ -208,7 +211,7 @@ def main():
                 if os.path.isdir(os.path.join(REPO_ROOT, d))]
     if not searched:
         print(f"[ERROR] None of {', '.join(SEARCH_DIRS)} found under "
-              f"{REPO_ROOT}. Run this from the repository it lives in.")
+              f"{REPO_ROOT}, the repository this script sits in.")
         sys.exit(1)
 
     limit = int(args.limit * 1024 * 1024)
@@ -242,7 +245,7 @@ def main():
     dropped, hand_written = [], []
     if args.prune:
         for pattern in entries:
-            # A hand-written line, a directory above all, is not ours to drop
+            # A hand-written line, a directory above all, is not ours to drop.
             if not owns(pattern):
                 hand_written.append(pattern)
                 continue
@@ -314,7 +317,7 @@ def main():
             return
 
     kept = [e for e in entries if e not in dropped]
-    write_gitignore(before, sorted(set(kept + added)), after, args.limit)
+    write_gitignore(before, sorted(set(kept + added)), after)
     print(f"[INFO] .gitignore updated: {len(added)} added, "
           f"{len(dropped)} dropped, {len(kept + added)} listed in total")
 
