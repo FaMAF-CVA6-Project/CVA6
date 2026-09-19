@@ -9,13 +9,13 @@ The two viewers are separate repositories with their own artefacts and their
 own rules, so this script does not reach into them. It offers to run their
 scripts afterwards instead, and those decide what to keep on their own side.
 
-  python3 clean_CVA6_repo.py               # list, then ask
-  python3 clean_CVA6_repo.py -y            # delete without asking
-  python3 clean_CVA6_repo.py --dry-run     # list only
-  python3 clean_CVA6_repo.py --no-viewers  # skip the submodule offer
+    python3 scripts/clean_CVA6_repo.py               # list, then ask
+    python3 scripts/clean_CVA6_repo.py -y            # delete without asking
+    python3 scripts/clean_CVA6_repo.py --dry-run     # list only
+    python3 scripts/clean_CVA6_repo.py --no-viewers  # skip the submodules
 
-See also clean_gem5_runs.py and clean_CVA6_runs.py, which delete what a run
-leaves behind rather than what is committed.
+See also clean_gem5_runs.py and clean_CVA6_runs.py, which delete a run tree
+inside a container rather than what piles up in this checkout's folders.
 """
 import os
 import sys
@@ -23,24 +23,25 @@ import shutil
 import argparse
 import subprocess
 
-# The folders this repository owns, relative to this script. scripts/ and
-# temp/ are here because importing any tool leaves a __pycache__ in the one,
-# and the scratch notes in the other collect the same.
+# The folders this repository owns, relative to its root. scripts/ and temp/
+# are here because importing any tool leaves a __pycache__ in the one, and the
+# scratch notes in the other collect the same.
 PROJECT_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
-    "benchmarks",
     "scripts",
     "temp",
 ]
 
-# The submodules this script offers to clean after itself.
+# Each viewer is its own repository with its own cleaner, which this script
+# runs rather than reaching into the submodule itself.
 SUBMODULE_CLEANERS = [
     (os.path.join("viewers", "MinorFlow"), "clean_MinorFlow_repo.py"),
     (os.path.join("viewers", "CVA6Flow"), "clean_CVA6Flow_repo.py"),
 ]
 
-# Files removed, matched on the end of the name.
+# Files removed, matched on the end of the name, since the same extension is
+# the same artefact wherever a run left it.
 FILE_SUFFIXES = (".list", ".vcd", ".fst")
 
 # Where a submodule keeps its own tools, tried in this order. Naming only the
@@ -50,11 +51,9 @@ CLEANER_DIRS = ("scripts", ".")
 TRACE_MARK = "_trace."
 TRACE_END = ".txt"
 
-# Folders removed whole.
+# Folders removed whole, since they are caches Python remakes on the next
+# import.
 DIR_NAMES = {"__pycache__"}
-
-# Kept, whatever is in them, relative to this script.
-KEEP_DIRS = []
 
 
 def repo_root():
@@ -91,13 +90,6 @@ def is_trace(name):
     return TRACE_MARK in name and name.endswith(TRACE_END)
 
 
-def is_kept(path):
-    """True for anything under a folder the script must not touch."""
-    rel = os.path.relpath(path, REPO_ROOT)
-    return any(rel == keep or rel.startswith(keep + os.sep)
-               for keep in KEEP_DIRS)
-
-
 def find_targets():
     """Every artefact under the project's own folders, as a list of paths. A
     __pycache__ is taken whole and not descended into, since it is about to be
@@ -111,7 +103,7 @@ def find_targets():
             keep = []
             for dirname in dirnames:
                 full = os.path.join(dirpath, dirname)
-                if dirname in DIR_NAMES and not is_kept(full):
+                if dirname in DIR_NAMES:
                     targets.append(full)
                 elif dirname != ".git":
                     keep.append(dirname)
@@ -119,14 +111,13 @@ def find_targets():
 
             for filename in filenames:
                 full = os.path.join(dirpath, filename)
-                if ((filename.endswith(FILE_SUFFIXES) or is_trace(filename))
-                        and not is_kept(full)):
+                if filename.endswith(FILE_SUFFIXES) or is_trace(filename):
                     targets.append(full)
     return sorted(targets)
 
 
 def size_of(path):
-    """Bytes held by a file or a folder. A race or a broken link counts zero."""
+    """Bytes held by a file or a folder, zero for a race or a broken link."""
     if os.path.isfile(path) or os.path.islink(path):
         try:
             return os.lstat(path).st_size
@@ -164,7 +155,7 @@ def group(targets):
 
 def clean_submodules(args):
     """Offer to run each viewer's own cleaner. They are separate repositories
-    and decide what to keep, which is how the CARLA 2026 set stays put."""
+    and decide what to keep, which is how the CARLA2026 set stays put."""
     if args.no_viewers:
         return
 
@@ -245,12 +236,10 @@ def main():
                 if os.path.isdir(os.path.join(REPO_ROOT, d))]
     if not searched:
         print(f"[ERROR] None of {', '.join(PROJECT_DIRS)} found under "
-              f"{REPO_ROOT}. Run this from the repository it lives in.")
+              f"{REPO_ROOT}, the repository this script sits in.")
         sys.exit(1)
 
     print("[INFO] Searching in: " + ", ".join(f"{d}/" for d in searched))
-    if KEEP_DIRS:
-        print("[INFO] Keeping: " + ", ".join(f"{k}/" for k in KEEP_DIRS))
 
     targets = find_targets()
     if not targets:
