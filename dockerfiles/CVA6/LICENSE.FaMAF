@@ -1,12 +1,13 @@
 This licence covers only the work added to this container by the FaMAF CVA6
 Project. Every path below is a path inside the container:
 
-  - scripts/               the run drivers, the sweep, the cleaner, the VCD
-                           window tool and the viewer server
-  - CVA6_configs/          the configuration package the sweeps read
+  - scripts/               the run drivers, the two sweeps, the batch JSON
+                           converter, the cleaner, the VCD window tool and the
+                           viewer server
+  - CVA6_configs/          the three configuration packages the sweeps read
   - benchmarks/config/     the calibration programs, written for the gem5
                            comparison
-  - benchmarks/viewer/     the teaching programs written for the viewer
+  - benchmarks/viewer/     the programs written while developing the viewer
   - CVA6Flow/              the CVA6Flow viewer and its tracer, offered under
                            this same MIT licence in its own repository at
                            https://github.com/FaMAF-CVA6-Project/CVA6Flow
