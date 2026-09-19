@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the project's images and create their containers, sized to the host.
+"""Build the project's images and create their containers, sized to Docker.
 
 Both builds are heavy and both fail the same way when memory runs short: a
 compiler is killed and the log says nothing useful. This reads what the Docker
@@ -21,12 +21,12 @@ import shutil
 import subprocess
 import sys
 
-# Memory a single compile job peaks at, per side. Linking gem5 is the worst
-# case in the project and the number the job count is divided out of.
+# Memory one compile job peaks at, per side: GCC's bootstrap for CVA6 and the
+# gem5 link, the worst case in the project. The job count divides by it.
 JOB_MEMORY_GB = {"cva6": 2.0, "gem5": 4.0}
 
-# Free space each build needs, which is several times the finished image
-# because the intermediate layers are not reclaimed until it ends.
+# Free space each build needs, about twice the finished image, because the
+# intermediate layers are not reclaimed until it ends.
 BUILD_DISK_GB = {"cva6": 30, "gem5": 37}
 
 # What a finished container needs on disk, well short of the build figure.
@@ -49,20 +49,21 @@ SIDES = {
     },
 }
 
-# Published so the viewer's server can reach the host's browser, and it cannot
-# added later. The port inside is the same on both sides and the host one
-# differs per side above, so both containers can serve at the same time.
+# Published so the host's browser can reach the viewer's server, since a port
+# cannot be added later. The host ports differ per side above, so both
+# containers can serve at the same time.
 VIEWER_PORT = 8000
 
 # A Verilator build writes large temporaries here, and the 64 MB default is
 # what makes it fail with an out-of-space error that names no file.
 SHM_SIZE = "2g"
 
-# What this project adds to a container. git in there reports every one as
-# untracked, which buries the source change someone is actually looking for.
-OVERLAY = ("scripts/", "gem5_configs/", "CVA6_configs/", "benchmarks/", "results/",
-           "MinorFlow/", "CVA6Flow/", "MinorCPU_CVA6.patch",
-           ".built_patch_sha1", "container_results/")
+# What the gem5 image adds to gem5's tree, which git reports as untracked in an
+# image that still carries gem5's clone, burying a real source change. Only a
+# container from an image older than gitignore.extra needs it.
+OVERLAY = ("scripts/", "gem5_configs/", "benchmarks/", "results/",
+           "MinorFlow/", ".built_patch_sha1", "__pycache__/",
+           "README.gem5.md", "LICENSE.FaMAF", "CITATION.cff")
 
 # Written once, and recognised on a second run so the list is not repeated.
 EXCLUDE_MARKER = "# added by make_containers.py"
@@ -162,15 +163,16 @@ def container_root(name):
 def tidy_git(name, dry_run):
     """Leave git inside the container reporting source changes only.
 
-    The overlay goes in the container's own .gitignore. Files the image
-    deleted are marked skip-worktree, which .gitignore cannot reach and which
-    is all 759 entries on the CVA6 side."""
+    The overlay goes in the container's own .gitignore unless the image
+    already lists it, and files the image deleted are marked skip-worktree,
+    which .gitignore cannot reach."""
     root = container_root(name)
     script = (
         'cd "$1" 2>/dev/null || exit 0\n'
-        '[ -d .git ] || exit 0\n'
+        '[ -d .git ] || { echo no-repository; exit 0; }\n'
         'shift\n'
-        'if ! grep -qF "$MARKER" .gitignore 2>/dev/null; then\n'
+        'if ! grep -qF "$MARKER" .gitignore 2>/dev/null '
+        '&& ! grep -qx "$1" .gitignore 2>/dev/null; then\n'
         '  { echo ""; echo "$MARKER"; for p in "$@"; do echo "$p"; done; } '
         '>> .gitignore\n'
         'fi\n'
@@ -188,6 +190,10 @@ def tidy_git(name, dry_run):
         print(f"[WARN] Could not reach git in '{name}', left alone")
         return 0
     left = done.stdout.strip().splitlines()
+    if left == ["no-repository"]:
+        print(f"[INFO] '{name}' carries no git repository, so there is "
+              f"nothing to quiet")
+        return 0
     print(f"[INFO] git status in '{name}' now reports "
           f"{left[-1] if left else '?'} entry(ies)")
     return 0
@@ -258,8 +264,8 @@ def create_container(side, image, mem_gb, cpus, dry_run, force, x11):
         if code != 0:
             return code
 
-    # Left a core and a couple of gigabytes so the host stays usable while a
-    # simulation runs, and so the OOM killer picks the container first.
+    # Leave the host a core and two gigabytes, so it stays usable while a
+    # simulation runs and the OOM killer picks the container first.
     limit_cpus = max(1, cpus - 1)
     limit_mem = max(2, int(mem_gb) - 2)
     cmd = ["docker", "run", "-dit", "--name", name,
@@ -272,7 +278,8 @@ def create_container(side, image, mem_gb, cpus, dry_run, force, x11):
                 "-v", "/tmp/.X11-unix:/tmp/.X11-unix"]
     cmd += [image, "bash"]
     print(f"[INFO] Creating {name}: {limit_cpus} CPU(s), {limit_mem} GB, "
-          f"port {cfg['host_port']} published as {VIEWER_PORT} inside")
+          f"port {VIEWER_PORT} inside published on host port "
+          f"{cfg['host_port']}")
     code, _ = run(cmd, dry_run)
     return code
 
@@ -282,7 +289,7 @@ def main():
         description="Build the project's images and create their containers, "
                     "sized to what Docker on this machine actually has.")
     parser.add_argument("side", nargs="?", choices=sorted(SIDES) + ["both"],
-                        default="both",
+                        default="both", type=str.lower,
                         help="Which side to prepare. Defaults to both")
     parser.add_argument("--build", action="store_true",
                         help="Build the image from this working tree first. "
