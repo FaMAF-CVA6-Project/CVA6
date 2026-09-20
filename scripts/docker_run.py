@@ -350,7 +350,7 @@ def main():
     cut = argv.index("--") if "--" in argv else len(argv)
     args = parser.parse_args(argv[:cut])
     args.command = argv[cut + 1:]
-    
+
     folded = {name.lower(): name for name in CONTAINERS}
     asked = folded.get(args.container.lower()) if args.container else None
     if args.container and asked is None:
