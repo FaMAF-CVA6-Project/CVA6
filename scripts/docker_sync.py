@@ -106,6 +106,9 @@ CONTAINERS = {
         "push_dirs": [
             ("gem5_config_CVA6/gem5/benchmarks", "/gem5/benchmarks/config"),
             ("viewers/MinorFlow/benchmarks", "/gem5/benchmarks/viewer"),
+            # The samples the viewer's own button offers, which the image
+            # carries and a local run regenerates.
+            ("viewers/MinorFlow/tests", "/gem5/MinorFlow/tests"),
         ],
     },
     "CVA6": {
@@ -160,6 +163,9 @@ CONTAINERS = {
         "push_dirs": [
             ("gem5_config_CVA6/CVA6/benchmarks", "/CVA6/benchmarks/config"),
             ("viewers/CVA6Flow/benchmarks", "/CVA6/benchmarks/viewer"),
+            # The samples the viewer's own button offers, which the image
+            # carries and a local run regenerates.
+            ("viewers/CVA6Flow/tests", "/CVA6/CVA6Flow/tests"),
         ],
     },
 }
