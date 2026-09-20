@@ -311,14 +311,16 @@ docker build -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
 
 `.dockerignore` keeps the traces, VCDs, JSONs and git history out of the build context, so what is uploaded to the daemon is about a hundred megabytes rather than the whole tree.
 
-**These are heavy builds.** The cost is the RISC-V toolchain on the CVA6 side and three full gem5 builds on the gem5 side.
+**These are heavy builds.** The cost is three full gem5 builds on the gem5 side, and on the CVA6 side Verilator, Spike and the samples, since `util/toolchain-builder` fetches a prebuilt RISC-V toolchain rather than compiling one.
 
-|                              | Disk while building | Finished image | Time     | Memory per job |
-| ---------------------------- | ------------------- | -------------- | -------- | -------------- |
-| `manuel313/famaf_cva6:build` | ~30 GB              | ~15 GB         | 3 to 5 h | ~2 GB          |
-| `manuel313/famaf_gem5:build` | ~37 GB              | ~18 GB         | 3 to 6 h | ~4 GB          |
+The figures below were measured on 20 September, building both from scratch with no layer cache on a 16-core laptop with 15 GB of memory, at the job counts named.
 
-The last step of each recipe is the viewer's samples, and it is a real run of every one of that viewer's programs: about half an hour on the gem5 side and forty minutes on the CVA6 side, where the Verilator model is built first and each run writes a waveform of a few gigabytes. Every trace, waveform and intermediate JSON is deleted in the same layer, so what the image keeps is the samples themselves, 0.5 GB on the gem5 side and 0.7 GB on the CVA6 side. The CVA6 tracer is the one step that wants memory rather than cores: reading the largest waveform peaks near 10 GB, so a machine with less should build that image with the sample list shortened through `--build-arg CVA6FLOW_OVER_LIMIT`.
+|                              | Disk while building | Finished image | Time             | Memory per job |
+| ---------------------------- | ------------------- | -------------- | ---------------- | -------------- |
+| `manuel313/famaf_cva6:build` | ~30 GB              | 12.4 GB        | 50 min at 5 jobs | ~2 GB          |
+| `manuel313/famaf_gem5:build` | ~45 GB              | 25.4 GB        | 3 h 15 at 2 jobs | ~4 GB          |
+
+The last step of each recipe is the viewer's samples, and it is a real run of every one of that viewer's programs: 6 minutes on the gem5 side, and 18 on the CVA6 side, where the Verilator model is built first and each run writes a waveform of a few gigabytes. Every trace, waveform and intermediate JSON is deleted in the same layer, so what the image keeps is the samples themselves, 0.5 GB on the gem5 side and 0.7 GB on the CVA6 side. The CVA6 tracer is the one step that wants memory rather than cores: reading the largest waveform peaks near 10 GB, so a machine with less should build that image with the sample list shortened through `--build-arg CVA6FLOW_OVER_LIMIT`. On the run measured here the gem5 side came closest to the edge, at 1.6 GB free while linking the first `gem5.opt`, which is why two jobs rather than three.
 
 Memory is what actually fails a build, and it fails as a compiler killed with no useful message. Both recipes take a `JOBS` argument, and it should be no higher than your RAM in GB divided by the per-job figure above:
 
