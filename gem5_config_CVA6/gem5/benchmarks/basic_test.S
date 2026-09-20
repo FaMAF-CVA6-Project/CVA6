@@ -17,7 +17,7 @@ __region_start:
   .balign   16
 basic_loop:
 # ---------------------------------------------------------
-# SECTION 1 - Initialize integer registers
+# SECTION 1 - Initialise integer registers
 # Hits IntAlu (li expands to lui+addiw or just addi).
 # ---------------------------------------------------------
   li        t0, 0x1234
