@@ -19,7 +19,7 @@ The gem5 MinorCPU configuration matched to CVA6, and the patch it depends on.
 
 `DEFAULT_ALL_TESTS` in the sweep names **seventeen** programs, and every entry whose workload is `all` runs all seventeen. Fourteen of them are the comparison suite: `atomic_fence`, `basic_test`, `branch_full_test`, `btb_pressure`, `daxpy`, `daxpy_unrolling_4`, `fetch2_probe`, `fp_addmul`, `fp_divsqrt`, `full_test`, `icache_pressure`, `int_div`, `matmul_small` and `store_fwd`.
 
-The other three, `fp_divsqrt_probe`, `fp_divsqrt_probe2` and `fp_divsqrt_probe3`, are **not** suite members and are left out of the comparison. They are diagnostic programs written to measure one limitation rather than to be matched: beside full-mantissa control blocks, each drives the FP divider with operands chosen so the hardware's short path fires and the model's general law does not, which is what turns that divergence into a number instead of a suspicion. The third walks every branch of the C910 divider law, block by block, and is what validated it on the RTL (see Known limitations).
+The other three, `fp_divsqrt_probe`, `fp_divsqrt_probe2` and `fp_divsqrt_probe3`, are **not** suite members and are left out of the comparison. They are diagnostic programs written to measure one limitation rather than to be matched: beside full-mantissa control blocks, each drives the FP divider with operands chosen so the hardware's short path fires and the model's general law does not, which is what turns that divergence into a number instead of a suspicion. The third walks every branch of the C910 divider law, block by block, and is what validated it on the RTL.
 
 They all live in [gem5/benchmarks/](gem5/benchmarks/) and [CVA6/benchmarks/](CVA6/benchmarks/).
 
@@ -259,6 +259,24 @@ That sweep installs the package over `core/include/`, rebuilds the model, runs e
 
 `MinorCPU_CVA6.patch` is the whole gem5 side in one file, verified to apply cleanly on pristine v25.0.0.1 with both `git apply` and `patch`, and to revert to a byte-identical tree. Most behaviours it adds transcribe a specific RTL rule and cite it in the source comments. `fill_delay` has no RTL citation, and the readout class extras take their values from a measured law. Every one is behind a parameter that defaults to the stock behaviour, so a patched gem5 runs unpatched configurations unchanged.
 
+### The script
+
+[`patch_gem5.py`](../scripts/patch_gem5.py) is the loop for working on the patch, and the gem5 image carries it as `/gem5/scripts/patch_gem5.py`. Run it from the gem5 root. It reads the copy under `gem5_configs/config/`, the one that mirrors this folder.
+
+```bash
+python3 scripts/patch_gem5.py status    # in the tree or not, and which builds carry it
+python3 scripts/patch_gem5.py revert    # take it back out
+python3 scripts/patch_gem5.py apply     # put it back in
+python3 scripts/patch_gem5.py create    # write the patch from the tree, new files included
+python3 scripts/patch_gem5.py build     # rebuild, asking RISCV_PATCH or RISCV_EXP
+```
+
+Edit the sources under `src/`, `create`, `build`, measure. `create` needs no git history, which the image does not keep: it diffs `src/` against `.pristine_src.tar.xz`, the pristine sources the image archived before the patch went in, and falls back to `git diff` in a checkout that still has one. It leaves out what gem5's own `.gitignore` does, so a `parsetab.py` or a `.orig` from a failed apply cannot leak into the patch.
+
+A patch being worked on belongs in `build/RISCV_EXP`, since `build/RISCV_PATCH` is what every TEST in the table is measured against. `build` writes the patch's hash beside the tree as `.built_patch_sha1`, which [`run_gem5.py`](../viewers/MinorFlow/scripts/run_gem5.py) reads to catch a patch edited but not rebuilt, and it writes that marker for `RISCV_PATCH` only, the build the tables rest on.
+
+The two sections below are the same work by hand, for a tree without the script.
+
 ### Applying it
 
 Run from the gem5 source root. The paths carry `a/` and `b/` prefixes, so `git apply` needs no `-p` flag and `patch` takes `-p1`.
@@ -279,7 +297,7 @@ The rebuild is not optional. The patch adds SimObjects and `SConscript` entries,
 
 ### Reverting it
 
-Feed the same file back with `-R`. Both tools restore the 25 edited files and delete the 9 created ones, leaving a tree that `git status` reports as clean.
+Feed the same file back with `-R`. Both tools restore the 29 edited files and delete the 9 created ones, leaving a tree that `git status` reports as clean.
 
 ```bash
 cd /gem5
@@ -396,4 +414,3 @@ The blocked count holds cycles in which the cache refused requests, and the two 
 ### Files changed
 
 `src/cpu/minor/` for `BaseMinorCPU.py`, `dyn_inst.hh`, `execute.cc`, `execute.hh`, `fetch1.cc`, `fetch1.hh`, `func_unit.cc`, `func_unit.hh`, `lsq.cc` and `lsq.hh`. `src/cpu/pred/` for `BranchPredictor.py`, `bpred_unit.hh`, `bpred_unit.cc`, `ras.hh` and `ras.cc`. `src/mem/` for the adapter, its `SConscript` entry and the ready-line query in `port.hh`. `src/mem/cache/` for `Cache.py`, `base.hh`, `base.cc`, `cache.hh`, `cache.cc`, `cache_blk.hh`, `mshr.hh` and `mshr.cc`. `src/mem/cache/tags/` for the fill-time replacement hook, in `base.hh` and `base_set_assoc.hh`. `src/mem/cache/replacement_policies/` for the three policies and their registrations.
-
