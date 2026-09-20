@@ -49,7 +49,11 @@ ENV PATH=/CVA6/tools/bin:${PATH}
 # does not rebuild GCC. This is the layer worth caching above all others.
 COPY util/toolchain-builder/ /CVA6/util/toolchain-builder/
 WORKDIR /CVA6/util/toolchain-builder
-RUN bash get-toolchain.sh && bash build-toolchain.sh /CVA6/tools
+# The clones the builder fetches carry their own history, 255 MB of it, which
+# nothing in the image reads once the toolchain is installed under tools/. It
+# goes in this layer, since a later one would leave it in the image anyway.
+RUN bash get-toolchain.sh && bash build-toolchain.sh /CVA6/tools \
+    && rm -rf src/*/.git
 
 # ---- Verilator and Spike ----------------------------------------------------
 # Built from the verification harness alone, again before the RTL arrives, so
@@ -87,7 +91,8 @@ RUN bash -c "source ./verif/regress/install-verilator.sh" \
     && test -x "${SPIKE_INSTALL_DIR}/bin/spike" \
     && "${VERILATOR_INSTALL_DIR}/bin/verilator" --version \
     && "${SPIKE_INSTALL_DIR}/bin/spike" -v 2>&1 \
-    | grep -q "$(git -C "${SPIKE_SRC_DIR}" log -1 --pretty=tformat:%h)"
+    | grep -q "$(git -C "${SPIKE_SRC_DIR}" log -1 --pretty=tformat:%h)" \
+    && rm -rf "${VERILATOR_INSTALL_DIR}"/build-*/.git
 
 # ---- the design and this project's own files --------------------------------
 # Everything else, after the expensive layers, so an edit here rebuilds only
@@ -146,6 +151,35 @@ COPY dockerfiles/CVA6/CITATION.cff        /CVA6/CITATION.cff
 COPY dockerfiles/CVA6/gitignore.container /CVA6/.gitignore
 
 RUN chmod +x /CVA6/scripts/*.py
+
+# ---- the viewer's samples ---------------------------------------------------
+# A full sample of every viewer program whose run fits the 500,000 records the
+# page renders at once, so Load sample has something to show in a fresh
+# container. The first run builds the Verilator model and the rest reuse it.
+
+# The model, the VCDs and the JSONs are deleted in this layer, so the image
+# keeps the samples and the manifest. The programs named below run past that
+# limit, and one that grows past it fails here rather than going missing.
+ARG CVA6FLOW_OVER_LIMIT="commit_ilp_test data_cache_stress_test \
+icache_footprint_test store_miss_test"
+RUN set -eu; cd /CVA6; keep=""; \
+    for src in benchmarks/viewer/*.S benchmarks/viewer/*.c; do \
+        name=$(basename "$src"); name=${name%.*}; \
+        case " test_template $CVA6FLOW_OVER_LIMIT " in \
+            *" $name "*) continue ;; \
+        esac; \
+        echo "[sample] $name"; \
+        python3 scripts/run_CVA6.py "$src" $keep > /dev/null; \
+        keep=--keep-build; \
+        python3 CVA6Flow/CVA6Flow_tracer.py "results/run/${name}.vcd" \
+            -o "/tmp/${name}.json" --quiet --strict; \
+        rm -f "results/run/${name}.vcd"; \
+        python3 scripts/make_CVA6Flow_sample.py "/tmp/${name}.json" \
+            -n 0 > /dev/null; \
+        rm -f "/tmp/${name}.json" "CVA6Flow/tests/${name}.sample.json"; \
+    done; \
+    rm -rf /CVA6/work-ver /CVA6/results/* /CVA6/verif/sim/out_*; \
+    ls -la /CVA6/CVA6Flow/tests
 
 ENV DV_SIMULATORS=veri-testharness
 
