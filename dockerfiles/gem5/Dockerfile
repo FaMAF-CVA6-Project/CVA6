@@ -125,6 +125,31 @@ RUN mkdir -p /gem5/results \
     && mv /gem5/README.md /gem5/README.gem5.md \
     && chmod +x /gem5/scripts/*.py /gem5/MinorFlow/*.py
 
+# ---- the viewer's samples ---------------------------------------------------
+# A full sample of every viewer program, so Load sample has something to show
+# in a fresh container. Each trace and JSON is deleted in this layer.
+
+# The .sample.json beside each sample goes as well, since the page reads the
+# .js form, so the image keeps the samples and the manifest that lists them.
+RUN set -eu; cd /gem5; \
+    for src in benchmarks/viewer/*.S benchmarks/viewer/*.c; do \
+        name=$(basename "$src"); name=${name%.*}; \
+        case $name in test_template) continue ;; esac; \
+        echo "[sample] $name"; \
+        python3 scripts/run_gem5.py \
+            gem5_configs/viewer/gem5_config_MinorFlow.py "$src" \
+            --variant stock --gem5-out-dir /tmp/sample/m5 \
+            --results-dir /tmp/sample/res > /dev/null; \
+        python3 MinorFlow/MinorFlow_tracer.py \
+            "/tmp/sample/m5/${name}_trace.txt" -o "/tmp/sample/${name}.json" \
+            --quiet --strict; \
+        python3 scripts/make_MinorFlow_sample.py "/tmp/sample/${name}.json" \
+            -n 0 > /dev/null; \
+        rm -rf /tmp/sample "MinorFlow/tests/${name}.sample.json"; \
+    done; \
+    rm -rf /gem5/results/*; \
+    ls -la /gem5/MinorFlow/tests
+
 # The container's own documents. gem5's README is kept as README.gem5.md, and
 # its LICENSE and COPYING stay where they are, since gem5 is in here.
 COPY dockerfiles/gem5/README.md     /gem5/README.md
