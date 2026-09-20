@@ -52,6 +52,10 @@ viewers/*/tests/*.js
 viewers/*/*.json
 **/oversized*.json*
 
+# The project's mark and the fonts it is drawn from, which the documents in
+# this repository use and nothing inside an image reads.
+assets/
+
 # Local scratch, the copies get_CVA6_files.py and get_gem5_files.py make, and
 # what docker_sync.py pulls.
 temp/
