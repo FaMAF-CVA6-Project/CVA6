@@ -129,9 +129,8 @@ RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/CVA6Flow/benchmarks /CVA6/CVA6Flow/README.md \
     /CVA6/CVA6Flow/LICENSE /CVA6/CVA6Flow/CITATION.cff \
     /CVA6/CVA6Flow/.gitignore /CVA6/CVA6Flow/.nojekyll \
-    /CVA6/CVA6Flow/tests/README.md \
     /CVA6/verilator_changes/custom_size_vcds/README.md \
-    /CVA6/gem5_config_CVA6 /CVA6/verilator_changes/ddr3_memory \
+    /CVA6/gem5_config_CVA6 \
     && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
 COPY scripts/patch_vcd_window.py /CVA6/scripts/patch_vcd_window.py

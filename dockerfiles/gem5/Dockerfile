@@ -92,12 +92,12 @@ COPY viewers/MinorFlow/                                      /gem5/MinorFlow/
 
 # The viewer arrives whole. Its scripts/, configs/ and benchmarks/ would be
 # second copies of what /gem5 holds, and its README, licence, citation, git
-# and Pages files, tests/README.md and docs/CARLA2026 are its repository's.
+# and Pages files and docs/CARLA2026 are its repository's.
 RUN rm -rf /gem5/MinorFlow/scripts /gem5/MinorFlow/configs \
     /gem5/MinorFlow/benchmarks /gem5/MinorFlow/docs/CARLA2026 \
     /gem5/MinorFlow/README.md /gem5/MinorFlow/LICENSE \
     /gem5/MinorFlow/CITATION.cff /gem5/MinorFlow/.gitignore \
-    /gem5/MinorFlow/.nojekyll /gem5/MinorFlow/tests/README.md
+    /gem5/MinorFlow/.nojekyll
 
 # Every configuration under gem5_configs/, one folder per origin, which is where
 # the drivers look for one given by name alone.
