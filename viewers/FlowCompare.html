@@ -4,10 +4,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FlowCompare</title>
+  <title>FlowCompare - MinorFlow and CVA6Flow comparison viewer</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='0.25' y='0.25' width='15.5' height='15.5' rx='3.6' fill='%2318181a' stroke='rgba(255,255,255,0.12)' stroke-width='0.5'/%3E%3Crect x='1.5' y='2.5' width='3.75' height='1' fill='%238f7fd8'/%3E%3Crect x='5.75' y='2' width='1.25' height='2' fill='%236cbbe4'/%3E%3Crect x='7' y='2' width='1.25' height='2' fill='%232f7fb5'/%3E%3Crect x='8.25' y='2' width='1.25' height='2' fill='%237b4fc4'/%3E%3Crect x='9.5' y='2' width='1.25' height='2' fill='%233ecf9a'/%3E%3Cpath d='M1.5 6.6 H3.38 V5.4 H5.25' fill='none' stroke='%233ec0b0' stroke-width='0.7'/%3E%3Crect x='5.75' y='5' width='1.25' height='2' fill='%236cbbe4'/%3E%3Crect x='7' y='5' width='1.25' height='2' fill='%232f7fb5'/%3E%3Crect x='8.25' y='5' width='1.25' height='2' fill='%2323828f'/%3E%3Crect x='9.5' y='5' width='1.25' height='2' fill='%237b4fc4'/%3E%3Crect x='10.75' y='5' width='1.25' height='2' fill='%232a9a66'/%3E%3Crect x='12' y='5' width='1.25' height='2' fill='%233ecf9a'/%3E%3Crect x='1.5' y='9.5' width='5' height='1' fill='%238f7fd8'/%3E%3Crect x='7' y='9' width='1.25' height='2' fill='%236cbbe4'/%3E%3Crect x='8.25' y='9' width='1.25' height='2' fill='%232f7fb5'/%3E%3Crect x='9.5' y='9' width='1.25' height='2' fill='%237b4fc4'/%3E%3Crect x='10.75' y='9' width='1.25' height='2' fill='%233ecf9a'/%3E%3Cpath d='M1.5 13.6 H4 V12.4 H6.5' fill='none' stroke='%233ec0b0' stroke-width='0.7'/%3E%3Crect x='7' y='12' width='1.25' height='2' fill='%236cbbe4'/%3E%3Crect x='8.25' y='12' width='1.25' height='2' fill='%232f7fb5'/%3E%3Crect x='9.5' y='12' width='1.25' height='2' fill='%2323828f'/%3E%3Crect x='10.75' y='12' width='1.25' height='2' fill='%237b4fc4'/%3E%3Crect x='12' y='12' width='1.25' height='2' fill='%232a9a66'/%3E%3Crect x='13.25' y='12' width='1.25' height='2' fill='%233ecf9a'/%3E%3Crect x='12.5' y='9.5' width='2' height='1' fill='%23ebb450'/%3E%3C/svg%3E">
   <style>
-    /* Tokens are lifted from MinorFlow and CVA6Flow unchanged. This is a
-       sibling instrument, so looking like one is the requirement. */
+    /* The tokens, the buttons and the brand are shared blocks of MinorFlow and CVA6Flow, so
+     * the three pages read as one set of instruments. */
+
+    /* SHARED BEGIN css-tokens */
+
+    /* Needs: none */
+
     :root {
       --bg: #18181a;
       --bg2: #222224;
@@ -18,18 +24,121 @@
       --text: #e4e2dc;
       --text2: #a0a09a;
       --text3: #505050;
+      --text-id: #383838;
+      --text-pc: #505070;
+      --text-hit: #f0d090;
       --accent: #3ecf9a;
       --warn: #f0a030;
       --bad: #e2585e;
-      --model: #8f7fd8;
-      --hw: #3ec0b0;
-      --drift: #ebb450;
+      --compressed: #3ec0b0;
+      --link: #7fb8e8;
+      --link-hover: #b8d8f5;
+      --link-dim: #6f7f9a;
+      --grip: rgba(120, 170, 210, 0.55);
+      --focus: rgba(64, 192, 255, 0.45);
+      --crosshair: rgba(255, 255, 255, 0.18);
+      --timeline-bg: #1a1a1c;
+      --scrollbar-thumb: #4a4a4e;
+      --scrollbar-thumb-hover: #5a5a60;
+      --ruler-bg: #1c1c1e;
+      --label-row: #1c1c1e;
+      --label-row-alternate: #1e1e21;
+      --label-row-hit: #4a3a18;
+      --scrim: rgba(0, 0, 0, 0.55);
+      --shadow: rgba(0, 0, 0, 0.5);
       --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-mono: 'SF Mono', Menlo, Consolas, monospace;
+      /* Canvas geometry depends on these sizes, so the script reads or mirrors
+       * them. A change here is a change in the script too. */
+      --ruler-h: 18px;
+      --label-w: 390px;
+      --mem-wb-h: 140px;
+      --label-pad-x: 6px;
+    }
+
+    /* SHARED END css-tokens */
+
+    /* SHARED BEGIN css-buttons */
+
+    /* Needs: css-tokens */
+
+    .tool-button {
+      padding: 3px 9px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 5px;
+      color: var(--text2);
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .tool-button:hover:not(:disabled) {
+      background: var(--bg4);
+      color: var(--text);
+    }
+
+    .tool-button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .toolbar-separator {
+      color: var(--border2);
+      font-size: 14px;
+      line-height: 1;
+      align-self: center;
+      user-select: none;
+    }
+
+    /* SHARED END css-buttons */
+
+    /* SHARED BEGIN css-brand */
+
+    /* Needs: css-tokens */
+
+    /* The name as the READMEs' headers draw it, a mono wordmark after the
+     * 16 px mark, with "Flow" in the accent. */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .brand-flow {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .brand-mark {
+      flex-shrink: 0;
+    }
+
+    /* SHARED END css-brand */
+
+    /* FlowCompare's own colours: one per JSON, one for the drift curve and one for the selected
+     * row. */
+    :root {
+      --minor: #8f7fd8;
+      --cva6: #3ec0b0;
+      --drift: #ebb450;
+      --selected-row: #2f3550;
     }
 
     * {
       box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     html,
@@ -48,7 +157,7 @@
       overflow: hidden;
     }
 
-    #bar {
+    #top-bar {
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -59,14 +168,22 @@
       white-space: nowrap;
     }
 
-    #bar .name {
-      font-family: var(--font-mono);
-      font-weight: 600;
-      letter-spacing: .04em;
+    /* The shared buttons sit on --bg3, the colour of this bar, so they take the slots' ground,
+     * and the hover restates the shared rule, which this selector would otherwise outrank. */
+    #top-bar .tool-button {
+      background: var(--bg2);
+      font-family: var(--font-sans);
+    }
+
+    #top-bar .tool-button:hover:not(:disabled) {
+      background: var(--bg4);
+    }
+
+    #top-bar .brand {
       margin-right: 4px;
     }
 
-    .slot {
+    .json-slot {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -83,11 +200,11 @@
       text-overflow: ellipsis;
     }
 
-    .slot:hover {
+    .json-slot:hover {
       background: var(--bg4);
     }
 
-    .slot .dot {
+    .json-slot .slot-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
@@ -95,44 +212,34 @@
       background: var(--text3);
     }
 
-    .slot.filled .dot {
+    .json-slot.filled .slot-dot {
       background: var(--ink, var(--accent));
     }
 
-    .slot.model {
-      --ink: var(--model);
+    .json-slot.minor {
+      --ink: var(--minor);
     }
 
-    .slot.hw {
-      --ink: var(--hw);
+    .json-slot.cva6 {
+      --ink: var(--cva6);
     }
 
-    .tbtn {
-      padding: 3px 9px;
+    .offset-label,
+    #offset-value {
+      font-family: var(--font-mono);
       font-size: 11px;
-      font-family: var(--font-sans);
-      color: var(--text2);
-      background: var(--bg2);
-      border: 0.5px solid var(--border2);
-      border-radius: 5px;
-      cursor: pointer;
     }
 
-    .tbtn:hover:not(:disabled) {
-      background: var(--bg4);
-      color: var(--text);
-    }
-
-    .tbtn:disabled {
-      opacity: .4;
-      cursor: default;
-    }
-
-    .vsep {
+    .offset-label {
       color: var(--text3);
     }
 
-    /* Alignment report. Reads as a sentence about trust, not a stat grid. */
+    #offset-value {
+      min-width: 34px;
+      text-align: center;
+    }
+
+    /* The report reads as a sentence about trust, not as a grid of figures. */
     #report {
       flex-shrink: 0;
       display: flex;
@@ -153,15 +260,15 @@
       font-weight: 600;
     }
 
-    #report .good {
+    .good {
       color: var(--accent);
     }
 
-    #report .warn {
+    .warn {
       color: var(--warn);
     }
 
-    #report .bad {
+    .bad {
       color: var(--bad);
     }
 
@@ -172,7 +279,7 @@
       min-height: 0;
     }
 
-    #plotwrap {
+    #plot-wrap {
       flex: 1;
       position: relative;
       min-height: 180px;
@@ -200,6 +307,10 @@
       padding: 24px;
     }
 
+    #empty .brand-mark {
+      margin-bottom: 8px;
+    }
+
     #empty h2 {
       margin: 0;
       font-size: 15px;
@@ -214,9 +325,7 @@
       font-size: 11px;
     }
 
-    /* The divergence list. Rows are ranked by how much a single instruction
-       moved the curve, which is the question the curve provokes. */
-    #listwrap {
+    #list-wrap {
       flex-shrink: 0;
       height: 232px;
       overflow: auto;
@@ -257,11 +366,16 @@
       background: var(--bg4);
     }
 
-    tbody tr.sel {
-      background: #2f3550;
+    tbody tr.selected {
+      background: var(--selected-row);
     }
 
-    .num {
+    #rows td.placeholder {
+      padding: 10px;
+      cursor: default;
+    }
+
+    .numeric {
       text-align: right;
       font-variant-numeric: tabular-nums;
     }
@@ -271,7 +385,7 @@
     }
 
     .fast {
-      color: var(--hw);
+      color: var(--cva6);
     }
 
     .dim {
@@ -282,9 +396,16 @@
       color: var(--warn);
     }
 
+    .minor-ink {
+      color: var(--minor);
+    }
+
+    .cva6-ink {
+      color: var(--cva6);
+    }
+
     #detail {
       flex-shrink: 0;
-      display: none;
       padding: 8px 12px;
       background: var(--bg3);
       border-top: 0.5px solid var(--border2);
@@ -293,8 +414,17 @@
       overflow-x: auto;
     }
 
+    #detail .detail-head {
+      color: var(--text2);
+      margin-bottom: 5px;
+    }
+
     #detail table {
       width: auto;
+    }
+
+    #detail table + table {
+      margin-top: 4px;
     }
 
     #detail td,
@@ -310,7 +440,11 @@
       color: var(--text3);
     }
 
-    #tip {
+    #detail .detail-note {
+      margin-top: 5px;
+    }
+
+    #tooltip {
       position: fixed;
       z-index: 50;
       display: none;
@@ -322,7 +456,19 @@
       font-size: 11px;
       line-height: 1.5;
       pointer-events: none;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+      box-shadow: 0 6px 24px var(--shadow);
+    }
+
+    #tooltip.show {
+      display: block;
+    }
+
+    #tooltip .tip-title {
+      color: var(--text);
+    }
+
+    #tooltip .tip-drift {
+      color: var(--drift);
     }
 
     input[type=file] {
@@ -343,86 +489,573 @@
 </head>
 
 <body>
-  <div id="bar">
-    <span class="name">FlowCompare</span>
-    <label class="slot model" id="slot-a" tabindex="0"
-      title="The gem5 MinorCPU trace. Either file can go in either slot: the shape of the records decides which is which.">
-      <span class="dot"></span><span id="name-a">Load model trace</span>
-      <input type="file" id="file-a" accept=".json,application/json">
+  <div id="top-bar">
+    <h1 class="brand">
+      <svg class="brand-mark" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <rect x="0.25" y="0.25" width="15.5" height="15.5" rx="3.6" fill="#18181a" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+        <rect x="1.5" y="2.5" width="3.75" height="1" fill="#8f7fd8"/>
+        <rect x="5.75" y="2" width="1.25" height="2" fill="#6cbbe4"/>
+        <rect x="7" y="2" width="1.25" height="2" fill="#2f7fb5"/>
+        <rect x="8.25" y="2" width="1.25" height="2" fill="#7b4fc4"/>
+        <rect x="9.5" y="2" width="1.25" height="2" fill="#3ecf9a"/>
+        <path d="M1.5 6.6 H3.38 V5.4 H5.25" fill="none" stroke="#3ec0b0" stroke-width="0.7"/>
+        <rect x="5.75" y="5" width="1.25" height="2" fill="#6cbbe4"/>
+        <rect x="7" y="5" width="1.25" height="2" fill="#2f7fb5"/>
+        <rect x="8.25" y="5" width="1.25" height="2" fill="#23828f"/>
+        <rect x="9.5" y="5" width="1.25" height="2" fill="#7b4fc4"/>
+        <rect x="10.75" y="5" width="1.25" height="2" fill="#2a9a66"/>
+        <rect x="12" y="5" width="1.25" height="2" fill="#3ecf9a"/>
+        <rect x="1.5" y="9.5" width="5" height="1" fill="#8f7fd8"/>
+        <rect x="7" y="9" width="1.25" height="2" fill="#6cbbe4"/>
+        <rect x="8.25" y="9" width="1.25" height="2" fill="#2f7fb5"/>
+        <rect x="9.5" y="9" width="1.25" height="2" fill="#7b4fc4"/>
+        <rect x="10.75" y="9" width="1.25" height="2" fill="#3ecf9a"/>
+        <path d="M1.5 13.6 H4 V12.4 H6.5" fill="none" stroke="#3ec0b0" stroke-width="0.7"/>
+        <rect x="7" y="12" width="1.25" height="2" fill="#6cbbe4"/>
+        <rect x="8.25" y="12" width="1.25" height="2" fill="#2f7fb5"/>
+        <rect x="9.5" y="12" width="1.25" height="2" fill="#23828f"/>
+        <rect x="10.75" y="12" width="1.25" height="2" fill="#7b4fc4"/>
+        <rect x="12" y="12" width="1.25" height="2" fill="#2a9a66"/>
+        <rect x="13.25" y="12" width="1.25" height="2" fill="#3ecf9a"/>
+        <rect x="12.5" y="9.5" width="2" height="1" fill="#ebb450"/>
+      </svg>
+      <span><span class="brand-flow">Flow</span>Compare</span>
+    </h1>
+    <label class="json-slot minor" id="slot-minor" tabindex="0"
+      title="The gem5 model: a MinorFlow JSON. Either JSON can go in either slot, since metadata.tool decides which is which.">
+      <span class="slot-dot"></span><span id="name-minor">Load gem5 model (MinorFlow JSON)</span>
+      <input type="file" id="file-minor" accept=".json,application/json">
     </label>
-    <label class="slot hw" id="slot-b" tabindex="0"
-      title="The CVA6 RTL trace. Either file can go in either slot: the shape of the records decides which is which.">
-      <span class="dot"></span><span id="name-b">Load hardware trace</span>
-      <input type="file" id="file-b" accept=".json,application/json">
+    <label class="json-slot cva6" id="slot-cva6" tabindex="0"
+      title="The CVA6 RTL: a CVA6Flow JSON. Either JSON can go in either slot, since metadata.tool decides which is which.">
+      <span class="slot-dot"></span><span id="name-cva6">Load CVA6 RTL (CVA6Flow JSON)</span>
+      <input type="file" id="file-cva6" accept=".json,application/json">
     </label>
-    <span class="vsep">│</span>
-    <button class="tbtn" id="btn-swap" onclick="swapSlots()" disabled
-      title="Exchange the two traces, which flips the sign of the drift.">Swap</button>
-    <button class="tbtn" id="btn-copy" onclick="copyReport()" disabled
-      title="Copy the alignment report and the headline divergence as text.">Copy report</button>
-    <span class="vsep">│</span>
-    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">offset</span>
-    <button class="tbtn" onclick="nudgeOffset(-1)" disabled id="btn-off-m"
-      title="Shift the model stream one instruction earlier against the hardware stream.">−</button>
-    <span id="off-val" style="font-family:var(--font-mono);font-size:11px;min-width:34px;text-align:center">0</span>
-    <button class="tbtn" onclick="nudgeOffset(1)" disabled id="btn-off-p"
-      title="Shift the model stream one instruction later against the hardware stream.">+</button>
-    <button class="tbtn" onclick="resetOffset()" disabled id="btn-off-r"
+    <span class="toolbar-separator">│</span>
+    <button class="tool-button" id="swap-button" disabled aria-pressed="false"
+      title="Measure the CVA6 RTL against the gem5 model instead, which flips the sign of the drift.">Swap</button>
+    <button class="tool-button" id="copy-report-button" disabled
+      title="Copy the alignment report and the final drift as text.">Copy Report</button>
+    <span class="toolbar-separator">│</span>
+    <span class="offset-label">Offset</span>
+    <button class="tool-button" id="offset-minus" disabled
+      title="Shift the gem5 model stream one instruction earlier against the CVA6 RTL stream.">−</button>
+    <span id="offset-value">0</span>
+    <button class="tool-button" id="offset-plus" disabled
+      title="Shift the gem5 model stream one instruction later against the CVA6 RTL stream.">+</button>
+    <button class="tool-button" id="offset-auto" disabled
       title="Return to the offset that maximises agreement between the two streams.">Auto</button>
   </div>
 
-  <div id="report">Load a MinorFlow trace and a CVA6Flow trace of the same program.</div>
+  <div id="report">Load a MinorFlow JSON and a CVA6Flow JSON of the same program.</div>
 
   <div id="main">
-    <div id="plotwrap">
+    <div id="plot-wrap">
       <canvas id="plot"></canvas>
       <div id="empty">
+        <svg class="brand-mark" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+          <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#18181a" stroke="rgba(255,255,255,0.12)" stroke-width="0.75"/>
+          <rect x="8" y="15.8" width="5" height="2.4" rx="1.2" fill="#8f7fd8"/>
+          <rect x="14.5" y="15.8" width="7" height="2.4" rx="1.2" fill="#595182"/>
+          <rect x="24.9" y="13.5" width="3.7" height="7" rx="1" fill="#6cbbe4"/>
+          <rect x="29.4" y="13.5" width="3.7" height="7" rx="1" fill="#2f7fb5"/>
+          <rect x="33.9" y="13.5" width="3.7" height="7" rx="1" fill="#7b4fc4"/>
+          <rect x="38.4" y="13.5" width="3.7" height="7" rx="1" fill="#3ecf9a"/>
+          <path d="M8 28.4 L10.6 28.4 L10.6 23.6 L13.2 23.6 L13.2 28.4 L15.8 28.4 L15.8 23.6 L18.4 23.6 L18.4 28.4 L21 28.4 L21 23.6 L22.9 23.6" fill="none" stroke="#3ec0b0" stroke-width="1.1" stroke-linejoin="round"/>
+          <rect x="24.9" y="22.5" width="3.7" height="7" rx="1" fill="#6cbbe4"/>
+          <rect x="29.4" y="22.5" width="3.7" height="7" rx="1" fill="#2f7fb5"/>
+          <rect x="33.9" y="22.5" width="3.7" height="7" rx="1" fill="#23828f"/>
+          <rect x="38.4" y="22.5" width="3.7" height="7" rx="1" fill="#7b4fc4"/>
+          <rect x="42.9" y="22.5" width="3.7" height="7" rx="1" fill="#2a9a66"/>
+          <rect x="47.4" y="22.5" width="3.7" height="7" rx="1" fill="#3ecf9a"/>
+          <rect x="8" y="36.8" width="5" height="2.4" rx="1.2" fill="#8f7fd8"/>
+          <rect x="14.5" y="36.8" width="6" height="2.4" rx="1.2" fill="#595182"/>
+          <rect x="22" y="36.8" width="5.4" height="2.4" rx="1.2" fill="#595182"/>
+          <rect x="29.4" y="34.5" width="3.7" height="7" rx="1" fill="#6cbbe4"/>
+          <rect x="33.9" y="34.5" width="3.7" height="7" rx="1" fill="#2f7fb5"/>
+          <rect x="38.4" y="34.5" width="3.7" height="7" rx="1" fill="#7b4fc4"/>
+          <rect x="42.9" y="34.5" width="3.7" height="7" rx="1" fill="#3ecf9a"/>
+          <polygon points="8,47 9.2,44.6 12.8,44.6 14,47 12.8,49.4 9.2,49.4" fill="none" stroke="#3ec0b0" stroke-width="1.1" stroke-linejoin="round"/>
+          <polygon points="14,47 15.2,44.6 19.8,44.6 21,47 19.8,49.4 15.2,49.4" fill="none" stroke="#3ec0b0" stroke-width="1.1" stroke-linejoin="round"/>
+          <polygon points="21,47 22.2,44.6 26.2,44.6 27.4,47 26.2,49.4 22.2,49.4" fill="none" stroke="#3ec0b0" stroke-width="1.1" stroke-linejoin="round"/>
+          <rect x="29.4" y="43.5" width="3.7" height="7" rx="1" fill="#6cbbe4"/>
+          <rect x="33.9" y="43.5" width="3.7" height="7" rx="1" fill="#2f7fb5"/>
+          <rect x="38.4" y="43.5" width="3.7" height="7" rx="1" fill="#23828f"/>
+          <rect x="42.9" y="43.5" width="3.7" height="7" rx="1" fill="#7b4fc4"/>
+          <rect x="47.4" y="43.5" width="3.7" height="7" rx="1" fill="#2a9a66"/>
+          <rect x="51.9" y="43.5" width="3.7" height="7" rx="1" fill="#3ecf9a"/>
+          <line x1="48.2" y1="38" x2="51.2" y2="38" stroke="#18181a" stroke-width="3.7" stroke-linecap="round"/>
+          <polygon points="55.4,38 51.2,40.31 51.2,35.69" fill="#18181a" stroke="#18181a" stroke-width="2" stroke-linejoin="round"/>
+          <line x1="48.2" y1="38" x2="51.2" y2="38" stroke="#ebb450" stroke-width="1.7" stroke-linecap="round"/>
+          <polygon points="55.4,38 51.2,40.31 51.2,35.69" fill="#ebb450"/>
+        </svg>
         <h2>Nothing to compare yet</h2>
-        <p>Drop a MinorFlow trace and a CVA6Flow trace anywhere on this window. They must be
-          runs of the same program. The curve will show how far the model has drifted from the
-          hardware, cycle by cycle, across the committed instruction stream.</p>
+        <p>Drop a MinorFlow JSON and a CVA6Flow JSON anywhere on this window. They must be runs
+          of the same program. The curve shows, instruction by instruction across the committed
+          stream, how many cycles the gem5 model has drifted from the CVA6 RTL.</p>
       </div>
     </div>
-    <div id="listwrap">
+    <div id="list-wrap">
       <table>
         <thead>
           <tr>
-            <th class="num">#</th>
-            <th class="num">step</th>
-            <th class="num">drift</th>
+            <th class="numeric" title="Position of the pair in the aligned committed stream.">pair</th>
+            <th class="numeric" title="How far this instruction moved the drift, in cycles.">step</th>
+            <th class="numeric" title="The drift after this instruction, in cycles.">drift</th>
             <th>instruction</th>
-            <th class="num">model co</th>
-            <th class="num">hw co</th>
+            <th class="numeric" title="Commit cycle in the MinorFlow JSON.">model CO</th>
+            <th class="numeric" title="Commit cycle in the CVA6Flow JSON.">RTL CO</th>
             <th>note</th>
           </tr>
         </thead>
         <tbody id="rows">
           <tr>
-            <td colspan="7" class="dim" style="padding:10px">No alignment yet.</td>
+            <td colspan="7" class="dim placeholder">No alignment yet.</td>
           </tr>
         </tbody>
       </table>
     </div>
-    <div id="detail"></div>
+    <div id="detail" hidden></div>
   </div>
 
-  <div id="tip"></div>
+  <div id="tooltip"></div>
 
   <script>
-    /* FlowCompare pairs a gem5 MinorCPU trace with a CVA6 RTL trace and
-     * shows where the model gains or loses cycles against the hardware. */
+    "use strict";
 
-    /* The two runs are the same program built twice, so addresses differ and
-     * the wrong-path streams differ. The one correspondence the calibration
-     * supports is that the k-th committed instruction is the same in both.
-     * Everything rests on that, and then checks the data agrees. */
+    /* FlowCompare pairs a MinorFlow JSON of a gem5 MinorCPU run with a CVA6Flow JSON of a CVA6
+     * RTL run of the same program, and shows where the model gains or loses cycles. */
+
+    /* The two runs are one program built twice, so addresses and wrong-path streams differ. The
+     * one correspondence the calibration supports is that the k-th committed instruction is the
+     * same in both, and the page checks that the data agrees before relying on it. */
+
+    /* SHARED BEGIN escape-html */
+
+    /* Needs: none */
+
+    const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+    /* Null and undefined read as empty, since tooltips pass optional fields. */
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
+    }
+
+    /* SHARED END escape-html */
+
+    /* SHARED BEGIN format */
+
+    /* Needs: none */
+
+    /* One grouping style whatever the browser's locale, so copied metrics and
+     * screenshots read the same everywhere. */
+    const NUMBER_LOCALE = 'en-GB';
+
+    function fmtCount(n) {
+      if (n == null || Number.isNaN(n)) return '-';
+      return Number(n).toLocaleString(NUMBER_LOCALE);
+    }
+
+    function fmtPercent(fraction) {
+      if (fraction == null || !Number.isFinite(fraction)) return '-';
+      return (fraction * 100).toFixed(2) + '%';
+    }
+
+    /* Binary units with one decimal and bytes whole, the shape the tracers and
+     * scripts print sizes in. */
+    function fmtBytes(n) {
+      const units = ['B', 'KiB', 'MiB', 'GiB'];
+      let value = n, unit = 0;
+      while (value >= 1024 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+      }
+      return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+    }
+
+    function plural(n, word) {
+      return `${fmtCount(n)} ${word}${n === 1 ? '' : 's'}`;
+    }
+
+    /* The lower middle of an ascending array, as statistics.median_low, so the
+     * pages and the tracers report one median. */
+    function medianLow(sorted) {
+      return sorted[Math.floor((sorted.length - 1) / 2)];
+    }
+
+    /* SHARED END format */
+
+    /* SHARED BEGIN schema-check */
+
+    /* Needs: none */
+
+    /* Every page decides what a JSON is from metadata.tool alone. Returns null
+     * when the JSON is the tool and schema asked for, else what differs. */
+    function jsonMismatch(json, tool, schema) {
+      const md = json !== null && typeof json === 'object' ? json.metadata : null;
+      if (md === null || typeof md !== 'object' || Array.isArray(md)) {
+        return { kind: 'metadata', tool: null, schema: null };
+      }
+      const found = { tool: md.tool ?? null, schema: md.schema_version ?? null };
+      if (found.tool !== tool) return { kind: 'tool', ...found };
+      if (found.schema !== schema) return { kind: 'schema', ...found };
+      return null;
+    }
+
+    /* SHARED END schema-check */
+
+    /* SHARED BEGIN size-canvas */
+
+    /* Needs: none */
+
+    /* The bitmap is the CSS size times the device pixel ratio, so lines stay sharp on a dense
+     * screen while the drawing code works in CSS pixels. It is kept at one pixel or more, since
+     * drawing from a zero-sized canvas throws. */
+    function sizeCanvas(canvas, cssWidth, cssHeight) {
+      const ratio = window.devicePixelRatio || 1;
+      canvas.style.width = cssWidth + 'px';
+      canvas.style.height = cssHeight + 'px';
+      canvas.width = Math.max(1, Math.floor(cssWidth * ratio));
+      canvas.height = Math.max(1, Math.floor(cssHeight * ratio));
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      return ctx;
+    }
+
+    /* SHARED END size-canvas */
+
+    /* SHARED BEGIN place-tip */
+
+    /* Needs: none */
+
+    /* A tooltip is position fixed and cannot be scrolled into view, so it sits right of the cursor
+     * and flips left or moves up to stay a margin inside the window. */
+    const TIP_MARGIN = 12;
+    const TIP_OFFSET_X = 14;
+    const TIP_OFFSET_Y = 10;
+
+    function placeTip(el, html, x, y) {
+      el.innerHTML = html;
+      el.classList.add('show');
+      /* Measured at the origin, since a fixed box near the right edge shrinks to the room left
+       * there and would report a narrower width than its content needs. */
+      el.style.left = '0px';
+      el.style.top = '0px';
+      const box = el.getBoundingClientRect();
+      let left = x + TIP_OFFSET_X;
+      let top = y - TIP_OFFSET_Y;
+      if (left + box.width + TIP_MARGIN > window.innerWidth) left = x - TIP_OFFSET_X - box.width;
+      if (top + box.height + TIP_MARGIN > window.innerHeight) {
+        top = window.innerHeight - box.height - TIP_MARGIN;
+      }
+      el.style.left = Math.max(TIP_MARGIN, left) + 'px';
+      el.style.top = Math.max(TIP_MARGIN, top) + 'px';
+    }
+
+    function hideTip(el) {
+      el.classList.remove('show');
+    }
+
+    /* SHARED END place-tip */
+
+    /* SHARED BEGIN copy-text */
+
+    /* Needs: none */
+
+    /* Resolves to whether the text reached the clipboard. The textarea fallback stays because a
+     * page served on a LAN address or opened from a file is not a secure context in every browser,
+     * and navigator.clipboard is undefined there. */
+    function copyText(text) {
+      const viaTextarea = () => {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        let copied = false;
+        try {
+          area.select();
+          copied = document.execCommand('copy');
+        } catch (err) {
+          copied = false;
+        }
+        area.remove();
+        return copied;
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).then(() => true, viaTextarea);
+      }
+      return Promise.resolve(viaTextarea());
+    }
+
+    /* The resting label is stored on the first flash and the pending timer cleared on each one, so
+     * a second click during a flash restores the real label rather than the flashed one. */
+    function flashButtonLabel(button, label, ms) {
+      if (!button) return;
+      if (button.dataset.restLabel === undefined) button.dataset.restLabel = button.textContent;
+      clearTimeout(Number(button.dataset.flashTimer));
+      button.textContent = label;
+      button.dataset.flashTimer = String(setTimeout(() => {
+        button.textContent = button.dataset.restLabel;
+        delete button.dataset.restLabel;
+        delete button.dataset.flashTimer;
+      }, ms));
+    }
+
+    /* SHARED END copy-text */
+
+    /* SHARED BEGIN main-region */
+
+    /* Needs: none */
+
+    /* Patterns for gem5's disassembly (c_ prefix, csrrs) and objdump's (c.
+     * prefix, csrr) alike, since the same function brackets both kinds of JSON
+     * in FlowCompare. */
+    const REGION_HARNESS_RE =
+      /\bM5Op\b|\bcsrrs?\s+\w+\s*,\s*(?:mcycle|minstret|mhpmcounter\d*|cycle|instret|0x[bc][0-9a-f]{2})\b/i;
+    /* A jump, never a call through ra, so a function call cannot pose as the
+     * trampoline. */
+    const REGION_JUMP_RE = /^(?:c[_.])?(?:j|jal)\b(?!\s+(?:ra|x1)\b)/i;
+    const REGION_RETURN_RE =
+      /^(?:c[_.])?(?:ret\b|jr\s+ra\b|jalr\s+(?:zero|x0)\s*,\s*(?:0\s*\(\s*)?ra\b)/i;
+    const REGION_CALL_RE = /^(?:c[_.])?jalr?\b(?!\s+(?:zero|x0)\b)/i;
+    const REGION_ARGSET_RE = /^(?:c[_.])?(?:li|mv|addi)\s+a[0-7]\b/i;
+    const REGION_MCYCLE_RE = /\bcsrrs?\s+\w+\s*,\s*mcycle\b/i;
+    const REGION_LOAD_RE = /^(?:c[_.])?(?:ld|lw|lh|lb|lbu|lhu|lwu|fld|flw|ldsp|lwsp)\b/i;
+    const REGION_EXIT_RE = /<exit(?:[+>])/;
+    /* A trampoline follows the return at once, so this many instructions past
+     * it without an aligned jump means the template has none. */
+    const REGION_RETURN_LOOKAHEAD = 4;
+    const REGION_ALIGN_MASK = 0xfff;
+    const REGION_PRINT_LOADS = 3;
+
+    /* { startIdx, endIdx, strategy, closed } over list, flushed entries
+     * skipped, or null. The trampoline or return first, the mcycle pair second.
+     * With closedOnly, a region whose end marker lies past the list is refused. */
+    function findMainRegion(list, disasmOf, closedOnly = false) {
+      const text = i => String(disasmOf(list[i]) ?? '').trim();
+      const harness = regionFromHarness(list, text);
+      if (harness && (harness.closed || !closedOnly)) return harness;
+      return regionFromCounters(list, text);
+    }
+
+    function regionFromHarness(list, text) {
+      let prevReal = -1, startIdx = -1, afterReturn = -1, sinceReturn = 0, harnessSeen = false;
+      for (let i = 0; i < list.length; i++) {
+        if (list[i].flushed) continue;
+        if (!harnessSeen) {
+          harnessSeen = REGION_HARNESS_RE.test(text(i));
+          prevReal = i;
+          continue;
+        }
+        const pc = parseInt(list[i].pc, 16);
+        if (Number.isFinite(pc) && (pc & REGION_ALIGN_MASK) === 0
+          && REGION_JUMP_RE.test(text(prevReal))) {
+          startIdx = i;
+          break;
+        }
+        if (afterReturn < 0) {
+          if (REGION_RETURN_RE.test(text(prevReal))) afterReturn = i;
+        } else if (++sinceReturn > REGION_RETURN_LOOKAHEAD) {
+          break;
+        }
+        prevReal = i;
+      }
+      const strategy = startIdx >= 0 ? 'trampoline' : 'return';
+      if (startIdx < 0) startIdx = afterReturn;
+      if (startIdx < 0) return null;
+      let endIdx = -1, lastReal = -1, closed = false;
+      for (let i = startIdx + 1; i < list.length; i++) {
+        if (list[i].flushed) continue;
+        if (REGION_HARNESS_RE.test(text(i))) {
+          endIdx = lastReal;
+          closed = true;
+          break;
+        }
+        lastReal = i;
+      }
+      if (endIdx < 0) endIdx = lastReal;
+      /* m5_dump_stats compiles to argument set-up plus a call, and its marker
+       * is inside the callee, so a trailing call and its set-up are dropped. */
+      const backOne = i => {
+        let k = i - 1;
+        while (k > startIdx && list[k].flushed) k--;
+        return k;
+      };
+      if (endIdx > startIdx && REGION_CALL_RE.test(text(endIdx))) {
+        endIdx = backOne(endIdx);
+        while (endIdx > startIdx && REGION_ARGSET_RE.test(text(endIdx))) endIdx = backOne(endIdx);
+      }
+      return endIdx > startIdx ? { startIdx, endIdx, strategy, closed } : null;
+    }
+
+    /* The templates also bracket the workload with two mcycle reads. The end is
+     * before the print block's run of loads, else the last jump to exit, else
+     * the instruction before the second read. */
+    function regionFromCounters(list, text) {
+      const reads = [];
+      for (let i = 0; i < list.length && reads.length < 2; i++) {
+        if (!list[i].flushed && REGION_MCYCLE_RE.test(text(i))) reads.push(i);
+      }
+      if (reads.length < 2) return null;
+      let endIdx = -1, runStart = -1, runLength = 0;
+      for (let i = reads[1] + 1; i < list.length; i++) {
+        if (list[i].flushed) continue;
+        if (!REGION_LOAD_RE.test(text(i))) {
+          runLength = 0;
+          continue;
+        }
+        if (runLength === 0) runStart = i;
+        if (++runLength >= REGION_PRINT_LOADS) {
+          endIdx = runStart - 1;
+          break;
+        }
+      }
+      if (endIdx < 0) {
+        for (let i = list.length - 1; i > reads[1]; i--) {
+          if (!list[i].flushed && REGION_EXIT_RE.test(text(i))) {
+            endIdx = i;
+            break;
+          }
+        }
+      }
+      if (endIdx < 0) endIdx = reads[1] - 1;
+      return endIdx > reads[0]
+        ? { startIdx: reads[0], endIdx, strategy: 'counters', closed: true } : null;
+    }
+
+    /* SHARED END main-region */
+
+    /* SHARED BEGIN css-token */
+
+    /* Needs: none */
+
+    /* A stylesheet token, for a script value that must follow the layout. */
+    function cssToken(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    /* SHARED END css-token */
+
+    /* ---- What FlowCompare reads ---- */
+
+    /* The keys each JSON must carry, found by metadata.tool. They follow MinorFlow schema 7 and
+     * CVA6Flow schema 3, so a schema change in either tracer needs a change here. Each stage is
+     * [key, column label, full name], and the high-line stages line up under the first two. */
+    const JSON_KINDS = {
+      minor: {
+        tool: 'minorflow_tracer',
+        schema: 7,
+        viewer: 'MinorFlow',
+        tracer: 'MinorFlow_tracer.py',
+        input: 'trace',
+        side: 'gem5 model',
+        stages: [
+          ['fe1_req_lo_cycle', 'FE1 req', 'Fetch1 request'],
+          ['fe1_resp_lo_cycle', 'FE1 resp', 'Fetch1 response'],
+          ['fe2_cycle', 'FE2', 'Fetch2'],
+          ['dec_cycle', 'DEC', 'Decode'],
+          ['ex_cycle', 'EX', 'Execute'],
+          ['fu_done_cycle', 'FU done', 'Functional unit done'],
+          ['co_cycle', 'CO', 'Commit'],
+        ],
+        hiStages: [
+          ['fe1_req_hi_cycle', 'FE1 hi req', 'Fetch1 request of the high line'],
+          ['fe1_resp_hi_cycle', 'FE1 hi resp', 'Fetch1 response of the high line'],
+        ],
+        /* synthesised_stages names fe1 for the response of the record's own line. */
+        synthesisedKeys: rec => new Set(rec.synthesised_stages.map(stage => ({
+          fe1: rec.wraps_line ? 'fe1_resp_hi_cycle' : 'fe1_resp_lo_cycle',
+          fe2: 'fe2_cycle', dec: 'dec_cycle', fu_done: 'fu_done_cycle',
+        })[stage])),
+      },
+      cva6: {
+        tool: 'cva6flow_tracer',
+        schema: 3,
+        viewer: 'CVA6Flow',
+        tracer: 'CVA6Flow_tracer.py',
+        input: 'VCD',
+        side: 'CVA6 RTL',
+        stages: [
+          ['fe1_lo_cycle', 'FE1 req', 'Fetch1 request, the I-cache request'],
+          ['fe2_lo_cycle', 'FE2 resp', 'Fetch2 response, the delivery'],
+          ['fe_out_cycle', 'FE out', 'Front-end output'],
+          ['dec_cycle', 'DEC', 'Decode'],
+          ['is_cycle', 'IS', 'Issue'],
+          ['ex_cycle', 'EX', 'Execute'],
+          ['wb_cycle', 'WB', 'Writeback'],
+          ['co_cycle', 'CO', 'Commit'],
+        ],
+        hiStages: [
+          ['fe1_hi_cycle', 'FE1 hi req', 'Fetch1 request of the high line'],
+          ['fe2_hi_cycle', 'FE2 hi resp', 'Fetch2 response of the high line'],
+        ],
+        /* synthesised_stages names the low fetch's two cycles. */
+        synthesisedKeys: rec => new Set(rec.synthesised_stages.map(stage => ({
+          fe1: 'fe1_lo_cycle', fe2: 'fe2_lo_cycle',
+        })[stage])),
+      },
+    };
+
+    /* Record keys the two schemas share, which the alignment and the detail read from both. */
+    const RECORD_KEYS = ['id', 'pc', 'disasm', 'fu', 'flushed', 'co_cycle', 'wraps_line',
+      'synthesised_stages'];
+
+    /* The kind of a parsed JSON as { kind }, or { refusal } with the HTML saying why not. A
+     * record leaves out a key whose value is null, so the keys are checked against
+     * metadata.record_fields rather than against a record. */
+    function jsonKind(json, name) {
+      const quoted = `<b>"${escapeHtml(name)}"</b>`;
+      if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+        return { refusal: `${quoted} is neither a MinorFlow nor a CVA6Flow JSON: the top level is `
+          + 'not an object.' };
+      }
+      let mismatch = null;
+      for (const [kind, spec] of Object.entries(JSON_KINDS)) {
+        mismatch = jsonMismatch(json, spec.tool, spec.schema);
+        if (mismatch && mismatch.kind === 'schema') {
+          return {
+            refusal: `${quoted} is schema ${escapeHtml(mismatch.schema ?? 'none')}, and `
+              + `FlowCompare reads ${spec.viewer} schema ${spec.schema}. Regenerate it with the `
+              + `matching ${spec.tracer}.`,
+          };
+        }
+        if (mismatch) continue;
+        const shape = reason => ({
+          refusal: `${quoted} does not look like a ${spec.viewer} JSON: ${escapeHtml(reason)}.`,
+        });
+        const records = json.instructions;
+        if (!Array.isArray(records)) return shape('it has no instructions array');
+        if (!records.length) {
+          return {
+            refusal: `${quoted} holds no instruction records: metadata.degraded lists no_records, `
+              + `so the tracer recovered nothing from the ${spec.input}.`,
+          };
+        }
+        if (records[0] === null || typeof records[0] !== 'object' || Array.isArray(records[0])) {
+          return shape('its first record is not an object');
+        }
+        const fields = json.metadata.record_fields;
+        if (!Array.isArray(fields)) return shape('metadata.record_fields is missing');
+        const keys = [...new Set(RECORD_KEYS.concat(spec.stages.map(stage => stage[0]),
+          spec.hiStages.map(stage => stage[0])))];
+        const missing = keys.filter(key => !fields.includes(key));
+        if (missing.length) {
+          return shape(`metadata.record_fields does not list ${missing.join(', ')}`);
+        }
+        return { kind };
+      }
+      const why = mismatch.kind === 'metadata' ? 'metadata is missing'
+        : mismatch.tool == null ? 'metadata.tool is missing'
+          : `metadata.tool is "${mismatch.tool}"`;
+      return { refusal: `${quoted} is neither a MinorFlow nor a CVA6Flow JSON: ${escapeHtml(why)}.` };
+    }
 
     /* ---- Alignment ---- */
 
-    /* The two disassemblers name the same encoding differently. gem5 prints
-     * the compressed mnemonic where objdump prints the expanded one, and the
-     * two disagree on which pseudo-instruction to show. Every entry here was
-     * read off a real pair, not guessed. */
+    /* Both disassemblers reduced to objdump's base mnemonic, for matching only, since gem5 prints
+     * the compressed or pseudo form where objdump expands it. Each entry was read off a real
+     * pair. CVA6Flow's display table maps the other way, from objdump to gem5's wording. */
     const MNEM_ALIAS = {
       'li': 'addi', 'mv': 'addi', 'nop': 'addi', 'sext.w': 'addiw',
       'zext.w': 'add', 'neg': 'sub', 'negw': 'subw', 'not': 'xori',
@@ -439,164 +1072,129 @@
       'fneg.s': 'fsgnjn.s', 'fneg.d': 'fsgnjn.d',
     };
 
-    /* Only the mnemonic is compared: operands carry addresses and symbol
-     * names that legitimately differ between the two builds. */
-    function normMnemonic(s) {
-      if (!s) return '';
-      let m = String(s).trim().toLowerCase().split(/[\s,]+/)[0];
-      m = m.replace(/_/g, '.');
+    /* objdump spells an addi whose last operand is a number as add, "add sp,sp,-32". */
+    const RE_NUMERIC_OPERAND = /^-?(?:0x[0-9a-f]+|\d+)$/i;
+
+    /* Only the mnemonic is compared, since operands carry addresses and symbol names that
+     * legitimately differ between the two builds. */
+    function normMnemonic(text) {
+      if (!text) return '';
+      const parts = String(text).trim().toLowerCase().replace(/\s+#.*$/, '').split(/[\s,]+/);
+      let mnem = parts[0].replace(/_/g, '.');
       /* gem5 appends the atomic ordering bits, as in amoadd.d[l]. */
-      m = m.replace(/\[[^\]]*\]$/, '');
+      mnem = mnem.replace(/\[[^\]]*\]$/, '');
       /* gem5 keeps the compressed form, objdump expands it. */
-      m = m.replace(/^c\./, '');
-      return MNEM_ALIAS[m] || m;
+      mnem = mnem.replace(/^c\./, '');
+      if ((mnem === 'add' || mnem === 'addw') && parts.length === 4
+        && RE_NUMERIC_OPERAND.test(parts[3])) {
+        mnem = mnem === 'add' ? 'addi' : 'addiw';
+      }
+      return MNEM_ALIAS[mnem] || mnem;
     }
 
-    /* A coarse class both vocabularies reduce to, used when the two
-     * disassemblers pick different pseudo-instructions for one encoding.
-     * Order matters: the unit names overlap, so the more specific test has
-     * to run first. */
-    function normClass(fu, mnem) {
-      const f = String(fu || '').toLowerCase();
-      const m = normMnemonic(mnem);
-      /* Atomics go through the store unit on CVA6 and a read unit on gem5,
-       * so neither unit name can decide this one. */
-      if (/^(lr\.|sc\.|amo)/.test(m)) return 'amo';
-      if (/^(csr|fence|ecall|ebreak|mret|sret|wfi|f(s|r)(csr|rm|flags))/.test(m)) return 'csr';
-      /* Float memory is memory first: gem5 calls it FloatMemRead, which
-       * would otherwise be caught by the float test below. */
-      if (/memwrite/.test(f) || /^store$/.test(f)) return 'store';
-      if (/memread/.test(f) || /^load$/.test(f)) return 'load';
-      if (/float|^fpu$/.test(f)) return 'fp';
-      /* CVA6 puts divides in the multiply unit, gem5 has a separate one, so
-       * the two are one class here. */
-      if (/div|mult/.test(f)) return 'muldiv';
-      if (/^csr$/.test(f)) return 'csr';
-      if (/ctrl_flow/.test(f)) return 'branch';
+    /* A coarse class both vocabularies reduce to, for when the two disassemblers pick different
+     * pseudo-instructions for one encoding. The unit names overlap, so the order matters. */
+    function normClass(fu, text) {
+      const unit = String(fu || '').toLowerCase();
+      const mnem = normMnemonic(text);
+      /* Atomics go through the store unit on CVA6 and a read unit on gem5. */
+      if (/^(lr\.|sc\.|amo)/.test(mnem)) return 'amo';
+      if (/^(csr|fence|ecall|ebreak|mret|sret|wfi|f(s|r)(csr|rm|flags))/.test(mnem)) return 'csr';
+      /* Before the float test, which would take gem5's FloatMemRead. */
+      if (/memwrite/.test(unit) || /^store$/.test(unit)) return 'store';
+      if (/memread/.test(unit) || /^load$/.test(unit)) return 'load';
+      if (/float|^fpu$/.test(unit)) return 'fp';
+      /* CVA6 divides in its multiply unit and gem5 in a unit of its own. */
+      if (/div|mult/.test(unit)) return 'muldiv';
+      if (/^csr$/.test(unit)) return 'csr';
+      if (/ctrl_flow/.test(unit)) return 'branch';
       /* gem5 folds branches into an integer unit, so the mnemonic decides. */
-      if (/^(jal|jalr|b(eq|ne|lt|ge|ltu|geu))$/.test(m)) return 'branch';
-      if (/^(l[bhwd]u?|flw|fld|ldsp|lwsp)/.test(m)) return 'load';
-      if (/^(s[bhwd]|fsw|fsd|sdsp|swsp)/.test(m)) return 'store';
-      if (/^(mul|div|rem)/.test(m)) return 'muldiv';
-      if (/^f/.test(m)) return 'fp';
-      if (/int|alu/.test(f)) return 'alu';
+      if (/^(jal|jalr|b(eq|ne|lt|ge|ltu|geu))$/.test(mnem)) return 'branch';
+      if (/^(l[bhwd]u?|flw|fld|ldsp|lwsp)/.test(mnem)) return 'load';
+      if (/^(s[bhwd]|fsw|fsd|sdsp|swsp)/.test(mnem)) return 'store';
+      if (/^(mul|div|rem)/.test(mnem)) return 'muldiv';
+      if (/^f/.test(mnem)) return 'fp';
+      if (/int|alu/.test(unit)) return 'alu';
       return 'other';
     }
 
-    /* Consecutive disagreements before the streams are called apart.
-     * Calibrated and exercised, not guessed: with the comparison scoped to
-     * the main region no benchmark disagrees at all, and in the whole-trace
-     * fallback the longest genuine harness run is 5. Injecting a divergent
-     * run into daxpy trips the flag at 12 corrupted instructions and leaves
-     * it clear at 9, so 8 has margin over the harness and still catches a
-     * real split. */
+    /* Consecutive disagreements before the streams count as parted. Scoped to the main region, no
+     * benchmark has a run this long, the longest harness run is 5 in whole-JSON mode, and a
+     * divergent run injected into daxpy trips the flag at 12 and leaves it clear at 9. */
     const SUSTAINED_RUN = 8;
 
-    /* Pairs at each end excluded from that test, and reported separately as
-     * head and tail unmatched. Measured in whole-trace mode across the
-     * benchmark set the brackets reach index 23 at the head and 56 pairs
-     * from the end, so 64 covers both with margin. The old comment claimed
-     * 44, which is short of the tail and would have left real bracket
-     * disagreements attributed to the body.
-     * Zero under region scoping, where the brackets are already excluded, so
-     * the clamp to a quarter of the pair count no longer swallows half of a
-     * short benchmark on the path that matters. */
+    /* Pairs at each end left out of that test in whole-JSON mode, where the harness brackets
+     * reach index 23 at the head and 56 pairs from the end over the benchmark set. Zero under
+     * region scoping, which has already cut the brackets off. */
     const EDGE_MARGIN = 64;
 
-    const MINOR_KEYS = { flushed: 'flushed', commit: 'cm', text: 'instr', fu: 'fu', pc: 'pc', id: 'seq' };
-    const CVA6_KEYS = { flushed: 'flushed', commit: 'co_cycle', text: 'disasm', fu: 'fu', pc: 'pc', id: 'id' };
+    /* Half-width of the offset search. The CVA6 bare-metal prologue runs about 1,900 committed
+     * instructions on the benchmark set, so this leaves room for a longer one. */
+    const DEFAULT_MAX_OFFSET = 8000;
 
-    /* ---- Main program region ----------------------------------------------
-     * Lifted verbatim from MinorFlow.html and CVA6Flow.html, where the two
-     * copies are byte-identical. The accessor argument is what lets one
-     * implementation read `instr` on the model side and `disasm` on the
-     * hardware side, so all three tools bracket the workload the same way. */
-const REGION_CALL_RE = /^(?:c_)?jalr?\b(?!\s+zero)/i;
-    /* Argument setup immediately in front of that call. */
-    const REGION_ARGSET_RE = /^(?:c_)?(?:li|mv|addi)\s+a[0-7]\b/i;
-    const REGION_JUMP_RE = /^(?:c\.)?(?:j|jal)\b/i;
-    const REGION_HARNESS_RE =
-      /\bM5Op\b|\bcsrrs?\s+\w+\s*,\s*(?:mcycle|minstret|mhpmcounter\d*|cycle|instret|0x[bc][0-9a-f]{2})\b/i;
-    function findMainRegion(list, disasmOf) {
-      /* The trampoline sits after the opening harness, so the search starts
-       * only once a counter read or m5op has been seen. Without that, any
-       * earlier aligned jump target qualifies and the region narrows wrongly. */
-      let prevReal = -1, startIdx = -1, harnessSeen = false;
-      for (let i = 0; i < list.length; i++) {
-        if (list[i].flushed) continue;
-        const dis = String(disasmOf(list[i]) || '');
-        if (!harnessSeen) {
-          if (REGION_HARNESS_RE.test(dis)) harnessSeen = true;
-          prevReal = i;
-          continue;
-        }
-        const pc = parseInt(list[i].pc, 16);
-        if (prevReal >= 0 && Number.isFinite(pc) && (pc & 0xfff) === 0
-          && REGION_JUMP_RE.test(String(disasmOf(list[prevReal]) || '').trim())) {
-          startIdx = i;
-          break;
-        }
-        prevReal = i;
-      }
-      if (startIdx < 0) return null;
-      /* End at the last real instruction before the harness resumes, or at the
-       * last real instruction of the trace if the harness never appears. */
-      let endIdx = -1, lastReal = -1;
-      for (let i = startIdx + 1; i < list.length; i++) {
-        if (list[i].flushed) continue;
-        if (REGION_HARNESS_RE.test(String(disasmOf(list[i]) || ''))) { endIdx = lastReal; break; }
-        lastReal = i;
-      }
-      if (endIdx < 0) endIdx = lastReal;
-      /* The call into the harness is not workload either: m5_dump_stats
-       * compiles to argument setup plus a call, and the marker is inside the
-       * callee. Only stripped when the region really does end in a call. */
-      const backOne = i => {
-        let k = i - 1;
-        while (k > startIdx && list[k].flushed) k--;
-        return k;
-      };
-      const dis = i => String(disasmOf(list[i]) || '').trim();
-      if (endIdx > startIdx && REGION_CALL_RE.test(dis(endIdx))) {
-        endIdx = backOne(endIdx);
-        while (endIdx > startIdx && REGION_ARGSET_RE.test(dis(endIdx))) {
-          endIdx = backOne(endIdx);
-        }
-      }
-      return endIdx > startIdx ? { startIdx, endIdx } : null;
-    }
+    /* Slack between the winning offset and the search edge below which the peak may be the edge
+     * of the window rather than the real one. */
+    const OFFSET_HEADROOM_MIN = 200;
 
-    /* The committed stream in commit order. Flushed records never appear:
-     * they are wrong-path work and the two machines speculate differently. */
-    function committedStream(records, keys, region) {
+    /* Offset candidates with fewer testable pairs than this are not scored. */
+    const OFFSET_MIN_PAIRS = 32;
+    /* Positions of the gem5 model stream the first pass of the offset search samples. */
+    const OFFSET_SAMPLE_CAP = 1200;
+    const OFFSET_SAMPLE_SEED = 0x9e3779b9;
+    /* Offsets whose sampled score is this close to the best are rescored over every pair. */
+    const OFFSET_RESCORE_BAND = 0.05;
+
+    /* Drift, as a share of the reference span, from which the report grades it amber and red.
+     * Either sign is a model error, so the grade follows the magnitude. */
+    const DRIFT_WARN_SHARE = 0.01;
+    const DRIFT_BAD_SHARE = 0.05;
+
+    /* The committed stream in commit order. A flushed record never committed: wrong-path work, or
+     * in CVA6Flow an instruction still in flight when the VCD ended. */
+    function committedStream(records, region) {
       const out = [];
       const lo = region ? region.startIdx : 0;
       const hi = region ? region.endIdx : records.length - 1;
       for (let idx = lo; idx <= hi; idx++) {
-        const r = records[idx];
-        if (r[keys.flushed]) continue;
-        const co = r[keys.commit];
-        if (co == null) continue;
+        const rec = records[idx];
+        if (rec.flushed || rec.co_cycle == null) continue;
         out.push({
-          rec: r, commit: co, id: r[keys.id],
-          mnem: normMnemonic(r[keys.text]),
-          cls: normClass(r[keys.fu], r[keys.text]),
-          text: r[keys.text] || '', pc: r[keys.pc],
+          rec,
+          commit: rec.co_cycle,
+          mnem: normMnemonic(rec.disasm),
+          cls: normClass(rec.fu, rec.disasm),
+          text: rec.disasm || '',
         });
       }
-      out.sort((a, b) => a.commit - b.commit);
+      out.sort((x, y) => x.commit - y.commit);
       return out;
     }
 
-    /* Agreement at one offset, sampled so the offset search stays cheap. */
-    function agreementAt(a, b, off, sampleCap) {
+    /* The same positions of the first stream for every offset, picked by a fixed xorshift. A
+     * stride that follows the overlap length aliases with any loop whose period divides it, and
+     * then scores one position of the loop only. */
+    function sampledPositions(length, cap) {
+      if (length <= cap) return Array.from({ length }, (_, i) => i);
+      const picked = new Set();
+      let state = OFFSET_SAMPLE_SEED;
+      while (picked.size < cap) {
+        state ^= state << 13;
+        state ^= state >>> 17;
+        state ^= state << 5;
+        state >>>= 0;
+        picked.add(state % length);
+      }
+      return Array.from(picked).sort((x, y) => x - y);
+    }
+
+    /* Agreement at one offset over the given positions of a. */
+    function agreementAt(a, b, off, positions) {
       const lo = Math.max(0, -off);
       const hi = Math.min(a.length, b.length - off);
-      const n = hi - lo;
-      if (n <= 0) return { n: 0, mnem: 0, cls: 0 };
-      const step = Math.max(1, Math.floor(n / (sampleCap || 1200)));
+      if (hi <= lo) return { n: 0, mnem: 0, cls: 0, score: 0 };
       let seen = 0, mnem = 0, cls = 0;
-      for (let i = lo; i < hi; i += step) {
+      for (const i of positions) {
+        if (i < lo || i >= hi) continue;
         const x = a[i], y = b[i + off];
         if (!x.mnem || !y.mnem) continue;
         seen++;
@@ -604,616 +1202,730 @@ const REGION_CALL_RE = /^(?:c_)?jalr?\b(?!\s+zero)/i;
         if (x.cls === y.cls) cls++;
       }
       if (!seen) return { n: 0, mnem: 0, cls: 0, score: 0 };
-      /* Weighted by how much of the shorter stream the offset actually
-       * covers. Agreement alone rewards a tiny window of near-identical
-       * epilogue over the real alignment, which is what a short benchmark
-       * with a long runtime prologue produces. */
-      const cover = n / Math.max(1, Math.min(a.length, b.length));
-      return { n: seen, mnem: mnem / seen, cls: cls / seen,
-        score: (mnem / seen) * cover };
+      /* Weighted by how much of the shorter stream the offset covers, since agreement alone
+       * prefers a tiny window of near-identical epilogue over the real alignment. */
+      const cover = (hi - lo) / Math.max(1, Math.min(a.length, b.length));
+      return { n: seen, mnem: mnem / seen, cls: cls / seen, score: (mnem / seen) * cover };
     }
 
-    /* Search half-width for the startup shift. The CVA6 bare-metal prologue
-     * runs about 1,900 committed instructions on the current benchmark set,
-     * so 2,000 left almost no headroom and a slightly longer prologue would
-     * have been clamped silently. The natural bound below still applies. */
-    const DEFAULT_MAX_OFFSET = 8000;
-
-    /* Instructions of slack required between the winning offset and the
-     * search edge before the result is trusted. Below this the peak may be
-     * the edge of the window rather than the real one. */
-    const OFFSET_HEADROOM_MIN = 200;
-
-    /* The two builds have different startup code, so the kernel can begin at
-     * a different position in each stream. The offset that maximises
-     * agreement recovers that shift without anyone having to name it.
-     * A winner close to the search edge is the danger: the true peak may lie
-     * outside, and the clamped answer still scores well. Capping daxpy at
-     * 1,500 returns 1,487 rather than 1,987 and still reads 98.7% mnemonic
-     * agreement, so headroom is reported and agreement alone is not trusted. */
-    function detectOffset(a, b, maxOff) {
-      const cap = Math.min(maxOff == null ? DEFAULT_MAX_OFFSET : maxOff,
-        Math.max(a.length, b.length) - 1);
-      let best = { off: 0, mnem: -1, cls: -1, score: -1 };
+    /* The two builds have different start-up code, so the kernel can begin at a different
+     * position in each stream. A winner near the search edge may be clamped and still score
+     * well, so the headroom is reported with it. */
+    function detectOffset(a, b) {
+      const cap = Math.min(DEFAULT_MAX_OFFSET, Math.max(a.length, b.length) - 1);
+      const sample = sampledPositions(a.length, OFFSET_SAMPLE_CAP);
+      const scored = [];
+      let top = -1;
       for (let off = -cap; off <= cap; off++) {
-        const g = agreementAt(a, b, off, 1200);
-        if (g.n < 32) continue;
-        if (g.score > best.score || (g.score === best.score && g.cls > best.cls)) {
+        const g = agreementAt(a, b, off, sample);
+        if (g.n < OFFSET_MIN_PAIRS) continue;
+        scored.push({ off, score: g.score });
+        top = Math.max(top, g.score);
+      }
+      /* A loop shifted by whole periods samples as well as the true offset, so every offset near
+       * the best is rescored over all its pairs, and a tie goes to the better class agreement,
+       * then to the smaller shift. */
+      const every = sampledPositions(a.length, Infinity);
+      let best = null;
+      for (const { off } of scored.filter(s => s.score >= top - OFFSET_RESCORE_BAND)) {
+        const g = agreementAt(a, b, off, every);
+        if (!best || g.score > best.score || (g.score === best.score
+          && (g.cls > best.cls || (g.cls === best.cls && Math.abs(off) < Math.abs(best.off))))) {
           best = { off, mnem: g.mnem, cls: g.cls, score: g.score };
         }
       }
-      if (best.score < 0) {
-        return { off: 0, mnem: 0, cls: 0, cap, headroom: cap, nearCap: false };
-      }
+      if (!best) return { off: 0, mnem: 0, cls: 0, cap, headroom: cap, nearCap: false };
       const headroom = cap - Math.abs(best.off);
-      return Object.assign(best,
-        { cap, headroom, nearCap: headroom < OFFSET_HEADROOM_MIN });
+      return Object.assign(best, { cap, headroom, nearCap: headroom < OFFSET_HEADROOM_MIN });
     }
 
-    function alignTraces(minorRecords, cva6Records, opts) {
-      const o = opts || {};
-      /* Compare the workload, not the harness. The two builds bracket the
-       * kernel differently: the CVA6 bare-metal crt.S runs about 1,900
-       * committed instructions costing about 3,650 cycles that gem5's SE mode
-       * never executes, which is 68% of the store_fwd trace. */
-      const regA = o.wholeTrace ? null
-        : findMainRegion(minorRecords, r => r[MINOR_KEYS.text]);
-      const regB = o.wholeTrace ? null
-        : findMainRegion(cva6Records, r => r[CVA6_KEYS.text]);
-      /* Both or neither. Restricting one side only would shift the streams
-       * against each other by the whole prologue. */
-      const useRegion = !!(regA && regB);
-      const A = committedStream(minorRecords, MINOR_KEYS, useRegion ? regA : null);
-      const B = committedStream(cva6Records, CVA6_KEYS, useRegion ? regB : null);
-      const det = (o.offset != null)
-        ? { off: o.offset, mnem: null, cls: null, cap: null,
-            headroom: null, nearCap: false }
-        : detectOffset(A, B, o.maxOffset);
+    /* options: offset (null for the search), reversed (the CVA6 RTL measured against the gem5
+     * model), and minorClipped and cva6Clipped, a side holding a slice of its JSON. */
+    function alignRecords(minorRecords, cva6Records, options) {
+      const o = options || {};
+      /* The workload, not the harness: CVA6's crt.S runs about 1,900 committed instructions
+       * and 3,650 cycles that gem5's SE mode never executes, 68% of store_fwd. A slice
+       * scopes to a region only when both of its markers are inside it. */
+      const regionMinor = findMainRegion(minorRecords, rec => rec.disasm, !!o.minorClipped);
+      const regionCva6 = findMainRegion(cva6Records, rec => rec.disasm, !!o.cva6Clipped);
+      /* Both or neither, since scoping one side only would shift the streams against each other
+       * by the whole prologue. */
+      const useRegion = !!(regionMinor && regionCva6);
+      const a = committedStream(minorRecords, useRegion ? regionMinor : null);
+      const b = committedStream(cva6Records, useRegion ? regionCva6 : null);
+      const det = o.offset != null
+        ? { off: o.offset, mnem: null, cls: null, cap: null, headroom: null, nearCap: false }
+        : detectOffset(a, b);
       const off = det.off;
 
       const lo = Math.max(0, -off);
-      const hi = Math.min(A.length, B.length - off);
+      const hi = Math.min(a.length, b.length - off);
+      /* A run inside the harness brackets is not a stream split. Under region scoping no
+       * brackets are left to forgive, so a run anywhere counts. */
+      const total = Math.max(0, hi - lo);
+      const edge = useRegion ? 0 : Math.min(EDGE_MARGIN, Math.floor(total / 4));
       const pairs = [];
       let exact = 0, byClass = 0, known = 0, unknown = 0, disagree = 0;
-      let run = 0, runStart = -1, longestRun = 0, sustainedAt = -1;
+      let run = 0, longestRun = 0, bodyRun = 0, bodyRunStart = -1, sustainedAt = -1;
       for (let i = lo; i < hi; i++) {
-        const x = A[i], y = B[i + off];
-        /* A record can arrive without disassembly. That is missing evidence,
-         * not evidence of divergence, so it never triggers the report. */
+        const x = a[i], y = b[i + off];
+        const k = pairs.length;
+        /* A record without disassembly is missing evidence, not evidence of divergence. */
         const testable = !!x.mnem && !!y.mnem;
-        const mOk = testable && x.mnem === y.mnem;
-        const cOk = testable && x.cls === y.cls;
-        const agree = mOk || cOk;
+        const mnemOk = testable && x.mnem === y.mnem;
+        const classOk = testable && x.cls === y.cls;
+        const agree = mnemOk || classOk;
         if (testable) {
           known++;
-          if (mOk) exact++;
-          if (cOk) byClass++;
+          if (mnemOk) exact++;
+          if (classOk) byClass++;
           if (agree) {
             run = 0;
+            bodyRun = 0;
           } else {
             disagree++;
-            if (run === 0) runStart = pairs.length;
             run++;
             if (run > longestRun) longestRun = run;
-            if (run >= SUSTAINED_RUN && sustainedAt < 0) sustainedAt = runStart;
+            /* Only the part of a run inside the body counts, so a run that starts in the head
+             * brackets and carries on into the body still parts the streams. */
+            if (k >= edge && k < total - edge) {
+              if (bodyRun === 0) bodyRunStart = k;
+              bodyRun++;
+              if (bodyRun >= SUSTAINED_RUN && sustainedAt < 0) sustainedAt = bodyRunStart;
+            } else {
+              bodyRun = 0;
+            }
           }
         } else {
           unknown++;
         }
-        pairs.push({ k: pairs.length, a: x, b: y, testable, mnemOk: mOk, classOk: cOk, agree });
+        pairs.push({ k, a: x, b: y, testable, mnemOk, classOk, agree });
       }
 
-      /* A run inside the harness brackets is not a stream split, so the
-       * sustained flag is withdrawn when it sits at either end. Under region
-       * scoping there are no brackets left to forgive, so a disagreement
-       * anywhere counts and the whole comparison stays under the test. */
-      const edge = useRegion
-        ? 0 : Math.min(EDGE_MARGIN, Math.floor(pairs.length / 4));
-      if (sustainedAt >= 0
-        && (sustainedAt < edge
-          || sustainedAt >= pairs.length - edge)) sustainedAt = -1;
-
-      /* Drift is measured from the first aligned pair, so a constant head
-       * start on either side drops out and only divergence remains. */
+      /* Drift counts from the first aligned pair, so a constant head start on either side drops
+       * out and only divergence remains. */
+      const sign = o.reversed ? -1 : 1;
       if (pairs.length) {
         const a0 = pairs[0].a.commit, b0 = pairs[0].b.commit;
         let prev = 0;
         for (const p of pairs) {
-          p.drift = (p.a.commit - a0) - (p.b.commit - b0);
+          p.drift = sign * ((p.a.commit - a0) - (p.b.commit - b0));
           p.step = p.drift - prev;
           prev = p.drift;
         }
       }
 
-      /* Split out so the report can say whether the unmatched pairs sit in
-       * the brackets, where they are expected, or in the body, where they
-       * are not. */
+      /* Split so the report can say whether the unmatched pairs sit in the brackets, where they
+       * are expected, or in the body, where they are not. */
       let headBad = 0, tailBad = 0;
-      const edgeN = useRegion
-        ? 0 : Math.min(EDGE_MARGIN, Math.floor(pairs.length / 4));
       for (const p of pairs) {
         if (!p.testable || p.agree) continue;
-        if (p.k < edgeN) headBad++;
-        else if (p.k >= pairs.length - edgeN) tailBad++;
+        if (p.k < edge) headBad++;
+        else if (p.k >= pairs.length - edge) tailBad++;
       }
 
       const n = known || 1;
+      const last = pairs.length ? pairs[pairs.length - 1] : null;
+      const minorSpan = last ? last.a.commit - pairs[0].a.commit : 0;
+      const cva6Span = last ? last.b.commit - pairs[0].b.commit : 0;
       return {
-        pairs, offset: off, autoOffset: (o.offset == null),
-        offsetSearch: { cap: det.cap, headroom: det.headroom,
-          nearCap: !!det.nearCap, mnem: det.mnem },
+        pairs,
+        offset: off,
+        autoOffset: o.offset == null,
+        reversed: !!o.reversed,
+        offsetSearch: { cap: det.cap, headroom: det.headroom, nearCap: !!det.nearCap },
         region: {
           used: useRegion,
-          model: regA, hardware: regB,
-          /* Which side failed, so the report can say why it fell back rather
-           * than silently comparing harness code. */
-          missing: useRegion ? null : (!regA && !regB ? 'both'
-            : (!regA ? 'model' : 'hardware')),
+          /* Which side has no region, so the report can say why it compares every record. */
+          missing: useRegion ? null
+            : !regionMinor && !regionCva6 ? 'both' : !regionMinor ? 'minor' : 'cva6',
         },
         counts: {
-          minorCommitted: A.length, cva6Committed: B.length,
-          aligned: pairs.length, comparable: known, noDisasm: unknown,
+          minorCommitted: a.length,
+          cva6Committed: b.length,
+          aligned: pairs.length,
+          comparable: known,
+          noDisasm: unknown,
         },
         quality: {
-          mnemonic: exact / n, klass: byClass / n,
-          disagree, longestRun, sustainedAt,
-          headUnmatched: headBad, tailUnmatched: tailBad,
+          mnemonic: exact / n,
+          klass: byClass / n,
+          disagree,
+          longestRun,
+          sustainedAt,
+          headUnmatched: headBad,
+          tailUnmatched: tailBad,
         },
-        finalDrift: pairs.length ? pairs[pairs.length - 1].drift : 0,
-        modelSpan: pairs.length ? pairs[pairs.length - 1].a.commit - pairs[0].a.commit : 0,
-        hwSpan: pairs.length ? pairs[pairs.length - 1].b.commit - pairs[0].b.commit : 0,
+        finalDrift: last ? last.drift : 0,
+        minorSpan,
+        cva6Span,
+        /* The drift is measured against the reference side's span. */
+        referenceSpan: o.reversed ? minorSpan : cva6Span,
       };
-    }
-
-    /* ---- Trace identification ---- */
-
-    /* Either file can go in either slot. The record shape decides, so a
-     * mis-drop is corrected silently instead of being reported as an error. */
-    function traceKind(j) {
-      if (!j || typeof j !== 'object' || !Array.isArray(j.instructions)
-        || !j.instructions.length) return null;
-      const r = j.instructions[0];
-      if ('disasm' in r && 'co_cycle' in r) return 'cva6';
-      if ('instr' in r && 'cm' in r) return 'minor';
-      if ('disasm' in r) return 'cva6';
-      if ('instr' in r) return 'minor';
-      return null;
     }
 
     /* ---- State ---- */
 
-    let MODEL = null, HW = null;          /* { name, json } */
-    let ALIGN = null;
-    let OFFSET_OVERRIDE = null;
-    let SELECTED = -1;
-    let RANKED = [];
+    /* Each slot holds { name, json }, or null before a load. */
+    const loaded = { minor: null, cva6: null };
+    let alignment = null;
+    let offsetOverride = null;
+    let reversed = false;
+    let selectedPair = -1;
+    let rankedPairs = [];
+    let plotGeometry = null;
+    let plotFramePending = false;
+    /* What the last load has to tell the reader, shown ahead of the report until the next load. */
+    let loadNotes = [];
 
-    const $ = id => document.getElementById(id);
-    const fmt = n => (n == null ? '-' : Number(n).toLocaleString());
-    const pct = x => (x * 100).toFixed(2) + '%';
+    const byId = id => document.getElementById(id);
+    const plot = byId('plot');
+    const tooltip = byId('tooltip');
+    const FONT_MONO = cssToken('--font-mono');
+    /* The plot's inks, the colour tokens read once, beside the guide lines no token names. */
+    const INK = Object.freeze({
+      drift: cssToken('--drift'),
+      parted: cssToken('--bad'),
+      axisZero: cssToken('--text2'),
+      axis: cssToken('--text3'),
+      caption: '#707070',
+      guideZero: 'rgba(255,255,255,.22)',
+      guide: 'rgba(255,255,255,.06)',
+      selection: 'rgba(255,255,255,.28)',
+    });
+    /* The drift fill and the parted line are the tokens at these alphas. */
+    const DRIFT_FILL_ALPHA = 0.10;
+    const PARTED_ALPHA = 0.75;
+    const COPY_FLASH_MS = 1200;
+    const CONTROL_IDS = [
+      'swap-button', 'copy-report-button', 'offset-minus', 'offset-plus', 'offset-auto'];
 
-    function escapeHtml(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g,
-        c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
+    /* A guide stepped up from a small negative minimum lands on -0, which prints as "-0". */
+    const signed = n => (n > 0 ? '+' : '') + fmtCount(n === 0 ? 0 : n);
 
     /* ---- Loading ---- */
 
-    function readTrace(file, preferredSlot) {
-      const fr = new FileReader();
-      fr.onerror = () => setReport(`<span class="bad">Could not read ${escapeHtml(file.name)}.</span>`);
-      fr.onload = () => {
-        let json;
-        try { json = JSON.parse(fr.result); }
-        catch (e) {
-          setReport(`<span class="bad">${escapeHtml(file.name)} is not valid JSON.</span>`);
-          return;
-        }
-        const kind = traceKind(json);
-        if (!kind) {
-          setReport(`<span class="bad">${escapeHtml(file.name)} is neither a MinorFlow nor a `
-            + `CVA6Flow trace. Both carry an <b>instructions</b> array of pipeline records.</span>`);
-          return;
-        }
-        const slot = { name: file.name, json };
-        if (kind === 'minor') MODEL = slot; else HW = slot;
-        /* preferredSlot only picks which name to show first when a file is
-         * dropped on a specific slot. The kind still decides where it goes. */
-        void preferredSlot;
-        refresh();
-      };
-      fr.readAsText(file);
+    function setReport(html) {
+      byId('report').innerHTML = loadNotes.concat(html ? [html] : [])
+        .join(' <span class="dim">·</span> ');
     }
 
-    function wireSlot(slotId, inputId) {
-      const slot = $(slotId), input = $(inputId);
+    /* The parsed JSON as { kind, name, json }, or { refusal } with the HTML saying why not. */
+    async function parseJsonFile(file) {
+      let text;
+      try {
+        text = await file.text();
+      } catch (err) {
+        return {
+          refusal: `The browser could not read <b>"${escapeHtml(file.name)}"</b>. It may be `
+            + 'unreadable, or larger than the browser can hold as one string.',
+        };
+      }
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (err) {
+        return {
+          refusal: `<b>"${escapeHtml(file.name)}"</b> is not valid JSON. The parser said: `
+            + `<code>${escapeHtml(err.message)}</code>`,
+        };
+      }
+      const verdict = jsonKind(json, file.name);
+      return verdict.refusal ? verdict : { kind: verdict.kind, name: file.name, json };
+    }
+
+    /* Loads files in order into their slots. A second JSON of a kind already loaded by the same
+     * drop is refused, and a manual offset belongs to the pair it was chosen for, so it resets. */
+    async function loadJsonFiles(files, notes) {
+      const taken = new Map();
+      for (const file of files) {
+        const parsed = await parseJsonFile(file);
+        if (parsed.refusal) {
+          notes.push(`<span class="bad">${parsed.refusal}</span>`);
+          continue;
+        }
+        const viewer = JSON_KINDS[parsed.kind].viewer;
+        if (taken.has(parsed.kind)) {
+          const other = JSON_KINDS[parsed.kind === 'minor' ? 'cva6' : 'minor'].viewer;
+          notes.push(`<span class="warn"><b>"${escapeHtml(taken.get(parsed.kind))}"</b> and `
+            + `<b>"${escapeHtml(parsed.name)}"</b> are both ${viewer} JSONs. Load a ${other} JSON `
+            + 'for the other slot.</span>');
+          continue;
+        }
+        taken.set(parsed.kind, parsed.name);
+        loaded[parsed.kind] = { name: parsed.name, json: parsed.json };
+      }
+      if (taken.size) offsetOverride = null;
+      loadNotes = notes;
+      refresh();
+    }
+
+    function wireSlot(kind) {
+      const slot = byId(`slot-${kind}`), input = byId(`file-${kind}`);
       slot.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter' || ev.key === ' ') { input.click(); ev.preventDefault(); }
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          input.click();
+          ev.preventDefault();
+        }
       });
       input.addEventListener('change', () => {
-        if (input.files && input.files[0]) readTrace(input.files[0], slotId);
+        if (input.files && input.files[0]) loadJsonFiles([input.files[0]], []);
         input.value = '';
       });
     }
-    wireSlot('slot-a', 'file-a');
-    wireSlot('slot-b', 'file-b');
 
-    /* Dropping anywhere is the fastest path, and two files at once is the
-     * normal case, so both are accepted. */
-    window.addEventListener('dragover', ev => { ev.preventDefault(); });
-    window.addEventListener('drop', ev => {
-      ev.preventDefault();
-      const files = ev.dataTransfer && ev.dataTransfer.files;
-      if (!files || !files.length) return;
-      for (let i = 0; i < Math.min(2, files.length); i++) readTrace(files[i], null);
-    });
-
-    function swapSlots() {
-      const t = MODEL; MODEL = HW; HW = t;
-      refresh();
+    /* Two JSONs dropped together is the usual case, and metadata.tool puts each in its slot. */
+    function wireDrop() {
+      document.addEventListener('dragover', ev => ev.preventDefault());
+      document.addEventListener('drop', ev => {
+        ev.preventDefault();
+        const files = ev.dataTransfer && ev.dataTransfer.files;
+        if (!files || !files.length) return;
+        const notes = files.length > 2
+          ? [`<span class="warn">${fmtCount(files.length)} files were dropped, and FlowCompare `
+            + 'read the first two.</span>']
+          : [];
+        loadJsonFiles([...files].slice(0, 2), notes);
+      });
     }
 
-    function nudgeOffset(d) {
-      if (!ALIGN) return;
-      OFFSET_OVERRIDE = (OFFSET_OVERRIDE == null ? ALIGN.offset : OFFSET_OVERRIDE) + d;
+    function nudgeOffset(delta) {
+      if (!alignment) return;
+      offsetOverride = (offsetOverride == null ? alignment.offset : offsetOverride) + delta;
       refresh();
     }
-    function resetOffset() { OFFSET_OVERRIDE = null; refresh(); }
 
     /* ---- Report ---- */
 
-    function setReport(html) { $('report').innerHTML = html; }
+    function sideMissing(region) {
+      return region.missing === 'both' ? 'either JSON'
+        : `the ${JSON_KINDS[region.missing].viewer} JSON`;
+    }
+
+    /* The slice a clipped JSON holds, in the words the viewers' Extra Info uses, or null for a
+     * whole JSON. */
+    function clippedText(kind) {
+      const clip = loaded[kind].json.metadata.clipped;
+      if (!clip) return null;
+      return `the ${JSON_KINDS[kind].viewer} JSON holds records ${fmtCount(clip.first_record)} to `
+        + `${fmtCount(clip.last_record)} of ${fmtCount(clip.n_records_source)} in `
+        + `${escapeHtml(clip.source)}`;
+    }
+
+    /* The side whose drift is measured, the one it is measured against, and the grade of the
+     * drift's magnitude. */
+    function driftTerms() {
+      const d = alignment.finalDrift;
+      const share = alignment.referenceSpan ? Math.abs(d) / alignment.referenceSpan : 0;
+      const grade = share >= DRIFT_BAD_SHARE ? 'bad' : share >= DRIFT_WARN_SHARE ? 'warn' : 'good';
+      return {
+        d, share, grade,
+        name: alignment.reversed ? 'RTL minus model' : 'model minus RTL',
+        reference: alignment.reversed ? 'the model\'s' : 'the RTL\'s',
+      };
+    }
 
     function buildReport() {
-      const c = ALIGN.counts, q = ALIGN.quality;
-      const grade = v => v >= 0.995 ? 'good' : v >= 0.95 ? 'warn' : 'bad';
+      const c = alignment.counts, q = alignment.quality;
+      const grade = v => (v >= 0.995 ? 'good' : v >= 0.95 ? 'warn' : 'bad');
       const parts = [];
-      parts.push(`committed <b>${fmt(c.minorCommitted)}</b> model `
-        + `<span class="dim">vs</span> <b>${fmt(c.cva6Committed)}</b> hardware`);
+      parts.push(`committed <b>${fmtCount(c.minorCommitted)}</b> model `
+        + `<span class="dim">vs</span> <b>${fmtCount(c.cva6Committed)}</b> RTL`);
       if (c.minorCommitted !== c.cva6Committed) {
         parts.push(`<span class="warn">counts differ by `
-          + `${fmt(Math.abs(c.minorCommitted - c.cva6Committed))}</span>`);
+          + `${fmtCount(Math.abs(c.minorCommitted - c.cva6Committed))}</span>`);
       }
-      parts.push(`aligned <b>${fmt(c.aligned)}</b>`);
-      /* The comparison is scoped to the workload. Say so, because a reader
-       * otherwise cannot tell whether a drift figure includes the harness. */
-      const rg = ALIGN.region;
-      if (rg && rg.used) {
+      parts.push(`aligned <b>${fmtCount(c.aligned)}</b>`);
+      const clipped = { minor: clippedText('minor'), cva6: clippedText('cva6') };
+      for (const kind of ['minor', 'cva6']) {
+        if (clipped[kind]) parts.push(`<span class="warn">${clipped[kind]}</span>`);
+      }
+      /* Said either way, since a reader cannot otherwise tell whether a drift includes the
+       * harness. A slice has no start-up or teardown to include. */
+      const region = alignment.region;
+      if (region.used) {
         parts.push('<span class="good">main program only</span>');
-      } else if (rg) {
-        const which = rg.missing === 'both' ? 'neither trace'
-          : rg.missing === 'model' ? 'the model trace' : 'the hardware trace';
-        parts.push(`<span class="bad">whole trace: no main-program region in `
-          + `${which}, so startup and teardown are included</span>`);
-      }
-      parts.push(`offset <b>${ALIGN.offset}</b>`
-        + (ALIGN.autoOffset ? '' : ' <span class="warn">manual</span>'));
-      /* A winner on the search boundary means the true offset may lie beyond
-       * it, so the alignment is not trustworthy however good the agreement
-       * looks. Say so rather than reporting a plausible wrong number. */
-      const os = ALIGN.offsetSearch;
-      if (os && os.nearCap) {
-        parts.push(`<span class="bad">only ${fmt(os.headroom)} of slack to the `
-          + `\u00b1${fmt(os.cap)} search limit, so the offset may be clamped`
+      } else {
+        const sides = region.missing === 'both' ? ['minor', 'cva6'] : [region.missing];
+        const whole = sides.every(kind => !clipped[kind]);
+        parts.push(`<span class="bad">every record: no main-program region in `
+          + `${sideMissing(region)}${whole ? ', so start-up and teardown are included' : ''}`
           + '</span>');
       }
-      parts.push(`mnemonic <span class="${grade(q.mnemonic)}">${pct(q.mnemonic)}</span>`);
-      parts.push(`class <span class="${grade(q.klass)}">${pct(q.klass)}</span>`);
-      if (c.noDisasm) parts.push(`<span class="dim">${fmt(c.noDisasm)} without disassembly</span>`);
+      parts.push(`offset <b>${signed(alignment.offset)}</b>`
+        + (alignment.autoOffset ? '' : ' <span class="warn">manual</span>'));
+      const search = alignment.offsetSearch;
+      if (search.nearCap) {
+        parts.push(`<span class="bad">only ${fmtCount(search.headroom)} of slack to the `
+          + `±${fmtCount(search.cap)} search limit, so the offset may be clamped</span>`);
+      }
+      parts.push(`mnemonic <span class="${grade(q.mnemonic)}">${fmtPercent(q.mnemonic)}</span>`);
+      parts.push(`class <span class="${grade(q.klass)}">${fmtPercent(q.klass)}</span>`);
+      if (c.noDisasm) {
+        parts.push(`<span class="dim">${fmtCount(c.noDisasm)} without disassembly</span>`);
+      }
+      /* An offset one pair out leaves no long run, only alternating misses, so the class
+       * agreement decides before the absence of a run is called agreement. */
       if (q.sustainedAt >= 0) {
-        parts.push(`<span class="bad">streams part at #${fmt(q.sustainedAt)}</span>`);
+        parts.push(`<span class="bad">streams part at pair ${fmtCount(q.sustainedAt)}</span>`);
+      } else if (c.comparable && grade(q.klass) === 'bad') {
+        parts.push('<span class="bad">most pairs disagree, so the offset may be wrong</span>');
       } else if (c.comparable) {
         parts.push('<span class="good">streams agree throughout</span>');
       }
       if (q.disagree) {
-        parts.push(`<span class="dim">${fmt(q.disagree)} unmatched, longest run `
-          + `${fmt(q.longestRun)}</span>`);
+        parts.push(`<span class="dim">${fmtCount(q.disagree)} unmatched, longest run `
+          + `${fmtCount(q.longestRun)}</span>`);
       }
       if (q.headUnmatched || q.tailUnmatched) {
-        parts.push(`<span class="dim">${fmt(q.headUnmatched + q.tailUnmatched)} of those `
+        parts.push(`<span class="dim">${fmtCount(q.headUnmatched + q.tailUnmatched)} of those `
           + 'in the harness brackets</span>');
       }
-      const d = ALIGN.finalDrift;
-      const err = ALIGN.hwSpan ? Math.abs(d) / ALIGN.hwSpan : 0;
-      parts.push(`drift <b class="${d > 0 ? 'bad' : d < 0 ? 'good' : ''}">`
-        + `${d > 0 ? '+' : ''}${fmt(d)}c</b> over ${fmt(ALIGN.hwSpan)}c `
-        + `<span class="dim">(${pct(err)})</span>`);
+      const drift = driftTerms();
+      parts.push(`${drift.name} <b class="${drift.grade}">${signed(drift.d)}c</b> over `
+        + `${drift.reference} ${fmtCount(alignment.referenceSpan)}c `
+        + `<span class="dim">(${fmtPercent(drift.share)})</span>`);
       setReport(parts.join(' <span class="dim">·</span> '));
     }
 
-    function copyReport() {
-      if (!ALIGN) return;
-      const c = ALIGN.counts, q = ALIGN.quality;
-      const err = ALIGN.hwSpan ? Math.abs(ALIGN.finalDrift) / ALIGN.hwSpan : 0;
-      const txt = [
-        `model      ${MODEL ? MODEL.name : '-'}`,
-        `hardware   ${HW ? HW.name : '-'}`,
-        `scope      ${ALIGN.region && ALIGN.region.used
-          ? 'main program only'
-          : 'WHOLE TRACE, no region found in '
-            + (ALIGN.region ? ALIGN.region.missing : 'unknown')}`,
-        `committed  ${c.minorCommitted} model, ${c.cva6Committed} hardware, ${c.aligned} aligned`,
-        `offset     ${ALIGN.offset}${ALIGN.autoOffset ? ' (auto)' : ' (manual)'}`
-        + (ALIGN.offsetSearch && ALIGN.offsetSearch.nearCap
-          ? `, MAY BE CLAMPED: ${ALIGN.offsetSearch.headroom} of slack to the`
-            + ` +/-${ALIGN.offsetSearch.cap} search limit` : ''),
-        `agreement  mnemonic ${pct(q.mnemonic)}, class ${pct(q.klass)}`
-        + (c.noDisasm ? `, ${c.noDisasm} without disassembly` : ''),
-        `unmatched  ${q.disagree}, longest run ${q.longestRun}`
-        + (q.sustainedAt >= 0 ? `, sustained from #${q.sustainedAt}` : ''),
-        `span       ${ALIGN.modelSpan} model, ${ALIGN.hwSpan} hardware`,
-        `drift      ${ALIGN.finalDrift > 0 ? '+' : ''}${ALIGN.finalDrift} cycles (${pct(err)})`,
+    function reportText() {
+      const c = alignment.counts, q = alignment.quality, region = alignment.region;
+      const search = alignment.offsetSearch;
+      const drift = driftTerms();
+      const records = kind => {
+        const clip = loaded[kind].json.metadata.clipped;
+        return clip ? `${fmtCount(clip.first_record)} to ${fmtCount(clip.last_record)} of `
+          + `${fmtCount(clip.n_records_source)} in ${clip.source}`
+          : `all ${fmtCount(loaded[kind].json.instructions.length)}`;
+      };
+      return [
+        `gem5 model  ${loaded.minor.name}`,
+        `CVA6 RTL    ${loaded.cva6.name}`,
+        `records     ${records('minor')} model, ${records('cva6')} RTL`,
+        `scope       ${region.used ? 'main program only'
+          : `EVERY RECORD, no main-program region in ${sideMissing(region)}`}`,
+        `committed   ${fmtCount(c.minorCommitted)} model, ${fmtCount(c.cva6Committed)} RTL, `
+          + `${fmtCount(c.aligned)} aligned`,
+        `offset      ${signed(alignment.offset)}${alignment.autoOffset ? ' (auto)' : ' (manual)'}`
+          + (search.nearCap ? `, MAY BE CLAMPED: ${fmtCount(search.headroom)} of slack to the `
+            + `+/-${fmtCount(search.cap)} search limit` : ''),
+        `agreement   mnemonic ${fmtPercent(q.mnemonic)}, class ${fmtPercent(q.klass)}`
+          + (c.noDisasm ? `, ${fmtCount(c.noDisasm)} without disassembly` : ''),
+        `unmatched   ${fmtCount(q.disagree)}, longest run ${fmtCount(q.longestRun)}`
+          + (q.sustainedAt >= 0 ? `, sustained from pair ${fmtCount(q.sustainedAt)}` : ''),
+        `span        ${fmtCount(alignment.minorSpan)} model, ${fmtCount(alignment.cva6Span)} RTL`,
+        `drift       ${signed(drift.d)} cycles (${fmtPercent(drift.share)}), ${drift.name}`,
       ].join('\n');
-      const done = ok => {
-        const b = $('btn-copy');
-        b.textContent = ok ? 'Copied' : 'Copy failed';
-        setTimeout(() => { b.textContent = 'Copy report'; }, 1400);
-      };
-      const fallback = () => {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = txt; document.body.appendChild(ta); ta.select();
-          document.execCommand('copy'); ta.remove(); done(true);
-        } catch (e) { done(false); }
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(txt).then(() => done(true), fallback);
-      } else fallback();
+    }
+
+    async function copyReport() {
+      if (!alignment) return;
+      const copied = await copyText(reportText());
+      flashButtonLabel(byId('copy-report-button'), copied ? 'Copied' : 'Copy failed',
+        COPY_FLASH_MS);
     }
 
     /* ---- Divergence list ---- */
 
-    function buildList() {
-      const tb = $('rows');
-      if (!ALIGN || !ALIGN.pairs.length) {
-        tb.innerHTML = '<tr><td colspan="7" class="dim" style="padding:10px">No alignment yet.</td></tr>';
-        RANKED = [];
-        return;
-      }
-      /* Ranked by how much one instruction moved the curve, which is the
-       * question the curve provokes. Ties keep program order. */
-      RANKED = ALIGN.pairs.filter(p => p.step !== 0)
-        .sort((x, y) => Math.abs(y.step) - Math.abs(x.step) || x.k - y.k)
-        .slice(0, 300);
-      if (!RANKED.length) {
-        tb.innerHTML = '<tr><td colspan="7" class="dim" style="padding:10px">'
-          + 'The two runs commit in lockstep. No instruction moved the curve.</td></tr>';
-        return;
-      }
-      const rows = RANKED.map(p => {
-        const cls = p.step > 0 ? 'slow' : 'fast';
-        const note = !p.testable ? '<span class="dim">no disassembly</span>'
-          : !p.agree ? '<span class="bad">streams differ here</span>'
-            : !p.mnemOk ? `<span class="flag">${escapeHtml(p.b.mnem)} vs ${escapeHtml(p.a.mnem)}</span>`
-              : '';
-        return `<tr data-k="${p.k}">`
-          + `<td class="num dim">${fmt(p.k)}</td>`
-          + `<td class="num ${cls}">${p.step > 0 ? '+' : ''}${fmt(p.step)}</td>`
-          + `<td class="num">${p.drift > 0 ? '+' : ''}${fmt(p.drift)}</td>`
-          + `<td>${escapeHtml((p.b.text || p.a.text || '').slice(0, 44))}</td>`
-          + `<td class="num dim">${fmt(p.a.commit)}</td>`
-          + `<td class="num dim">${fmt(p.b.commit)}</td>`
-          + `<td>${note}</td></tr>`;
-      });
-      tb.innerHTML = rows.join('');
+    function placeholderRow(text) {
+      return `<tr><td colspan="7" class="dim placeholder">${text}</td></tr>`;
     }
 
-    $('rows').addEventListener('click', ev => {
-      const tr = ev.target.closest('tr');
-      if (!tr || !tr.dataset.k) return;
-      selectPair(parseInt(tr.dataset.k, 10));
-    });
+    /* The instruction text of a pair, both sides when their mnemonics differ. */
+    function pairText(p, max) {
+      const clip = text => (max ? text.slice(0, max) : text);
+      if (p.a.text && p.b.text && p.a.mnem !== p.b.mnem) {
+        return `${escapeHtml(clip(p.a.text))} <span class="dim">vs</span> `
+          + escapeHtml(clip(p.b.text));
+      }
+      return escapeHtml(clip(p.b.text || p.a.text || '(no disassembly)'));
+    }
+
+    function buildList() {
+      const body = byId('rows');
+      if (!alignment || !alignment.pairs.length) {
+        body.innerHTML = placeholderRow('No alignment yet.');
+        rankedPairs = [];
+        return;
+      }
+      /* Ranked by how far one instruction moved the curve, which is the question the curve
+       * raises. Ties keep program order. */
+      rankedPairs = alignment.pairs.filter(p => p.step !== 0)
+        .sort((x, y) => Math.abs(y.step) - Math.abs(x.step) || x.k - y.k)
+        .slice(0, 300);
+      if (!rankedPairs.length) {
+        body.innerHTML = placeholderRow(
+          'The two runs commit in lockstep. No instruction moved the curve.');
+        return;
+      }
+      body.innerHTML = rankedPairs.map(p => {
+        const note = !p.testable ? '<span class="dim">no disassembly</span>'
+          : !p.agree ? '<span class="bad">streams differ here</span>'
+            : !p.mnemOk
+              ? `<span class="flag">${escapeHtml(p.a.mnem)} vs ${escapeHtml(p.b.mnem)}</span>`
+              : '';
+        return `<tr data-k="${p.k}">`
+          + `<td class="numeric dim">${fmtCount(p.k)}</td>`
+          + `<td class="numeric ${p.step > 0 ? 'slow' : 'fast'}">${signed(p.step)}</td>`
+          + `<td class="numeric">${signed(p.drift)}</td>`
+          + `<td>${escapeHtml((p.b.text || p.a.text).slice(0, 44))}</td>`
+          + `<td class="numeric dim">${fmtCount(p.a.commit)}</td>`
+          + `<td class="numeric dim">${fmtCount(p.b.commit)}</td>`
+          + `<td>${note}</td></tr>`;
+      }).join('');
+    }
 
     function selectPair(k) {
-      SELECTED = k;
-      for (const tr of $('rows').querySelectorAll('tr')) {
-        tr.classList.toggle('sel', tr.dataset.k === String(k));
+      selectedPair = k;
+      for (const row of byId('rows').querySelectorAll('tr')) {
+        row.classList.toggle('selected', row.dataset.k === String(k));
       }
       showDetail(k);
       drawPlot();
     }
 
-    /* Stage cycles side by side, each rebased so the two are comparable
-     * despite starting at completely different absolute cycles. */
-    const MODEL_STAGES = [['f1req', 'fetch req'], ['f1', 'fetch resp'], ['f2', 'fetch2'],
-      ['dec', 'decode'], ['ex', 'execute'], ['fuDone', 'unit done'], ['cm', 'commit']];
-    const HW_STAGES = [['if1_lo', 'fetch req'], ['if2_lo', 'fetch resp'], ['fe_cycle', 'front-end out'],
-      ['id_cycle', 'decode'], ['is_cycle', 'issue'], ['ex_cycle', 'execute'],
-      ['wb_cycle', 'writeback'], ['co_cycle', 'commit']];
+    /* One side's stage cycles, relative to its own commit, with a high-line row when either
+     * record of the pair spans two fetch lines. A synthesised cycle ends in ~, as in the
+     * viewers. */
+    function detailTable(kind, rec, withHiRow, inkClass) {
+      const spec = JSON_KINDS[kind];
+      const synthesised = spec.synthesisedKeys(rec);
+      const rebase = (key, v) => (v == null ? '-' : (v - rec.co_cycle >= 0 ? '+' : '')
+        + fmtCount(v - rec.co_cycle) + (synthesised.has(key) ? ' ~' : ''));
+      const head = spec.stages.map(([, label, name]) =>
+        `<th title="${escapeHtml(name)}">${label}</th>`).join('');
+      const cells = stages => stages.map(([key, , name]) =>
+        `<td title="${escapeHtml(name)}">${rebase(key, rec[key])}</td>`).join('');
+      let html = `<table><tr><th></th>${head}</tr>`
+        + `<tr><th><span class="${inkClass}">${spec.side}</span> `
+        + `#${escapeHtml(rec.id)} ${escapeHtml(rec.pc)}</th>${cells(spec.stages)}</tr>`;
+      if (withHiRow) {
+        const blanks = '<td></td>'.repeat(spec.stages.length - spec.hiStages.length);
+        html += `<tr><th class="dim">high line</th>${cells(spec.hiStages)}${blanks}</tr>`;
+      }
+      return html + '</table>';
+    }
 
     function showDetail(k) {
-      const p = ALIGN && ALIGN.pairs[k];
-      const el = $('detail');
-      if (!p) { el.style.display = 'none'; return; }
-      const rebase = (v, base) => (v == null ? '-' : (v - base >= 0 ? '+' : '') + (v - base));
-      const aBase = p.a.rec[MINOR_KEYS.commit], bBase = p.b.rec[CVA6_KEYS.commit];
-      const row = (label, cells) => `<tr><th>${label}</th>${cells}</tr>`;
-      const aCells = MODEL_STAGES.map(([f, n]) =>
-        `<td title="${n}">${rebase(p.a.rec[f], aBase)}</td>`).join('');
-      const bCells = HW_STAGES.map(([f, n]) =>
-        `<td title="${n}">${rebase(p.b.rec[f], bBase)}</td>`).join('');
-      el.innerHTML = `<div style="color:var(--text2);margin-bottom:5px">`
-        + `#${fmt(k)} <span class="dim">·</span> `
-        + `${escapeHtml(p.b.text || p.a.text || '(no disassembly)')} `
-        + `<span class="dim">· step ${p.step > 0 ? '+' : ''}${fmt(p.step)}c `
-        + `· drift ${p.drift > 0 ? '+' : ''}${fmt(p.drift)}c</span></div>`
-        + `<table><tr><th></th>`
-        + MODEL_STAGES.map(([, n]) => `<th>${n}</th>`).join('') + `</tr>`
-        + row(`<span style="color:var(--model)">model</span> ${escapeHtml(p.a.pc || '')}`, aCells)
-        + `</table>`
-        + `<table style="margin-top:4px"><tr><th></th>`
-        + HW_STAGES.map(([, n]) => `<th>${n}</th>`).join('') + `</tr>`
-        + row(`<span style="color:var(--hw)">hardware</span> ${escapeHtml(p.b.pc || '')}`, bCells)
-        + `</table>`
-        + `<div class="dim" style="margin-top:5px">Cycles are shown relative to each `
-        + `instruction's own commit, since the two runs start at different absolute cycles.</div>`;
-      el.style.display = 'block';
+      const p = alignment && alignment.pairs[k];
+      const el = byId('detail');
+      if (!p) {
+        el.hidden = true;
+        return;
+      }
+      const wraps = !!(p.a.rec.wraps_line || p.b.rec.wraps_line);
+      const synthesised = p.a.rec.synthesised_stages.length || p.b.rec.synthesised_stages.length;
+      el.innerHTML = `<div class="detail-head">pair ${fmtCount(k)} <span class="dim">·</span> `
+        + `${pairText(p)} `
+        + `<span class="dim">· step ${signed(p.step)}c · drift ${signed(p.drift)}c</span></div>`
+        + detailTable('minor', p.a.rec, wraps, 'minor-ink')
+        + detailTable('cva6', p.b.rec, wraps, 'cva6-ink')
+        + '<div class="dim detail-note">Cycles are relative to each instruction\'s own commit, '
+        + 'since the two runs start at different absolute cycles. The # is the record\'s id in '
+        + 'its own JSON.'
+        + (synthesised ? ' ~ marks a cycle the tracer synthesised rather than observed.' : '')
+        + '</div>';
+      el.hidden = false;
     }
 
     /* ---- The drift curve ---- */
 
-    const plot = $('plot');
-    let PLOT_GEO = null;
-
-    function sizePlot() {
-      const wrap = $('plotwrap');
-      const dpr = window.devicePixelRatio || 1;
-      const w = wrap.clientWidth, h = wrap.clientHeight;
-      plot.width = Math.max(1, Math.floor(w * dpr));
-      plot.height = Math.max(1, Math.floor(h * dpr));
-      plot.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
-      return { w, h };
-    }
-
     function drawPlot() {
-      const { w, h } = sizePlot();
-      const ctx = plot.getContext('2d');
+      plotFramePending = false;
+      const wrap = byId('plot-wrap');
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      const ctx = sizeCanvas(plot, w, h);
       ctx.clearRect(0, 0, w, h);
-      if (!ALIGN || !ALIGN.pairs.length) { PLOT_GEO = null; return; }
+      if (!alignment || !alignment.pairs.length) {
+        plotGeometry = null;
+        return;
+      }
 
-      const pairs = ALIGN.pairs;
+      const pairs = alignment.pairs;
       const padL = 62, padR = 14, padT = 16, padB = 24;
       const pw = Math.max(1, w - padL - padR), ph = Math.max(1, h - padT - padB);
 
       let dMin = 0, dMax = 0;
-      for (const p of pairs) { if (p.drift < dMin) dMin = p.drift; if (p.drift > dMax) dMax = p.drift; }
-      if (dMin === dMax) { dMin -= 1; dMax += 1; }
+      for (const p of pairs) {
+        if (p.drift < dMin) dMin = p.drift;
+        if (p.drift > dMax) dMax = p.drift;
+      }
+      if (dMin === dMax) {
+        dMin -= 1;
+        dMax += 1;
+      }
       const span = dMax - dMin;
       const X = k => padL + (pairs.length < 2 ? 0 : k / (pairs.length - 1) * pw);
       const Y = d => padT + (dMax - d) / span * ph;
-      PLOT_GEO = { padL, padT, pw, ph, X, Y, n: pairs.length };
+      plotGeometry = { padL, pw, n: pairs.length };
 
-      /* Horizontal guides at a round cycle step, plus a stronger zero line
-       * because the sign of the drift is the first thing to read. */
+      /* Guides at a round cycle step, with a stronger zero line because the sign of the drift is
+       * the first thing to read. */
       const rawStep = span / 4;
       const mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, rawStep))));
       const step = Math.max(1, Math.ceil(rawStep / mag) * mag);
-      ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+      ctx.font = '10px ' + FONT_MONO;
       ctx.textBaseline = 'middle';
       for (let v = Math.ceil(dMin / step) * step; v <= dMax; v += step) {
         const y = Y(v);
-        ctx.strokeStyle = v === 0 ? 'rgba(255,255,255,.22)' : 'rgba(255,255,255,.06)';
-        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + pw, y); ctx.stroke();
-        ctx.fillStyle = v === 0 ? '#a0a09a' : '#505050';
+        ctx.strokeStyle = v === 0 ? INK.guideZero : INK.guide;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + pw, y);
+        ctx.stroke();
+        ctx.fillStyle = v === 0 ? INK.axisZero : INK.axis;
         ctx.textAlign = 'right';
-        ctx.fillText((v > 0 ? '+' : '') + v.toLocaleString(), padL - 7, y);
+        ctx.fillText(signed(v), padL - 7, y);
       }
 
-      /* Fill between the curve and zero, so which side is ahead is legible
-       * without reading the axis. */
+      /* Filled to zero, so which side is ahead reads without the axis. */
       const y0 = Y(0);
       ctx.beginPath();
       ctx.moveTo(X(0), y0);
       for (let i = 0; i < pairs.length; i++) ctx.lineTo(X(i), Y(pairs[i].drift));
       ctx.lineTo(X(pairs.length - 1), y0);
       ctx.closePath();
-      ctx.fillStyle = 'rgba(235,180,80,.10)';
+      ctx.fillStyle = INK.drift;
+      ctx.globalAlpha = DRIFT_FILL_ALPHA;
       ctx.fill();
+      ctx.globalAlpha = 1;
 
       ctx.beginPath();
       for (let i = 0; i < pairs.length; i++) {
         const x = X(i), y = Y(pairs[i].drift);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
-      ctx.strokeStyle = '#ebb450';
+      ctx.strokeStyle = INK.drift;
       ctx.lineWidth = 1.4;
       ctx.stroke();
 
       /* Where the streams part, everything to the right is unreliable. */
-      const fd = ALIGN.quality.sustainedAt;
-      if (fd >= 0 && fd < pairs.length) {
-        const x = X(fd);
-        ctx.strokeStyle = 'rgba(226,88,94,.75)';
+      const parted = alignment.quality.sustainedAt;
+      if (parted >= 0 && parted < pairs.length) {
+        const x = X(parted);
+        ctx.strokeStyle = INK.parted;
+        ctx.globalAlpha = PARTED_ALPHA;
         ctx.setLineDash([3, 3]);
-        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + ph); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, padT + ph);
+        ctx.stroke();
         ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
       }
 
-      if (SELECTED >= 0 && SELECTED < pairs.length) {
-        const x = X(SELECTED), y = Y(pairs[SELECTED].drift);
-        ctx.strokeStyle = 'rgba(255,255,255,.28)';
-        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + ph); ctx.stroke();
-        ctx.fillStyle = '#ebb450';
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      if (selectedPair >= 0 && selectedPair < pairs.length) {
+        const x = X(selectedPair), y = Y(pairs[selectedPair].drift);
+        ctx.strokeStyle = INK.selection;
+        ctx.beginPath();
+        ctx.moveTo(x, padT);
+        ctx.lineTo(x, padT + ph);
+        ctx.stroke();
+        ctx.fillStyle = INK.drift;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      ctx.fillStyle = '#505050';
+      ctx.fillStyle = INK.axis;
       ctx.textAlign = 'left';
-      ctx.fillText('0', padL, padT + ph + 10);
+      ctx.fillText('pair 0', padL, padT + ph + 10);
       ctx.textAlign = 'right';
-      ctx.fillText('#' + (pairs.length - 1).toLocaleString(), padL + pw, padT + ph + 10);
+      ctx.fillText(`pair ${fmtCount(pairs.length - 1)}`, padL + pw, padT + ph + 10);
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#707070';
-      ctx.fillText('model behind hardware, in cycles', padL + 4, padT + 6);
+      ctx.fillStyle = INK.caption;
+      ctx.fillText(alignment.reversed ? 'CVA6 RTL behind gem5 model, in cycles'
+        : 'gem5 model behind CVA6 RTL, in cycles', padL + 4, padT + 6);
     }
 
-    plot.addEventListener('mousemove', ev => {
-      const tip = $('tip');
-      if (!ALIGN || !PLOT_GEO || !ALIGN.pairs.length) { tip.style.display = 'none'; return; }
+    function schedulePlot() {
+      if (plotFramePending) return;
+      plotFramePending = true;
+      requestAnimationFrame(drawPlot);
+    }
+
+    function pairAtPointer(ev) {
       const rect = plot.getBoundingClientRect();
-      const mx = ev.clientX - rect.left;
-      const frac = (mx - PLOT_GEO.padL) / PLOT_GEO.pw;
-      const k = Math.round(Math.max(0, Math.min(1, frac)) * (PLOT_GEO.n - 1));
-      const p = ALIGN.pairs[k];
-      tip.innerHTML = `<div style="color:var(--text)">#${fmt(k)} `
-        + `${escapeHtml((p.b.text || p.a.text || '').slice(0, 40))}</div>`
-        + `<div style="color:var(--drift)">drift ${p.drift > 0 ? '+' : ''}${fmt(p.drift)}c`
-        + `<span class="dim"> · step ${p.step > 0 ? '+' : ''}${fmt(p.step)}c</span></div>`
-        + `<div class="dim">model ${fmt(p.a.commit)} · hardware ${fmt(p.b.commit)}</div>`;
-      tip.style.display = 'block';
-      const tr = tip.getBoundingClientRect();
-      let L = ev.clientX + 14, T = ev.clientY + 12;
-      if (L + tr.width + 8 > window.innerWidth) L = ev.clientX - 14 - tr.width;
-      if (T + tr.height + 8 > window.innerHeight) T = window.innerHeight - tr.height - 8;
-      tip.style.left = Math.max(8, L) + 'px';
-      tip.style.top = Math.max(8, T) + 'px';
-    });
-    plot.addEventListener('mouseleave', () => { $('tip').style.display = 'none'; });
-    plot.addEventListener('click', ev => {
-      if (!ALIGN || !PLOT_GEO || !ALIGN.pairs.length) return;
-      const rect = plot.getBoundingClientRect();
-      const frac = (ev.clientX - rect.left - PLOT_GEO.padL) / PLOT_GEO.pw;
-      selectPair(Math.round(Math.max(0, Math.min(1, frac)) * (PLOT_GEO.n - 1)));
-    });
+      const frac = (ev.clientX - rect.left - plotGeometry.padL) / plotGeometry.pw;
+      return Math.round(Math.max(0, Math.min(1, frac)) * (plotGeometry.n - 1));
+    }
 
-    /* ---- Refresh ---- */
-
-    function refresh() {
-      $('name-a').textContent = MODEL ? MODEL.name : 'Load model trace';
-      $('name-b').textContent = HW ? HW.name : 'Load hardware trace';
-      $('slot-a').classList.toggle('filled', !!MODEL);
-      $('slot-b').classList.toggle('filled', !!HW);
-
-      const ready = !!(MODEL && HW);
-      for (const id of ['btn-swap', 'btn-copy', 'btn-off-m', 'btn-off-p', 'btn-off-r']) {
-        $(id).disabled = !ready;
-      }
-      if (!ready) {
-        ALIGN = null; SELECTED = -1;
-        $('empty').style.display = 'flex';
-        $('detail').style.display = 'none';
-        setReport(MODEL || HW
-          ? 'One trace loaded. Add the other to compare.'
-          : 'Load a MinorFlow trace and a CVA6Flow trace of the same program.');
-        buildList(); drawPlot();
+    function onPlotMouseMove(ev) {
+      if (!alignment || !plotGeometry) {
+        hideTip(tooltip);
         return;
       }
-      $('empty').style.display = 'none';
-      ALIGN = alignTraces(MODEL.json.instructions, HW.json.instructions,
-        OFFSET_OVERRIDE == null ? {} : { offset: OFFSET_OVERRIDE });
-      $('off-val').textContent = String(ALIGN.offset);
-      SELECTED = -1;
-      $('detail').style.display = 'none';
-      buildReport(); buildList(); drawPlot();
+      const k = pairAtPointer(ev);
+      const p = alignment.pairs[k];
+      placeTip(tooltip, `<div class="tip-title">pair ${fmtCount(k)} ${pairText(p, 40)}</div>`
+        + `<div class="tip-drift">drift ${signed(p.drift)}c`
+        + `<span class="dim"> · step ${signed(p.step)}c</span></div>`
+        + `<div class="dim">model CO ${fmtCount(p.a.commit)} `
+        + `· RTL CO ${fmtCount(p.b.commit)}</div>`, ev.clientX, ev.clientY);
     }
 
-    let resizeTimer = null;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(drawPlot, 60);
-    });
+    /* ---- Refresh and start-up ---- */
 
-    refresh();
+    function refresh() {
+      for (const kind of Object.keys(JSON_KINDS)) {
+        byId(`name-${kind}`).textContent = loaded[kind] ? loaded[kind].name
+          : `Load ${JSON_KINDS[kind].side} (${JSON_KINDS[kind].viewer} JSON)`;
+        byId(`slot-${kind}`).classList.toggle('filled', !!loaded[kind]);
+      }
+      const ready = !!(loaded.minor && loaded.cva6);
+      for (const id of CONTROL_IDS) byId(id).disabled = !ready;
+      byId('swap-button').setAttribute('aria-pressed', String(reversed));
+      selectedPair = -1;
+      byId('detail').hidden = true;
+      byId('empty').hidden = ready;
+      if (!ready) {
+        alignment = null;
+        setReport(loaded.minor || loaded.cva6
+          ? 'One JSON loaded. Add the other to compare.'
+          : 'Load a MinorFlow JSON and a CVA6Flow JSON of the same program.');
+      } else {
+        alignment = alignRecords(loaded.minor.json.instructions, loaded.cva6.json.instructions, {
+          offset: offsetOverride, reversed,
+          minorClipped: !!loaded.minor.json.metadata.clipped,
+          cva6Clipped: !!loaded.cva6.json.metadata.clipped,
+        });
+        byId('offset-value').textContent = signed(alignment.offset);
+        buildReport();
+      }
+      buildList();
+      drawPlot();
+    }
+
+    function startUp() {
+      wireSlot('minor');
+      wireSlot('cva6');
+      wireDrop();
+      byId('swap-button').addEventListener('click', () => {
+        reversed = !reversed;
+        refresh();
+      });
+      byId('copy-report-button').addEventListener('click', copyReport);
+      byId('offset-minus').addEventListener('click', () => nudgeOffset(-1));
+      byId('offset-plus').addEventListener('click', () => nudgeOffset(1));
+      byId('offset-auto').addEventListener('click', () => {
+        offsetOverride = null;
+        refresh();
+      });
+      byId('rows').addEventListener('click', ev => {
+        const row = ev.target.closest('tr');
+        if (row && row.dataset.k) selectPair(parseInt(row.dataset.k, 10));
+      });
+      plot.addEventListener('mousemove', onPlotMouseMove);
+      plot.addEventListener('mouseleave', () => hideTip(tooltip));
+      plot.addEventListener('click', ev => {
+        if (alignment && plotGeometry) selectPair(pairAtPointer(ev));
+      });
+      new ResizeObserver(schedulePlot).observe(byId('plot-wrap'));
+      refresh();
+    }
+
+    document.addEventListener('DOMContentLoaded', startUp);
   </script>
 </body>
 
