@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-label="FaMAF CVA6 Project">
+<title>FaMAF CVA6 Project</title>
+  <rect x="0.25" y="0.25" width="15.5" height="15.5" rx="3.6" fill="#18181a" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+  <rect x="1.5" y="4.4" width="0.8" height="7.2" rx="0.4" fill="#3ecf9a"/>
+  <rect x="3.1" y="5.2" width="4.4" height="1" fill="#62625d"/>
+  <rect x="8" y="4.4" width="1.5" height="2.6" fill="#6cbbe4"/>
+  <rect x="9.5" y="4.4" width="1.5" height="2.6" fill="#2f7fb5"/>
+  <rect x="11" y="4.4" width="1.5" height="2.6" fill="#7b4fc4"/>
+  <rect x="12.5" y="4.4" width="1.5" height="2.6" fill="#2a9a66"/>
+  <path d="M3.1 10.9 H5.3 V9.7 H7.5" fill="none" stroke="#7a8aa6" stroke-width="0.7"/>
+  <rect x="8" y="9" width="1.5" height="2.6" fill="#6cbbe4"/>
+  <rect x="9.5" y="9" width="1.5" height="2.6" fill="#2f7fb5"/>
+  <rect x="11" y="9" width="1.5" height="2.6" fill="#7b4fc4"/>
+  <rect x="12.5" y="9" width="1.5" height="2.6" fill="#2a9a66"/>
+</svg>
