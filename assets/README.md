@@ -7,6 +7,7 @@ The FaMAF CVA6 Project's mark, and the palette the project's pages and marks sha
 | [FaMAF_CVA6_header.svg](FaMAF_CVA6_header.svg)   | The lockup at the top of the root `README.md`: the mark, the name and the line under it, 1280 by 260 |
 | [FaMAF_CVA6_logo.svg](FaMAF_CVA6_logo.svg)       | The mark alone on the 64 grid, drawn at 128 px, for a page heading or a slide                        |
 | [FaMAF_CVA6_favicon.svg](FaMAF_CVA6_favicon.svg) | The same mark on the 16 grid, with the detail an icon that small can carry                           |
+| [fonts/](fonts/)                                 | The IBM Plex Mono weights the wordmark is drawn from, and their licence                              |
 
 ## The mark
 
@@ -30,11 +31,11 @@ The stage cells carry the colours the viewers give the stages they draw, lifted 
 
 ## Redrawing them
 
-`temp/logo/make_logos.py` draws every mark in the project, the viewers' and this one, from one set of numbers. It needs `fontTools` for the wordmark outlines and the IBM Plex Mono files in `temp/logo/fonts/`.
+[`scripts/make_logos.py`](../scripts/make_logos.py) draws every mark in the project, the viewers' and this one, from one set of numbers. It needs `fontTools` for the wordmark outlines and the IBM Plex Mono files in [fonts/](fonts/), which are here under the SIL Open Font Licence, see [fonts/OFL.txt](fonts/OFL.txt).
 
 ```bash
-python3 temp/logo/make_logos.py            # rewrite the marks in assets/ and in both viewers' docs/
-python3 temp/logo/make_logos.py --patch    # and put them into the three pages
+python3 scripts/make_logos.py            # rewrite the marks here and in both viewers' docs/
+python3 scripts/make_logos.py --patch    # and put them into the three pages
 ```
 
-`temp/` is working notes and is not tracked, so the generator is not part of a clone. The files in this folder are, and they are what a reader sees.
+A mark is committed rather than drawn on demand, so a reader of this repository, and a page served from it, needs neither Python nor the fonts.
