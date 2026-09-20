@@ -104,7 +104,7 @@ python3 scripts/make_MinorFlow_sample.py results/run/daxpy.json -n 0
 
 A trace has to be captured with the debug flags the tracer needs. With `--strict` the tracer exits with 3 on a **degraded** trace: one missing a family of those lines, the L1 cache or LSQ lines for instance, so a mechanism could not be observed at all, one cut part way through a line, or one that holds no instruction or no commit. `metadata.degraded` always names each one, whether or not `--strict` is passed. The viewer refuses a JSON whose `metadata.schema_version` is not 7 and asks for it to be regenerated, rather than drawing silent nulls.
 
-`MinorFlow/tests/` is empty in a fresh image. The page offers only the samples its `tests/samples.js` lists that its tracer wrote at schema 7, so a sample made on the host with the viewer's own `scripts/make_MinorFlow_sample.py` appears too once its `.sample.js` and `samples.js` are copied into `MinorFlow/tests/`.
+`MinorFlow/tests/` already holds a full sample of every program in `benchmarks/viewer/`, one per program and every record of its run, made while this image was built, so Load sample works before anything has been run here. The page offers only what `tests/samples.js` lists that its tracer wrote at schema 7, so a sample made later appears too once its `.sample.js` and the manifest are in `MinorFlow/tests/`. On the host, `python3 scripts/docker_sync.py push gem5` replaces the folder with the checkout's own.
 
 ## Benchmarks and configurations
 
