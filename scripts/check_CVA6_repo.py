@@ -61,7 +61,8 @@ REPO = repo_root()
 # reads their formats, and .gitignore is mostly upstream's.
 OWN_PATHS = (
     "scripts", "gem5_config_CVA6", "dockerfiles", "verilator_changes",
-    "viewers/MinorFlow", "viewers/CVA6Flow", "viewers/FlowCompare.html",
+    "assets", "viewers/MinorFlow", "viewers/CVA6Flow",
+    "viewers/FlowCompare.html",
     "README.md", "LICENSE.FaMAF", "CITATION.cff", ".dockerignore",
     ".gitignore",
 )
@@ -135,6 +136,8 @@ EXTERNAL_SCRIPTS = {
     "parsetab.py",                         # PLY's table, which gem5 generates
     # An example name in viewers/MinorFlow's text, which this check reads.
     "my_config.py",
+    # The mark generator, which lives in the untracked working notes.
+    "make_logos.py",
 }
 
 # The style is 79 columns. The budget is a ratchet that may fall but never
@@ -160,7 +163,7 @@ NON_ASCII = re.compile("[^\x00-\x7f\u00c0-\u024f]")
 TABULAR = re.compile(r"\S {2,}\S")
 
 # A section heading, which introduces what follows rather than explaining a
-# line of code, so it neither joins a block nor counts toward its length.
+# line of code, so it neither joins a block nor counts towards its length.
 BANNER = re.compile(r"^[-=_*]{3,}")
 CODEISH = re.compile(r"//|\bfor\b.*;|^\s*[\"\'].*[\"\']\s*,?$"
                      r"|=\s*\w+\s*;|\w+\(.*\)\s*;|^\s*[-|+]{3,}")
@@ -560,6 +563,9 @@ def check_comments():
         text = read(rel)
         rows = comment_rows(rel, text)
         licensed = licence_lines(rows)
+        # Where the file's own content starts. Everything above it introduces
+        # the file rather than a line of code, however long the banner runs,
+        # which a fixed line count would get wrong for the Dockerfiles.
         commented = {n for n, _, _ in rows}
         content = next((n for n, line in enumerate(text.split("\n"), 1)
                         if line.strip() and n not in commented), 1)
@@ -828,6 +834,9 @@ def check_formatter():
     done = subprocess.run([sys.executable, script, "--check"],
                           capture_output=True, text=True, cwd=REPO)
     out = done.stdout
+    # A half that could not run meaningfully, because autopep8 or Prettier is
+    # missing or is not the toolchain the tree was formatted with, is a SKIP,
+    # never a pass and never a list of files that are in fact formatted.
     skips = [line[len("[SKIP] "):] for line in out.splitlines()
              if line.startswith(("[SKIP] autopep8", "[SKIP] prettier"))]
     if done.returncode == 0:
