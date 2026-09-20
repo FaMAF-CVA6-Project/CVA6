@@ -16,6 +16,7 @@ The images can also be pulled instead of built, which is what --pull does and
 what most readers want. Building is for running a modified core.
 """
 import argparse
+import datetime
 import os
 import shutil
 import subprocess
@@ -229,8 +230,11 @@ def build_image(side, jobs, dry_run, no_cache, extra_args=()):
     expects its context. extra_args is for a caller that needs more of the
     build than a plain build, such as seeding the cache when publishing."""
     cfg = SIDES[side]
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
     cmd = ["docker", "build",
            "--build-arg", f"JOBS={jobs}",
+           "--build-arg", f"BUILD_DATE={stamp}",
            "-f", cfg["dockerfile"],
            "-t", cfg["local_tag"]]
     if no_cache:
