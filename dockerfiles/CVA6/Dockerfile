@@ -20,6 +20,20 @@
 FROM ubuntu:24.04
 
 ARG JOBS=8
+
+# What this image is, for anyone reading it rather than the repository. The
+# build date is an argument, since a layer's own timestamp says when that
+# layer was made rather than when the image was assembled.
+ARG BUILD_DATE=unknown
+LABEL org.opencontainers.image.title="FaMAF CVA6 Project, the CVA6 container"
+LABEL org.opencontainers.image.description="The CORE-V CVA6 fork this project \
+calibrates against, with Verilator, Spike and the RISC-V toolchain, the \
+calibration benchmarks and configuration packages, the run drivers and \
+sweeps, and the CVA6Flow viewer with a sample of every one of its programs"
+LABEL org.opencontainers.image.source="https://github.com/FaMAF-CVA6-Project/CVA6"
+LABEL org.opencontainers.image.licenses="MIT AND SHL-0.51 AND Apache-2.0"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+LABEL org.opencontainers.image.version="cv64a6_imafdc_sv39_hpdcache_wb"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NUM_JOBS=${JOBS}
 
@@ -179,6 +193,11 @@ RUN set -eu; cd /CVA6; keep=""; \
     done; \
     rm -rf /CVA6/work-ver /CVA6/results/* /CVA6/verif/sim/out_*; \
     ls -la /CVA6/CVA6Flow/tests
+
+# The bytecode and run output of the step above, which a fresh container
+# should not start with.
+RUN find /CVA6 -name __pycache__ -type d -prune -exec rm -rf {} + \
+    && rm -rf /CVA6/results/*
 
 ENV DV_SIMULATORS=veri-testharness
 
