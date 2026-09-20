@@ -16,7 +16,6 @@
 .gitmodules
 .github
 .gitlab-ci
-.claude
 .vscode
 **/__pycache__
 *.pyc
