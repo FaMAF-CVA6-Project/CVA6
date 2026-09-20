@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 """Apply or revert the windowed waveform dump kept in verilator_changes/.
 
-Verilator writes about 63 KB of VCD per simulated cycle on this core, so a long
-benchmark cannot be traced whole. The two modified copies under
-verilator_changes/custom_size_vcds/ bound the dump to a window of simulation
-time, and this puts them in place or takes them back out. Run it from the CVA6
-root, which is /CVA6 inside the container.
+Verilator writes up to about 63 KB of VCD per simulated cycle on this core, so
+a long benchmark cannot be dumped whole. The two modified copies under
+verilator_changes/custom_size_vcds/ bound the dump to a window of clock
+cycles, and this puts them in place or takes them back out. It acts on the
+checkout it sits in, which is /CVA6 inside the container, or on --cva6-root.
 
     python3 scripts/patch_vcd_window.py status   # in place or not
     python3 scripts/patch_vcd_window.py apply    # window the dump
     python3 scripts/patch_vcd_window.py revert   # back to upstream
 
 The window is a compile-time define, so applying it changes nothing until the
-model is rebuilt:
+model is rebuilt, and it has to be exported, since cva6.py's make target runs
+make verilate again and a window given only on the command line is lost:
 
-    make verilate trace_start=100000 trace_end=200000
-
-and the run after that needs run_CVA6.py --keep-build, or the driver deletes
-the windowed model and rebuilds it without the defines.
+    export trace_start=100000 trace_end=200000
+    python3 scripts/run_CVA6.py benchmarks/viewer/daxpy.S
 """
 import argparse
 import filecmp
@@ -26,15 +25,15 @@ import shutil
 import sys
 
 # Each modified copy and the upstream file it stands in for, relative to the
-# CVA6 root. The originals are left where they are, so nothing is lost.
+# CVA6 root. The copies stay in verilator_changes/, so apply can run again.
 SOURCE_DIR = os.path.join("verilator_changes", "custom_size_vcds")
 PAIRS = (
     ("ariane_tb.cpp", os.path.join("corev_apu", "tb", "ariane_tb.cpp")),
     ("Makefile", "Makefile"),
 )
 
-# Where apply keeps the file it replaces. The container has no git to restore
-# an upstream file from, so the copy is the only way back.
+# Where apply keeps the file it replaces. The container has no git repository
+# to restore an upstream file from, so the copy is the only way back.
 BACKUP_SUFFIX = ".upstream"
 
 
@@ -57,7 +56,8 @@ def usable(root):
 
 
 def state(root, name, dest):
-    """'windowed', 'upstream', or the reason neither can be said."""
+    """'windowed' when the target matches the modified copy, otherwise
+    'upstream', which covers a locally edited target too."""
     src = os.path.join(root, SOURCE_DIR, name)
     target = os.path.join(root, dest)
     if filecmp.cmp(src, target, shallow=False):
@@ -74,11 +74,11 @@ def do_status(root):
         print(f"  {dest:34} {where}{kept}")
     windowed = [d for n, d in PAIRS if state(root, n, d) == "windowed"]
     if len(windowed) == len(PAIRS):
-        print("[INFO] The dump is windowed. Rebuild with "
-              "'make verilate trace_start=<t> trace_end=<t>'")
+        print("[INFO] The dump is windowed. Export trace_start=<t> "
+              "trace_end=<t> and run, which rebuilds the model with them")
     elif windowed:
-        print("[WARN] Half applied, which builds an unwindowed model from a "
-              "Makefile that passes the defines. Run apply or revert.")
+        print("[WARN] Half applied, so a rebuild gets no window, since each "
+              "file needs the other. Run apply or revert.")
     else:
         print("[INFO] Upstream, so a dump runs from cycle zero to the end")
     return 0
@@ -106,11 +106,10 @@ def do_apply(root, dry_run):
         print(f"[INFO] Dry run, {changed} file(s) would change")
         return 0
     if changed:
-        print("[INFO] Now rebuild the model with the window, in simulation "
-              "time:\n           make verilate trace_start=100000 "
-              "trace_end=200000")
-        print("[INFO] Then run with run_CVA6.py --keep-build, or the driver "
-              "rebuilds without the defines")
+        print("[INFO] Now export the window, in clock cycles, and run:"
+              "\n           export trace_start=100000 trace_end=200000")
+        print("[INFO] Exported, it reaches the make verilate the driver's "
+              "build runs. On a make verilate command line it is lost")
     return 0
 
 
@@ -145,7 +144,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Apply or revert the windowed waveform dump.")
     parser.add_argument("action", choices=["status", "apply", "revert"],
-                        help="status reports, apply windows the dump, revert "
+                        help="Status reports, apply windows the dump, revert "
                              "puts the upstream files back")
     parser.add_argument("--cva6-root", default=None, metavar="DIR",
                         help="The checkout to change. Defaults to the one "
