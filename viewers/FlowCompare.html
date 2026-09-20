@@ -94,6 +94,18 @@
 
     /* SHARED END css-buttons */
 
+    /* The sample picker, as each viewer styles its own. */
+    .tool-select {
+      padding: 2px 6px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 5px;
+      color: var(--text2);
+      font-size: 11px;
+      max-width: 190px;
+      flex-shrink: 0;
+    }
+
     /* SHARED BEGIN css-brand */
 
     /* Needs: css-tokens */
@@ -531,6 +543,11 @@
       <span class="slot-dot"></span><span id="name-cva6">Load CVA6 RTL (CVA6Flow JSON)</span>
       <input type="file" id="file-cva6" accept=".json,application/json">
     </label>
+    <span class="toolbar-separator" id="sample-separator" hidden>│</span>
+    <select class="tool-select" id="sample-select" hidden
+      title="A program both viewers keep a sample of, so a pair can be read without files."></select>
+    <button class="tool-button" id="sample-load-button" hidden
+      title="Load both JSONs of the chosen program from the viewers' tests folders.">Load sample pair</button>
     <span class="toolbar-separator">│</span>
     <button class="tool-button" id="swap-button" disabled aria-pressed="false"
       title="Measure the CVA6 RTL against the gem5 model instead, which flips the sign of the drift.">Swap</button>
@@ -1437,9 +1454,15 @@
     /* Loads files in order into their slots. A second JSON of a kind already loaded by the same
      * drop is refused, and a manual offset belongs to the pair it was chosen for, so it resets. */
     async function loadJsonFiles(files, notes) {
+      const parsed = [];
+      for (const file of files) parsed.push(await parseJsonFile(file));
+      loadParsed(parsed, notes);
+    }
+
+    /* The slots take a parsed JSON whether it came from a file or from a sample. */
+    function loadParsed(entries, notes) {
       const taken = new Map();
-      for (const file of files) {
-        const parsed = await parseJsonFile(file);
+      for (const parsed of entries) {
         if (parsed.refusal) {
           notes.push(`<span class="bad">${parsed.refusal}</span>`);
           continue;
@@ -1487,6 +1510,99 @@
           : [];
         loadJsonFiles([...files].slice(0, 2), notes);
       });
+    }
+
+    /* ---- Samples ---- */
+
+    /* Each viewer's make_<Viewer>_sample.py keeps tests/samples.js listing what it wrote, so a
+     * program both of them have a sample of is a pair FlowCompare can read with no files. */
+    const SAMPLE_DIRS = { minor: 'MinorFlow/tests/', cva6: 'CVA6Flow/tests/' };
+    const SAMPLE_MANIFEST_FILE = 'samples.js';
+    let samplePairs = [];
+
+    function takeGlobal(name) {
+      const value = window[name];
+      try {
+        delete window[name];
+      } catch (err) {
+        window[name] = undefined;
+      }
+      return value;
+    }
+
+    /* A script tag rather than fetch, since a page opened from disk may not fetch. */
+    function loadScript(src) {
+      return new Promise(resolve => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => {
+          script.remove();
+          resolve(true);
+        };
+        script.onerror = () => {
+          script.remove();
+          resolve(false);
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    async function readManifest(kind) {
+      const spec = JSON_KINDS[kind];
+      if (!await loadScript(SAMPLE_DIRS[kind] + SAMPLE_MANIFEST_FILE)) return [];
+      const manifest = takeGlobal('__SAMPLE_MANIFEST__');
+      return (Array.isArray(manifest) ? manifest : []).filter(entry => entry
+        && entry.tool === spec.tool && entry.schema_version === spec.schema
+        && typeof entry.file === 'string' && typeof entry.label === 'string');
+    }
+
+    /* A manifest that is missing, or holds no program the other side also has, leaves the
+     * control hidden, so a tree with no samples in it looks the same as before. */
+    async function initSamples() {
+      const minor = await readManifest('minor');
+      const cva6 = await readManifest('cva6');
+      samplePairs = minor.map(entry => {
+        const other = cva6.find(candidate => candidate.label === entry.label);
+        return other ? { label: entry.label, minor: entry, cva6: other } : null;
+      }).filter(Boolean);
+      const select = byId('sample-select'), button = byId('sample-load-button');
+      select.replaceChildren(...samplePairs.map(pair => {
+        const option = document.createElement('option');
+        option.value = pair.label;
+        option.textContent = pair.label;
+        return option;
+      }));
+      select.hidden = samplePairs.length < 2;
+      button.hidden = samplePairs.length === 0;
+      byId('sample-separator').hidden = samplePairs.length === 0;
+      if (samplePairs.length === 1) button.textContent = `Load ${samplePairs[0].label} pair`;
+    }
+
+    async function loadSamplePair() {
+      const label = byId('sample-select').value;
+      const pair = samplePairs.find(entry => entry.label === label) || samplePairs[0];
+      if (!pair) return;
+      const button = byId('sample-load-button');
+      const words = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Loading...';
+      const entries = [], notes = [];
+      for (const kind of ['minor', 'cva6']) {
+        const file = pair[kind].file;
+        if (!await loadScript(SAMPLE_DIRS[kind] + file)) {
+          notes.push(`<span class="bad"><b>"${escapeHtml(file)}"</b> did not load. A sample is `
+            + `written by the viewer's own make_&lt;Viewer&gt;_sample.py and read from `
+            + `${escapeHtml(SAMPLE_DIRS[kind])}.</span>`);
+          continue;
+        }
+        const json = takeGlobal('__SAMPLE_JSON__');
+        const verdict = jsonKind(json, file);
+        entries.push(verdict.refusal ? verdict
+          : { kind: verdict.kind, name: file, json });
+      }
+      button.disabled = false;
+      button.textContent = words;
+      loadParsed(entries, notes);
     }
 
     function nudgeOffset(delta) {
@@ -1901,6 +2017,8 @@
       wireSlot('minor');
       wireSlot('cva6');
       wireDrop();
+      byId('sample-load-button').addEventListener('click', loadSamplePair);
+      initSamples();
       byId('swap-button').addEventListener('click', () => {
         reversed = !reversed;
         refresh();
