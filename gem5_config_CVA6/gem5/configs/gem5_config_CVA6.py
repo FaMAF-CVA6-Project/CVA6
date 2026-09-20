@@ -407,9 +407,9 @@ parser.add_argument("--fetch2-buffer", type=int, default=None, metavar="N",
                     help="Override fetch2InputBufferSize, for the same "
                          "reason as --fetch-limit")
 parser.add_argument("--ddr3", action="store_true",
-                    help="Use the DDR3-1600 device instead of a flat memory "
-                         "at MEM_LATENCY. Matches the Verilator DDR3 model in "
-                         "verilator_changes/ddr3_memory.")
+                    help="Use the DDR3-1600 device instead of a flat "
+                         "memory at MEM_LATENCY, for reading against a "
+                         "DDR3-like testbench rather than the axi2mem one")
 args = parser.parse_args()
 
 binary = BinaryResource(args.binary)
