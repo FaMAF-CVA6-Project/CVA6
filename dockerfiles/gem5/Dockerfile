@@ -23,6 +23,21 @@ FROM ubuntu:24.04
 
 ARG JOBS=4
 ARG GEM5_TAG=v25.0.0.1
+
+# What this image is, for anyone reading it rather than the repository. The
+# build date is an argument, since a layer's own timestamp says when that
+# layer was made rather than when the image was assembled.
+ARG BUILD_DATE=unknown
+LABEL org.opencontainers.image.title="FaMAF CVA6 Project, the gem5 container"
+LABEL org.opencontainers.image.description="gem5 built three times, stock, \
+patched with MinorCPU_CVA6.patch and a third for working on the patch, with \
+the matched configurations, the calibration harnesses and benchmarks, the \
+run drivers and sweeps, and the MinorFlow viewer with a sample of every one \
+of its programs"
+LABEL org.opencontainers.image.source="https://github.com/FaMAF-CVA6-Project/CVA6"
+LABEL org.opencontainers.image.licenses="MIT AND BSD-3-Clause"
+LABEL org.opencontainers.image.created="${BUILD_DATE}"
+LABEL org.opencontainers.image.version="${GEM5_TAG}"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # gem5's own build dependencies, then the bare-metal RISC-V toolchain the
@@ -149,6 +164,15 @@ RUN set -eu; cd /gem5; \
     done; \
     rm -rf /gem5/results/*; \
     ls -la /gem5/MinorFlow/tests
+
+# What is left of gem5's own repository. No history reaches this image, so the
+# files that only serve a git workflow, and the editor and CI folders, have
+# nothing to act on here. The bytecode is from the step above.
+RUN rm -rf /gem5/.github /gem5/.devcontainer /gem5/.vscode \
+    /gem5/.pre-commit-config.yaml /gem5/.mailmap \
+    /gem5/.git-blame-ignore-revs \
+    && find /gem5 -name __pycache__ -type d -prune -exec rm -rf {} + \
+    && rm -rf /gem5/results/*
 
 # The container's own documents. gem5's README is kept as README.gem5.md, and
 # its LICENSE and COPYING stay where they are, since gem5 is in here.
