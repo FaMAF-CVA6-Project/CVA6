@@ -2,7 +2,7 @@
 
 The real-hardware side of the FaMAF CVA6 Project: the frozen CORE-V CVA6 fork, a built RISC-V toolchain, Verilator, Spike, the run drivers and the CVA6Flow viewer, in one image. Everything lives under `/CVA6`, which is the working directory of every shell the image starts.
 
-![CVA6Flow rendering the CVA6 pipeline](CVA6Flow/docs/CVA6Flow_intro.png)
+![CVA6Flow rendering the CVA6 pipeline](https://raw.githubusercontent.com/FaMAF-CVA6-Project/CVA6/master/viewers/CVA6Flow/docs/CVA6Flow_intro.png)
 
 This file describes what is **inside the container**, so every path below is a container path. The repository this image was built from is at https://github.com/FaMAF-CVA6-Project/CVA6.
 
