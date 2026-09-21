@@ -172,8 +172,14 @@ RUN set -eu; cd /gem5; \
 RUN rm -rf /gem5/.github /gem5/.devcontainer /gem5/.vscode \
     /gem5/.pre-commit-config.yaml /gem5/.mailmap \
     /gem5/.git-blame-ignore-revs \
-    && find /gem5 -name __pycache__ -type d -prune -exec rm -rf {} + \
-    && rm -rf /gem5/results/*
+    && find / -xdev -name __pycache__ -type d -not -path "/usr/lib/python*" \
+    -prune -exec rm -rf {} + \
+    && rm -rf /gem5/results/* /gem5/build/*/gem5.build/scons_config.log \
+    /root/.wget-hsts
+
+# Python writes no bytecode here, so a container stays as clean as it began
+# however long it is used. The gem5 binary embeds its own Python.
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # The container's own documents. gem5's README is kept as README.gem5.md, and
 # its LICENSE and COPYING stay where they are, since gem5 is in here.

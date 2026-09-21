@@ -196,9 +196,18 @@ RUN set -eu; cd /CVA6; keep=""; \
     ls -la /CVA6/CVA6Flow/tests
 
 # The bytecode and run output of the step above, which a fresh container
-# should not start with.
-RUN find /CVA6 -name __pycache__ -type d -prune -exec rm -rf {} + \
-    && rm -rf /CVA6/results/*
+# should not start with: cva6.py's own two logs, the build trees' logs and
+# the download history. GCC's contrib/ logs are source, and they stay.
+RUN find / -xdev -name __pycache__ -type d -not -path "/usr/lib/python*" \
+    -prune -exec rm -rf {} + \
+    && rm -rf /CVA6/results/* /CVA6/verif/sim/*.log /root/.wget-hsts \
+    && find /CVA6/util/toolchain-builder/build /CVA6/tools/verilator \
+    /CVA6/verif/core-v-verif/vendor/riscv/riscv-isa-sim/build \
+    -name "*.log" -type f -delete
+
+# Python writes no bytecode here, so a container stays as clean as it began
+# however long it is used.
+ENV PYTHONDONTWRITEBYTECODE=1
 
 ENV DV_SIMULATORS=veri-testharness
 
