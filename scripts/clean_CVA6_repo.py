@@ -25,7 +25,7 @@ import subprocess
 
 # The folders this repository owns, relative to its root. scripts/ and temp/
 # are here because importing any tool leaves a __pycache__ in the one, and the
-# scratch notes in the other collect the same.
+# local notes folder collects the same.
 PROJECT_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
