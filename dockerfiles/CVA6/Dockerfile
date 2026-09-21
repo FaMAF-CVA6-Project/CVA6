@@ -29,7 +29,8 @@ LABEL org.opencontainers.image.title="FaMAF CVA6 Project, the CVA6 container"
 LABEL org.opencontainers.image.description="The CORE-V CVA6 fork this project \
 calibrates against, with Verilator, Spike and the RISC-V toolchain, the \
 calibration benchmarks and configuration packages, the run drivers and \
-sweeps, and the CVA6Flow viewer with a sample of every one of its programs"
+sweeps, and the CVA6Flow viewer with a sample of every one of its \
+programs that fits the 500,000 records its page renders at once"
 LABEL org.opencontainers.image.source="https://github.com/FaMAF-CVA6-Project/CVA6"
 LABEL org.opencontainers.image.licenses="MIT AND SHL-0.51 AND Apache-2.0"
 LABEL org.opencontainers.image.created="${BUILD_DATE}"
