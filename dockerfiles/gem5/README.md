@@ -2,7 +2,7 @@
 
 The simulator side of the FaMAF CVA6 Project: gem5 v25.0.0.1 built three times, the MinorCPU configuration matched to CVA6, the calibration benchmarks, the run drivers and the MinorFlow viewer, in one image. Everything lives under `/gem5`, which is the working directory of every shell the image starts.
 
-![MinorFlow rendering the MinorCPU pipeline](https://raw.githubusercontent.com/FaMAF-CVA6-Project/CVA6/master/viewers/MinorFlow/docs/MinorFlow_intro.png)
+![MinorFlow rendering the MinorCPU pipeline](https://raw.githubusercontent.com/FaMAF-CVA6-Project/MinorFlow/main/docs/MinorFlow_intro.png)
 
 This file describes what is **inside the container**, so every path below is a container path. gem5's own README is kept beside this one as `README.gem5.md`. The repository this image was built from is at https://github.com/FaMAF-CVA6-Project/CVA6.
 
