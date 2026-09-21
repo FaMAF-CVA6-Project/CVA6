@@ -169,7 +169,7 @@ Those two clear a run tree. `scripts/clean_CVA6_repo.py` clears what piles up in
 python3 scripts/clean_CVA6_repo.py [-y] [--dry-run] [-v] [--no-viewers]
 ```
 
-It only ever opens `gem5_config_CVA6/`, `verilator_changes/`, `scripts/` and `temp/`. The two viewers are separate repositories with their own artefacts and their own rules, so it does not walk into them: it offers to run their cleaners afterwards instead, and each decides what to keep on its own side. `--no-viewers` skips the offer.
+It only ever opens `gem5_config_CVA6/`, `verilator_changes/` and `scripts/`, and a local notes folder when the checkout has one. The two viewers are separate repositories with their own artefacts and their own rules, so it does not walk into them: it offers to run their cleaners afterwards instead, and each decides what to keep on its own side. `--no-viewers` skips the offer.
 
 There are five cleaning scripts in all, and the names say which tree each one touches:
 
@@ -320,7 +320,7 @@ The figures below were measured on 20 September, building both from scratch with
 | `manuel313/famaf_cva6:build` | ~30 GB              | 12.4 GB        | 50 min at 5 jobs | ~2 GB          |
 | `manuel313/famaf_gem5:build` | ~45 GB              | 25.4 GB        | 3 h 15 at 2 jobs | ~4 GB          |
 
-The last step of each recipe is the viewer's samples, and it is a real run of every one of that viewer's programs: 6 minutes on the gem5 side, and 18 on the CVA6 side, where the Verilator model is built first and each run writes a waveform of a few gigabytes. Every trace, waveform and intermediate JSON is deleted in the same layer, so what the image keeps is the samples themselves, 0.5 GB on the gem5 side and 0.7 GB on the CVA6 side. The CVA6 tracer is the one step that wants memory rather than cores: reading the largest waveform peaks near 10 GB, so a machine with less should build that image with the sample list shortened through `--build-arg CVA6FLOW_OVER_LIMIT`. On the run measured here the gem5 side came closest to the edge, at 1.6 GB free while linking the first `gem5.opt`, which is why two jobs rather than three.
+The last step of each recipe is the viewer's samples, and it is a real run of each of that viewer's programs that fits the page's record limit: 6 minutes on the gem5 side, and 18 on the CVA6 side, where the Verilator model is built first and each run writes a waveform of a few gigabytes. Every trace, waveform and intermediate JSON is deleted in the same layer, so what the image keeps is the samples themselves, 0.5 GB on the gem5 side and 0.7 GB on the CVA6 side. The CVA6 tracer is the one step that wants memory rather than cores: reading the largest waveform peaks near 10 GB, so a machine with less should build that image with the sample list shortened through `--build-arg CVA6FLOW_OVER_LIMIT`. On the run measured here the gem5 side came closest to the edge, at 1.6 GB free while linking the first `gem5.opt`, which is why two jobs rather than three.
 
 Memory is what actually fails a build, and it fails as a compiler killed with no useful message. Both recipes take a `JOBS` argument, and it should be no higher than your RAM in GB divided by the per-job figure above:
 
