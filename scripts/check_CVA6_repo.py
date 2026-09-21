@@ -1248,6 +1248,28 @@ def check_dockerfiles():
     return bad
 
 
+def check_submodule_links():
+    """No relative link reaches into a viewer submodule from outside it.
+
+    Such a link resolves in a checkout but 404s on GitHub, which serves a
+    submodule's files from its own repository, so it names that instead."""
+    bad = []
+    link = re.compile(r"\]\(([^)\s]+)\)")
+    subs = tuple(f"viewers/{name}" for name in VIEWERS)
+    for rel in owned(".md"):
+        if rel.startswith(subs):
+            continue
+        for target in link.findall(read(rel)):
+            if target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            path = os.path.normpath(os.path.join(os.path.dirname(rel),
+                                                 target.partition("#")[0]))
+            if any(path == sub or path.startswith(sub + "/")
+                   for sub in subs):
+                bad.append(f"{rel}: {target} is inside a submodule")
+    return bad
+
+
 CHECKS = (
     ("twins", check_twins),
     ("test-tables", check_test_tables),
@@ -1260,6 +1282,7 @@ CHECKS = (
     ("dockerfiles", check_dockerfiles),
     ("script-names", check_script_names),
     ("links", check_links),
+    ("submodule-links", check_submodule_links),
     ("comments", check_comments),
     ("formatting", check_formatting),
     ("formatter", check_formatter),

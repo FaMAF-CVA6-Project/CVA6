@@ -273,7 +273,7 @@ python3 scripts/patch_gem5.py build     # rebuild, asking RISCV_PATCH or RISCV_E
 
 Edit the sources under `src/`, `create`, `build`, measure. `create` needs no git history, which the image does not keep: it diffs `src/` against `.pristine_src.tar.xz`, the pristine sources the image archived before the patch went in, and falls back to `git diff` in a checkout that still has one. It leaves out what gem5's own `.gitignore` does, so a `parsetab.py` or a `.orig` from a failed apply cannot leak into the patch.
 
-A patch being worked on belongs in `build/RISCV_EXP`, since `build/RISCV_PATCH` is what every TEST in the table is measured against. `build` writes the patch's hash beside the tree as `.built_patch_sha1`, which [`run_gem5.py`](../viewers/MinorFlow/scripts/run_gem5.py) reads to catch a patch edited but not rebuilt, and it writes that marker for `RISCV_PATCH` only, the build the tables rest on.
+A patch being worked on belongs in `build/RISCV_EXP`, since `build/RISCV_PATCH` is what every TEST in the table is measured against. `build` writes the patch's hash beside the tree as `.built_patch_sha1`, which [`run_gem5.py`](https://github.com/FaMAF-CVA6-Project/MinorFlow/blob/main/scripts/run_gem5.py) reads to catch a patch edited but not rebuilt, and it writes that marker for `RISCV_PATCH` only, the build the tables rest on.
 
 The two sections below are the same work by hand, for a tree without the script.
 
@@ -307,7 +307,7 @@ scons build/RISCV_PATCH/gem5.opt -j$(nproc)
 
 That rebuild turns `build/RISCV_PATCH` back into a stock binary, which is rarely what you want. If a stock binary is all you need, `build/RISCV` already is one and nothing has to be rebuilt.
 
-[`run_gem5.py`](../viewers/MinorFlow/scripts/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
+[`run_gem5.py`](https://github.com/FaMAF-CVA6-Project/MinorFlow/blob/main/scripts/run_gem5.py) takes `--variant stock`, the default, or `--variant patch`, which picks the binary and the overhead profile together and names the build in the table header. `--build` runs any other build directory without changing the profile.
 
 Since every added parameter defaults off, the patched binary running `gem5_config_CVA6.py` should reproduce the stock binary exactly. Diffing the two `stats.txt` files is the test of that: apart from the patch's own counters, which only a patched build writes, any line that differs is a mechanism leaking when it should be inert. `gem5_config_CVA6_patch.py --no-patch --fetch-limit 2 --fetch2-buffer 2` on the patched binary is the same test from the other direction, holding the configuration fixed and turning the mechanisms off.
 

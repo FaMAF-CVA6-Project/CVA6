@@ -13,7 +13,7 @@ The FaMAF CVA6 Project's mark, and the palette the project's pages and marks sha
 
 A trace row above a waveform row, each feeding four stage cells, and the cells of the two rows at the same four cycles. That is the project in one picture: a gem5 MinorCPU read from a debug trace and the CVA6 RTL read from a VCD, lined up cycle for cycle. The accent bar on the left is the calibration that ties them.
 
-It belongs to the same family as the viewers' marks, which are in each viewer's `docs/` folder. [MinorFlow](../viewers/MinorFlow/docs/MinorFlow_logo.svg) and [CVA6Flow](../viewers/CVA6Flow/docs/CVA6Flow_logo.svg) each show one machine, their rows staircasing one cycle later down the tile, and [FlowCompare](../viewers/FlowCompare.html) pairs the two with an amber marker where they drift. The project's mark drops the staircase and aligns the rows instead, since what this repository is for is the alignment.
+It belongs to the same family as the viewers' marks, which are in each viewer's `docs/` folder. [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow/blob/main/docs/MinorFlow_logo.svg) and [CVA6Flow](https://github.com/FaMAF-CVA6-Project/CVA6Flow/blob/main/docs/CVA6Flow_logo.svg) each show one machine, their rows staircasing one cycle later down the tile, and [FlowCompare](../viewers/FlowCompare.html) pairs the two with an amber marker where they drift. The project's mark drops the staircase and aligns the rows instead, since what this repository is for is the alignment.
 
 ## The palette
 
