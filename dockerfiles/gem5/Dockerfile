@@ -153,14 +153,15 @@ RUN set -eu; cd /gem5; \
         echo "[sample] $name"; \
         python3 scripts/run_gem5.py \
             gem5_configs/viewer/gem5_config_MinorFlow.py "$src" \
-            --variant stock --gem5-out-dir /tmp/sample/m5 \
-            --results-dir /tmp/sample/res > /dev/null; \
+            --variant stock --gem5-out-dir results/run \
+            --results-dir results/run > /dev/null; \
         python3 MinorFlow/MinorFlow_tracer.py \
-            "/tmp/sample/m5/${name}_trace.txt" -o "/tmp/sample/${name}.json" \
+            "results/run/${name}_trace.txt" -o "/tmp/${name}.json" \
             --quiet --strict; \
-        python3 scripts/make_MinorFlow_sample.py "/tmp/sample/${name}.json" \
+        python3 scripts/make_MinorFlow_sample.py "/tmp/${name}.json" \
             -n 0 > /dev/null; \
-        rm -rf /tmp/sample "MinorFlow/tests/${name}.sample.json"; \
+        rm -rf /tmp/${name}.json results/run \
+            "MinorFlow/tests/${name}.sample.json"; \
     done; \
     rm -rf /gem5/results/*; \
     ls -la /gem5/MinorFlow/tests
