@@ -17,7 +17,7 @@ This file describes what is **inside the container**, so every path below is a c
 | `scripts/`                 | The drivers, the two sweeps, the parity check, the patch tool, the batch JSON converter, the cleaner and the viewer server |
 | `gem5_configs/config/`     | The matched configurations and the patch itself: stock, patched, and a calibration harness for each                        |
 | `gem5_configs/viewer/`     | The configurations used while developing the viewer                                                                        |
-| `gem5_configs/CARLA2026/`  | The frozen configuration the published paper used                                                                          |
+| `gem5_configs/CARLA2026/`  | The frozen configuration the CARLA 2026 paper used                                                                         |
 | `benchmarks/config/`       | The calibration set, the programs the CVA6 comparison is measured on                                                       |
 | `benchmarks/viewer/`       | The set written while developing the viewer, one core behaviour per program                                                |
 | `MinorFlow/`               | The viewer: `MinorFlow.html`, its tracer, `index.html`, `docs/` and an empty `tests/`                                      |

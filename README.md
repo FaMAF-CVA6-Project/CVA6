@@ -24,7 +24,7 @@ Both run scripts also print the same metrics table (cycles, instructions, cache 
 
 ## About this fork
 
-- Based on CVA6 **v5.3.0**. `git describe --tags` names the commit a checkout is at, and each published image carries a `sha-<short>` tag naming the commit it was built from.
+- Based on CVA6 **v5.3.0**. `git describe --tags` names the commit a checkout is at, and each published image carries a `sha-<short>` tag naming the commit it was built from. This project's releases are tagged `famaf-v<version>`, since upstream's own `v*` tags came with the fork, and the images of a release also carry its version, `v1.0.0` for the first.
 - A **frozen fork** of CVA6. The upstream dependency submodules have been vendored into the repository, so the core builds without fetching anything external and the exact RTL is pinned.
 - **The two viewers are bundled as submodules** under `viewers/`, so a recursive clone gives you the whole toolchain in one place:
   - `viewers/MinorFlow` points to [MinorFlow](https://github.com/FaMAF-CVA6-Project/MinorFlow)
@@ -453,7 +453,7 @@ python3 scripts/docker_publish.py gem5       # one side
 
 Which image a change affects is not listed anywhere. The build decides it: a cached rebuild reuses every layer above the edit, so an untouched image comes out with the same ID and is not pushed. That is why there is no list of paths to keep in step with `.dockerignore`, and why a script or benchmark edit republishes in minutes while a change to `MinorCPU_CVA6.patch` pays for gem5's double build again.
 
-`master` publishes `latest`, every other branch publishes `testing`, and both also get `sha-<short>` so a moving tag stays traceable to a commit. Asking for `latest` off `master` needs `--force`. It refuses when neither the local build nor the published image is here, since that would be the cold build rather than a rebuild, and it pushes with inline cache so a later pull can seed one.
+`master` publishes `latest`, every other branch publishes `testing`, and both also get `sha-<short>` so a moving tag stays traceable to a commit. A release's version tag is added by hand, to the images already published. Asking for `latest` off `master` needs `--force`. It refuses when neither the local build nor the published image is here, since that would be the cold build rather than a rebuild, and it pushes with inline cache so a later pull can seed one.
 
 ### Run a test
 
