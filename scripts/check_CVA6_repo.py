@@ -56,13 +56,13 @@ def repo_root():
 
 REPO = repo_root()
 
-# This project's own files, as far as the checks read them. The root
-# LICENSE.FaMAF, CITATION.cff and .dockerignore are ours too, but no check
-# reads their formats, and .gitignore is mostly upstream's.
+# This project's own files, as far as the checks read them. LICENSE.FaMAF,
+# CITATION.cff, .dockerignore and .nojekyll are ours with no format to check,
+# .gitignore is mostly upstream's, and viewers/pairs/ is generated data.
 OWN_PATHS = (
     "scripts", "gem5_config_CVA6", "dockerfiles", "verilator_changes",
     "assets", "viewers/MinorFlow", "viewers/CVA6Flow",
-    "viewers/FlowCompare.html",
+    "viewers/FlowCompare.html", "index.html",
     "README.md", "LICENSE.FaMAF", "CITATION.cff", ".dockerignore",
     ".gitignore",
 )

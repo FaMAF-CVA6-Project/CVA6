@@ -1514,8 +1514,11 @@
 
     /* ---- Samples ---- */
 
-    /* Each viewer's make_<Viewer>_sample.py keeps tests/samples.js listing what it wrote, so a
-     * program both of them have a sample of is a pair FlowCompare can read with no files. */
+    /* The pairs scripts/make_flowcompare_pairs.py writes to pairs/ come first: one program on the
+     * matched gem5 configuration and on the RTL, each JSON gzipped inside a script. Without them,
+     * a program both viewers have a sample of in tests/ is the pair. */
+    const PAIR_DIR = 'pairs/';
+    const PAIR_MANIFEST_FILE = 'pairs.js';
     const SAMPLE_DIRS = { minor: 'MinorFlow/tests/', cva6: 'CVA6Flow/tests/' };
     const SAMPLE_MANIFEST_FILE = 'samples.js';
     let samplePairs = [];
@@ -1547,6 +1550,26 @@
       });
     }
 
+    const fitsKind = (kind, entry) => entry && entry.tool === JSON_KINDS[kind].tool
+      && entry.schema_version === JSON_KINDS[kind].schema && typeof entry.file === 'string';
+
+    async function readPairs() {
+      if (!await loadScript(PAIR_DIR + PAIR_MANIFEST_FILE)) return [];
+      const manifest = takeGlobal('__PAIR_MANIFEST__');
+      return (Array.isArray(manifest) ? manifest : [])
+        .filter(entry => entry && typeof entry.label === 'string'
+          && fitsKind('minor', entry.minor) && fitsKind('cva6', entry.cva6))
+        .map(entry => ({ ...entry, dir: { minor: PAIR_DIR, cva6: PAIR_DIR }, packed: true }));
+    }
+
+    /* A pair's JSON is gzipped and base64-encoded, and the browser's DecompressionStream unpacks
+     * it, which every current browser has. */
+    async function unpackPair(text) {
+      const bytes = Uint8Array.from(atob(text), ch => ch.charCodeAt(0));
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return JSON.parse(await new Response(stream).text());
+    }
+
     async function readManifest(kind) {
       const spec = JSON_KINDS[kind];
       if (!await loadScript(SAMPLE_DIRS[kind] + SAMPLE_MANIFEST_FILE)) return [];
@@ -1559,17 +1582,22 @@
     /* A manifest that is missing, or holds no program the other side also has, leaves the
      * control hidden, so a tree with no samples in it looks the same as before. */
     async function initSamples() {
-      const minor = await readManifest('minor');
-      const cva6 = await readManifest('cva6');
-      samplePairs = minor.map(entry => {
-        const other = cva6.find(candidate => candidate.label === entry.label);
-        return other ? { label: entry.label, minor: entry, cva6: other } : null;
-      }).filter(Boolean);
+      samplePairs = await readPairs();
+      if (!samplePairs.length) {
+        const minor = await readManifest('minor');
+        const cva6 = await readManifest('cva6');
+        samplePairs = minor.map(entry => {
+          const other = cva6.find(candidate => candidate.label === entry.label);
+          return other ? { label: entry.label, minor: entry, cva6: other, dir: SAMPLE_DIRS }
+            : null;
+        }).filter(Boolean);
+      }
       const select = byId('sample-select'), button = byId('sample-load-button');
       select.replaceChildren(...samplePairs.map(pair => {
         const option = document.createElement('option');
         option.value = pair.label;
         option.textContent = pair.label;
+        if (pair.model) option.title = `gem5 ${pair.model} against the RTL`;
         return option;
       }));
       select.hidden = samplePairs.length < 2;
@@ -1589,16 +1617,27 @@
       const entries = [], notes = [];
       for (const kind of ['minor', 'cva6']) {
         const file = pair[kind].file;
-        if (!await loadScript(SAMPLE_DIRS[kind] + file)) {
-          notes.push(`<span class="bad"><b>"${escapeHtml(file)}"</b> did not load. A sample is `
-            + `written by the viewer's own make_&lt;Viewer&gt;_sample.py and read from `
-            + `${escapeHtml(SAMPLE_DIRS[kind])}.</span>`);
+        if (!await loadScript(pair.dir[kind] + file)) {
+          notes.push(`<span class="bad"><b>"${escapeHtml(file)}"</b> did not load. `
+            + (pair.packed ? 'A pair is written by scripts/make_flowcompare_pairs.py'
+              : 'A sample is written by the viewer\'s own make_&lt;Viewer&gt;_sample.py')
+            + ` and read from ${escapeHtml(pair.dir[kind])}.</span>`);
           continue;
         }
-        const json = takeGlobal('__SAMPLE_JSON__');
+        let json;
+        try {
+          json = pair.packed ? await unpackPair(takeGlobal('__PAIR_GZIP__'))
+            : takeGlobal('__SAMPLE_JSON__');
+        } catch (err) {
+          notes.push(`<span class="bad"><b>"${escapeHtml(file)}"</b> could not be unpacked: `
+            + `${escapeHtml(String(err.message || err))}. This browser may lack `
+            + 'DecompressionStream.</span>');
+          continue;
+        }
         const verdict = jsonKind(json, file);
-        entries.push(verdict.refusal ? verdict
-          : { kind: verdict.kind, name: file, json });
+        const name = !pair.packed ? file
+          : `${pair.label} (${kind === 'minor' ? `gem5 ${pair.model}` : 'RTL'})`;
+        entries.push(verdict.refusal ? verdict : { kind: verdict.kind, name, json });
       }
       button.disabled = false;
       button.textContent = words;
