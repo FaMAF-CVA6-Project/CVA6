@@ -15,9 +15,8 @@ docs/<Viewer>_favicon.svg and docs/<Viewer>_header.svg in each viewer. With
 --patch it also puts the marks into the pages: the favicon, the top bar
 heading and the drop zone of each viewer, the favicon of each viewer's
 index.html, and the favicon, heading and empty state of FlowCompare, whose
-mark pairs the two viewers' rows, and the favicon of the repository's own
-index.html, which leads to FlowCompare. A second run replaces what the first
-put there. The brand CSS is the shared css-brand block, kept by hand.
+mark pairs the two viewers' rows. A second run replaces what the first put
+there. The brand CSS is the shared css-brand block, kept by hand.
 
     python3 scripts/make_logos.py
     python3 scripts/make_logos.py --patch
@@ -702,8 +701,6 @@ def patch_compare():
             lambda m: m.group(1) + empty + m.group(3), text, "empty state")
 
     rewrite(os.path.join(VIEWERS, "FlowCompare.html"), page)
-    # The repository's index.html, the GitHub Pages entry, leads to it.
-    rewrite(os.path.join(REPO, "index.html"), lambda t: set_icon(t, small))
 
 
 def main():

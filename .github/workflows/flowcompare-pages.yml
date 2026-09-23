@@ -1,0 +1,48 @@
+# Publishes FlowCompare and the program pairs it offers as this repository's
+# GitHub Pages site, FlowCompare as the front page. Only those files are
+# uploaded, since upstream's tree holds symlinks that point nowhere.
+name: FlowCompare site
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - viewers/FlowCompare.html
+      - viewers/pairs/**
+      - .github/workflows/flowcompare-pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            viewers/FlowCompare.html
+            viewers/pairs
+          sparse-checkout-cone-mode: false
+          filter: blob:none
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp viewers/FlowCompare.html _site/index.html
+          cp -r viewers/pairs _site/pairs
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5
