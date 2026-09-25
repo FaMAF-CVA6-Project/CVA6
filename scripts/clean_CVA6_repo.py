@@ -23,9 +23,9 @@ import shutil
 import argparse
 import subprocess
 
-# The folders this repository owns, relative to its root. scripts/ and temp/
-# are here because importing any tool leaves a __pycache__ in the one, and the
-# local notes folder collects the same.
+# The folders this repository owns, relative to its root. scripts/ is here
+# because importing any tool leaves a __pycache__ in it, and the last entry, a
+# local notes folder when the checkout has one, collects the same.
 PROJECT_DIRS = [
     "gem5_config_CVA6",
     "verilator_changes",
