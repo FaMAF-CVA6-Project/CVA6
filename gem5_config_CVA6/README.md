@@ -64,11 +64,15 @@ In the patched version every transcribed mechanism is on by default and each has
 | `--no-ras-decay`                  | The unrecovered speculative RAS, back to gem5's repair on squash. Independent of the switches above       |
 | `--no-store-forwarding-model`     | CVA6 having no store-to-load forwarding, and the replay delay with it                                     |
 
-Two switches need others: `--no-victim-readout-stall` needs `--no-window-charge`, and `--no-evict-on-allocate` needs `--no-victim-readout-stall` and `--no-victim-readable-until-fill`. Without them the configuration stops with an error.
+Two switches need others: `--no-victim-readout-stall` needs `--no-window-charge`, and `--no-evict-on-allocate` needs `--no-victim-readout-stall` and `--no-victim-readable-until-fill`, so `--no-window-charge` as well. Without them the configuration stops with an error.
+
+One switch adds rather than removes. `--l1d-plru` gives the L1D gem5's `TreePLRURP` in place of the transcribed victim policy, a counterfactual: the HPDcache's PLRU branch is not elaborated in `cv64a6_imafdc_sv39_hpdcache_wb`, and the harness measures the transcribed `HPDcachePLRURP` instead.
 
 ### The calibration table
 
 `gem5_config_CVA6_patch_testing.py` is the campaign in one file. `TEST 1` is the frozen CPU-side baseline, which is `gem5_config_CVA6.py` parameter for parameter, `TEST 40` is the full production configuration, `gem5_config_CVA6_patch.py` parameter for parameter, and every other entry is a perturbation, most of them single-knob. Eight entries reduce to another entry's configuration and are labelled duplicates in the table, the grid and their names: 55, 59, 66, 79, 80, 82, 83 and 85.
+
+Both harnesses also carry `USE_MORILLAS`. Set to `True`, it ignores `TEST` and builds the configuration of Pau Morillas's 2025 bachelor's thesis at UPC, _Open-source RISC-V in-order processor model for a hardware event-driven simulator_, transcribed from its tables: its CPU and functional units, each unit's latency two cycles longer for the two stages CVA6 has over MinorCPU, its caches with gem5's default 64-byte line and crossbar latencies, and `SingleChannelDDR3_1600`. That work matched gem5 to a CVA6 on a Genesys 2 FPGA board with DDR3 memory, not to this testbench, so it is a point of reference rather than a configuration to tune.
 
 The table is ordered by what an entry needs to run, then by the part of the machine it touches. `gem5_config_CVA6_testing.py` carries the first tier, `TEST 1` to `TEST 39`, under the same numbers, with the same overrides and on the same baseline, so a row measures the same machine in both files, the patched build running with every switch off. From `TEST 40` on, every entry is laid over `PATCH_BASE`, the patch parameters the campaign adopted before it varied anything else: `executeLSQNoStoreForwarding`, `executeLSQStoreCollisionReplayDelay 2`, `executeLSQFenceSignalsDcache`, `executeFenceSquashesPipeline` and two L1I MSHRs. An entry's own overrides win, so an ablation sets the value it takes away.
 
