@@ -58,7 +58,7 @@ EXTRA_FILES = ("src/arch/riscv/RiscvCPU.py",)
 # what marks a folder as one this script may replace.
 VERSION_FILE = "GEM5_VERSION"
 
-# The container whose build the fetched commit is compared with, if running.
+# The container whose image tag the fetched one is compared with, if it exists.
 CONTAINER = "gem5"
 
 
@@ -110,15 +110,17 @@ def fetch(tag, paths, work):
     return commit, None
 
 
-def container_commit():
-    """The commit the gem5 container was built from, or None when there is no
-    running container to ask."""
+def container_tag():
+    """The gem5 tag the container's image was built from, read from the image's
+    version label, since the image keeps no git history. None when there is no
+    container to ask."""
     if not shutil.which("docker"):
         return None
-    done = subprocess.run(["docker", "exec", CONTAINER, "git", "-C", "/gem5",
-                           "rev-parse", "HEAD"],
+    label = '{{index .Config.Labels "org.opencontainers.image.version"}}'
+    done = subprocess.run(["docker", "inspect", "--format", label, CONTAINER],
                           capture_output=True, text=True)
-    return done.stdout.strip() if done.returncode == 0 else None
+    tag = done.stdout.strip()
+    return tag if done.returncode == 0 and tag.startswith("v") else None
 
 
 def check_patch(dest):
@@ -223,14 +225,14 @@ def main():
                      f"fetched {today} by scripts/get_gem5_files.py\n")
     print(f"[INFO] Copied {copied} file(s), gem5 {tag} at {commit[:12]}")
 
-    built = container_commit()
+    built = container_tag()
     if built is None:
-        print(f"[INFO] No running '{CONTAINER}' container to compare with")
-    elif built == commit:
-        print(f"[INFO] Same commit the '{CONTAINER}' container was built from")
+        print(f"[INFO] No '{CONTAINER}' container to compare with")
+    elif built == tag:
+        print(f"[INFO] Same tag the '{CONTAINER}' container was built from")
     else:
-        print(f"[WARN] The '{CONTAINER}' container was built from "
-              f"{built[:12]}, not {commit[:12]}")
+        print(f"[WARN] The '{CONTAINER}' container was built from gem5 "
+              f"{built}, not {tag}")
 
     if args.check_patch and not check_patch(dest):
         return 1
