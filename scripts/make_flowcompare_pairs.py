@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the program pairs FlowCompare offers under Load sample pair.
+"""Build the program pairs FlowCompare offers in its Example list.
 
 A pair is one program's MinorFlow JSON from the matched gem5 configuration
 beside its CVA6Flow JSON from the RTL. Each side is written as
