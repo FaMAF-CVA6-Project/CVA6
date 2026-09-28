@@ -137,8 +137,8 @@ def serdivExtraLatency(base=1):
     # max(bits(a) - bits(b), 0), since the subtraction is unsigned and wraps
     clamped = _if(_bin('timingExprSGreaterThan',
                   bits_a, bits_b), diff, _lit(0))
-    # A quotient known to be zero answers in the first DIVIDE cycle
-    # (serdiv.sv div_res_zero), without the FINISH cycle base stands for.
+    # A quotient known to be zero answers in the first DIVIDE cycle,
+    # without the FINISH cycle base stands for.
     early = _bin('timingExprSGreaterThan', bits_b, bits_a)
     return _if(early, _lit(0), _bin('timingExprAdd', clamped, _lit(base)))
 
@@ -318,8 +318,8 @@ FP_DIVSQRT_BASE_LAT = 9
 FP_DIVSQRT_QUEUE_OVERLAP = 3
 
 # CVA6's scoreboard entries (CVA6ConfigNrScoreboardEntries). One freed at a
-# commit is taken at the next edge, scoreboard.sv's full flag being registered,
-# and its instruction executes a cycle later, so a release delay of 2.
+# commit is taken at the next edge, since the full flag is registered, and its
+# instruction executes a cycle later, so a release delay of 2.
 SCOREBOARD_ENTRIES = 8
 SCOREBOARD_RELEASE_DELAY = 2
 

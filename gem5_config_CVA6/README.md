@@ -79,7 +79,7 @@ One switch adds rather than removes. `--l1d-plru` gives the L1D gem5's `TreePLRU
 
 Both harnesses also carry `USE_MORILLAS`. Set to `True`, it ignores `TEST` and builds the configuration of Pau Morillas's 2025 bachelor's thesis at UPC, _Open-source RISC-V in-order processor model for a hardware event-driven simulator_, transcribed from its tables: its CPU and functional units, each unit's latency two cycles longer for the two stages CVA6 has over MinorCPU, its caches with gem5's default 64-byte line and crossbar latencies, and `SingleChannelDDR3_1600`. That work matched gem5 to a CVA6 on a Genesys 2 FPGA board with DDR3 memory, not to this testbench, so it is a point of reference rather than a configuration to tune.
 
-The table is ordered by what an entry needs to run, then by the part of the machine it touches. `gem5_config_CVA6_testing.py` carries the first tier, `TEST 1` to `TEST 39`, under the same numbers, with the same overrides and on the same baseline, so a row measures the same machine in both files, the patched build running with every switch off. From `TEST 40` on, every entry is laid over `PATCH_BASE`, the patch parameters the campaign adopted before it varied anything else: `executeLSQNoStoreForwarding`, `executeLSQStoreCollisionReplayDelay 2`, `executeLSQFenceSignalsDcache`, `executeFenceSquashesPipeline` and two L1I MSHRs. It also takes back what the stock baseline gained on 26 September, the 4096-entry BTB, the unit instances and fpnew's latencies, so the rows recorded before then still measure the machine they measured, and the entries that are production set them again. An entry's own overrides win, so an ablation sets the value it takes away.
+The table is ordered by what an entry needs to run, then by the part of the machine it touches. `gem5_config_CVA6_testing.py` carries the first tier, `TEST 1` to `TEST 39`, under the same numbers, with the same overrides and on the same baseline, so a row measures the same machine in both files, the patched build running with every switch off. From `TEST 40` on, every entry is laid over `PATCH_BASE`, the patch parameters the campaign adopted before it varied anything else: `executeLSQNoStoreForwarding`, `executeLSQStoreCollisionReplayDelay 2`, `executeLSQFenceSignalsDcache`, `executeFenceSquashesPipeline` and two L1I MSHRs. It also takes back three things of the stock baseline, the 4096-entry BTB, the unit instances and fpnew's latencies, which the other patch-tier rows were measured without, and the entries that are production set them again. An entry's own overrides win, so an ablation sets the value it takes away.
 
 **TESTS 1 to 39 set no patch parameter, and run the same in both harnesses.**
 
@@ -213,20 +213,19 @@ The table is ordered by what an entry needs to run, then by the part of the mach
 | 97  | production minus fill at the response               | all          |
 | 98  | production minus the C910 divider law               | all          |
 | 99  | production minus the divider queue                  | all          |
-|     | **direct targets against today's stack**            |              |
+|     | **direct targets against the stack**                |              |
 | 100 | production minus direct targets                     | all          |
-|     | **the killed-line drop against today's stack**      |              |
+|     | **the killed-line drop against the stack**          |              |
 | 101 | production minus the killed-line drop               | all          |
 |     | **the integer divider's consumers**                 |              |
 | 102 | production minus the int divider wait               | all          |
 |     | **the atomic squash**                               |              |
 | 103 | production minus the atomic squash                  | all          |
-|     | **the 26 September adoptions, each taken back out** |              |
+|     | **five more mechanisms, each taken back out**       |              |
 | 104 | production minus the scoreboard                     | all          |
 | 105 | production with replay delay 2                      | all          |
 | 106 | production minus the flush at once                  | all          |
-| 107 | production with the old FP latencies                | all          |
-|     | **the second round of 26 September**                |              |
+| 107 | production with FP NONCOMP 1 and CONV 2             | all          |
 | 108 | production minus the cold static prediction         | all          |
 
 ### The cache geometry list

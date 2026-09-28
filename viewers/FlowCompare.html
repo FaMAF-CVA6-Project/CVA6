@@ -2564,7 +2564,7 @@
     /* Loads files in order into their slots. A second JSON of a kind already loaded by the same
      * drop is refused, and a manual offset belongs to the pair it was chosen for, so it resets. */
     async function loadJsonFiles(files, notes) {
-      /* The menu no longer names what is on screen. */
+      /* Opened files are not an example, so the menu shows none. */
       byId('sample-select').value = '';
       updateExampleButton();
       await showReading(files);

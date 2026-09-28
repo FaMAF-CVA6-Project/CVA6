@@ -316,7 +316,7 @@ docker build -f dockerfiles/gem5/Dockerfile -t manuel313/famaf_gem5:build .
 
 **These are heavy builds.** The cost is three full gem5 builds on the gem5 side, and on the CVA6 side Verilator, Spike and the samples, since `util/toolchain-builder` fetches a prebuilt RISC-V toolchain rather than compiling one.
 
-The figures below were measured on 20 September, building both from scratch with no layer cache on a 16-core laptop with 15 GB of memory, at the job counts named.
+The figures below were measured building both from scratch with no layer cache on a 16-core laptop with 15 GB of memory, at the job counts named.
 
 |                              | Disk while building | Finished image | Time             | Memory per job |
 | ---------------------------- | ------------------- | -------------- | ---------------- | -------------- |

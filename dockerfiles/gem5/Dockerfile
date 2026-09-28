@@ -13,7 +13,7 @@
 #     docker build --build-arg JOBS=2 ...          # on a smaller machine
 #
 # Three gem5 builds are the whole cost: about 45 GB while building, 25.4 GB in
-# the image and 3 h 15 at two jobs, measured on 20 September.
+# the image and 3 h 15 at two jobs.
 # Linking peaks near 4 GB per job, so keep JOBS under (RAM in GB) / 4. See
 # the README for the rest.
 # ==============================================================================

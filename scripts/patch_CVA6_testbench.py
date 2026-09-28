@@ -66,8 +66,6 @@ FLAGS = {"vcd_window": "--vcd-window", "ddr3_memory": "--ddr3"}
 # Where apply keeps each upstream file. The container has no git repository
 # to restore one from, so the copy is the only way back.
 BACKUP_SUFFIX = ".upstream"
-# The earlier DDR3 install script's name for the same copy, read on revert.
-LEGACY_SUFFIXES = (".ddr3.orig",)
 
 NOTICE_MARK = "NOTICE OF MODIFICATION"
 APPLIED_MARK = "Applied:"
@@ -111,8 +109,8 @@ def usable(root):
 
 def read_notice(path):
     """The changes a target's notice lists, None with no notice, and 'legacy'
-    for the notice of a whole modified copy, as the earlier window tool and
-    the DDR3 install script put in."""
+    for the notice of a whole modified copy, as the earlier window tool put
+    in."""
     with open(path, encoding="utf-8", errors="replace") as handle:
         head = handle.read(4096)
     if NOTICE_MARK not in head:
@@ -152,16 +150,12 @@ def restore_upstream(root, dry_run):
     """Put every backed-up target back and delete the added files."""
     for rel in TARGETS:
         target = os.path.join(root, rel)
-        kept = [target + suffix
-                for suffix in (BACKUP_SUFFIX, *LEGACY_SUFFIXES)
-                if os.path.isfile(target + suffix)]
         backup = target + BACKUP_SUFFIX
-        if kept:
+        if os.path.isfile(backup):
             print(f"[INFO] {rel}: upstream copy back in")
             if not dry_run:
-                shutil.copy2(kept[0], target)
-                for path in kept:
-                    os.remove(path)
+                shutil.copy2(backup, target)
+                os.remove(backup)
         elif read_notice(target) is not None:
             print(f"[ERROR] {rel} is modified and there is no "
                   f"{os.path.basename(backup)} to put back. On the host, "

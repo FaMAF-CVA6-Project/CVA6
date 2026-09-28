@@ -1,5 +1,5 @@
 diff --git a/src/cpu/minor/BaseMinorCPU.py b/src/cpu/minor/BaseMinorCPU.py
-index 545dfea..d8dfc0a 100644
+index 545dfea..42f155d 100644
 --- a/src/cpu/minor/BaseMinorCPU.py
 +++ b/src/cpu/minor/BaseMinorCPU.py
 @@ -90,6 +90,19 @@ class MinorFUTiming(SimObject):
@@ -94,7 +94,7 @@ index 545dfea..d8dfc0a 100644
 +        False,
 +        "A committed AMO, LR or SC squashes the pipeline and restarts "
 +        "fetch at the next PC, as CVA6's commit stage flushes on every "
-+        "atomic it acknowledges (commit_stage.sv lines 294 to 300)",
++        "atomic it acknowledges",
 +    )
 +    executeMaxInFlightInsts = Param.Unsigned(
 +        0,
@@ -155,7 +155,7 @@ index 9c6d6fd..6c85d5e 100644
       *  to account for delay in absolute time */
      Cycles minimumCommitCycle{0};
 diff --git a/src/cpu/minor/execute.cc b/src/cpu/minor/execute.cc
-index ba4032e..2647879 100644
+index ba4032e..deb50d0 100644
 --- a/src/cpu/minor/execute.cc
 +++ b/src/cpu/minor/execute.cc
 @@ -79,6 +79,11 @@ Execute::Execute(const std::string &name_,
@@ -197,9 +197,9 @@ index ba4032e..2647879 100644
 +
 +    /* An AMO, LR or SC, all under RISC-V's AMO major opcode, flushes the
 +     *  pipeline once acknowledged, a failed SC included, and fetch restarts
-+     *  at the next instruction (commit_stage.sv lines 294 to 300,
-+     *  controller.sv lines 223 to 229). Only the last microop does: an aq
-+     *  form ends in a fence microop, which rule F5 squashes after. */
++     *  at the next instruction, as CVA6's commit stage and controller do.
++     *  Only the last microop does: an aq form ends in a fence microop,
++     *  which rule F5 squashes after. */
 +    const StaticInstPtr &si = inst->staticInst;
 +    if (atomicSquashesPipeline && fault == NoFault && branch.isBubble() &&
 +        inst->isInst() && (si->getEMI() & 0x7f) == 0x2f &&

@@ -214,11 +214,13 @@ from m5.objects import (  # type: ignore
 # 101   production minus the killed-line drop     workload: all
 #   --- the integer divider's consumers ---
 # 102   production minus the int divider wait     workload: all
+#   --- the atomic squash ---
 # 103   production minus the atomic squash        workload: all
+#   --- five more mechanisms, each taken back out ---
 # 104   production minus the scoreboard           workload: all
 # 105   production with replay delay 2            workload: all
 # 106   production minus the flush at once        workload: all
-# 107   production with the old FP latencies      workload: all
+# 107   production with FP NONCOMP 1 and CONV 2   workload: all
 # 108   production minus the cold static prediction workload: all
 #
 #   --- cache geometry ---
@@ -1172,6 +1174,7 @@ TESTS = {
            "fuCopies": 8, "scoreboard": True,
            "serdivBitLength": True,
            "fpRtlLatencies": True, "coldStaticPrediction": True}),
+    # --- five more mechanisms, each taken back out ---
     104: ("production minus the scoreboard",
           {"fetch2CycleInput": True,
            "executeFenceSquashesPipeline": True,
@@ -1255,7 +1258,7 @@ TESTS = {
            "fuCopies": 8, "scoreboard": True,
            "serdivBitLength": True,
            "fpRtlLatencies": True, "coldStaticPrediction": True}),
-    107: ("production with the old FP latencies",
+    107: ("production with FP NONCOMP 1 and CONV 2",
           {"fetch2CycleInput": True,
            "executeFenceSquashesPipeline": True,
            "executeLSQStoreCollisionReplayDelay": 3,
@@ -1427,8 +1430,8 @@ def serdivExtraLatency(base=1, bit_length=True):
     diff = _bin('timingExprSub', bits_a, bits_b)
     clamped = _if(_bin('timingExprSGreaterThan',
                   bits_a, bits_b), diff, _lit(0))
-    # A quotient known to be zero answers in the first DIVIDE cycle
-    # (serdiv.sv div_res_zero), without the FINISH cycle base stands for.
+    # A quotient known to be zero answers in the first DIVIDE cycle,
+    # without the FINISH cycle base stands for.
     early = _bin('timingExprSGreaterThan', bits_b, bits_a)
     return _if(early, _lit(0), _bin('timingExprAdd', clamped, _lit(base)))
 
