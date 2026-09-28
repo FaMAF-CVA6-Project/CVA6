@@ -68,7 +68,8 @@ L1I_SIZE = "16KiB"
 L1D_SIZE = "32KiB"
 
 # Cycles a load waits after a store collision clears, the CVA6 LSU re-request.
-STORE_COLLISION_REPLAY_DELAY = 2
+# Every colliding load of the suite measures one cycle longer than 2 allows.
+STORE_COLLISION_REPLAY_DELAY = 3
 
 # Class extras on the dirty-victim readout window, the additive law's
 # x and z terms (hpdcache_rtab.sv POP_TRY, hpdcache_flush.sv).
@@ -124,15 +125,22 @@ def _if(cond, then_expr, else_expr):
 
 def serdivExtraLatency(base=1):
     """Data-dependent latency of the CVA6 integer divider,
-    max(bits(a) - bits(b), 0) + base. The calibration harnesses pass 0 for
-    TEST 21, so base stays a parameter."""
-    bits_a = _un('timingExprSizeInBits', _src(0))
-    bits_b = _un('timingExprSizeInBits', _src(1))
+    max(bits(a) - bits(b), 0) + base, and none when bits(a) < bits(b). The
+    calibration harnesses pass 0 for TEST 21, so base stays a parameter."""
+    # timingExprSizeInBits is ceilLog2, a bit short on a power of two, and
+    # serdiv counts leading zeros, so the length is taken of the value plus 1.
+    bits_a = _un('timingExprSizeInBits',
+                 _bin('timingExprAdd', _src(0), _lit(1)))
+    bits_b = _un('timingExprSizeInBits',
+                 _bin('timingExprAdd', _src(1), _lit(1)))
     diff = _bin('timingExprSub', bits_a, bits_b)
     # max(bits(a) - bits(b), 0), since the subtraction is unsigned and wraps
     clamped = _if(_bin('timingExprSGreaterThan',
                   bits_a, bits_b), diff, _lit(0))
-    return _bin('timingExprAdd', clamped, _lit(base))
+    # A quotient known to be zero answers in the first DIVIDE cycle
+    # (serdiv.sv div_res_zero), without the FINISH cycle base stands for.
+    early = _bin('timingExprSGreaterThan', bits_b, bits_a)
+    return _if(early, _lit(0), _bin('timingExprAdd', clamped, _lit(base)))
 
 
 # The C910 radix-16 SRT divider CVA6 runs (fpnew DivSqrtSel THMULTI) stops a
@@ -309,6 +317,16 @@ FP_DIVSQRT_BASE_LAT = 9
 # 6 + m after that one, 3 cycles sooner than a start at the writeback.
 FP_DIVSQRT_QUEUE_OVERLAP = 3
 
+# CVA6's scoreboard entries (CVA6ConfigNrScoreboardEntries). One freed at a
+# commit is taken at the next edge, scoreboard.sv's full flag being registered,
+# and its instruction executes a cycle later, so a release delay of 2.
+SCOREBOARD_ENTRIES = 8
+SCOREBOARD_RELEASE_DELAY = 2
+
+# Without the decode targets, a BTB that holds every taken branch stands in
+# for them, as in gem5_config_CVA6.py.
+STOCK_BTB_ENTRIES = 4096
+
 
 def fpDivSqrtTimings(extra=0):
     timings = []
@@ -351,49 +369,74 @@ def minorMakeOpClassSet(op_classes):
 
 
 class CVA6FUPool(MinorFUPool):
-    def __init__(self, c910_divider=True, divider_queue=True):
+    def __init__(self, c910_divider=True, divider_queue=True,
+                 int_divider_wait=True):
         super().__init__()
 
-        int_alu = MinorFU()
-        int_alu.opClasses = minorMakeOpClassSet(['IntAlu'])
-        int_alu.opLat = 1
-        int_alu.issueLat = 1
+        # The pipelined units are made by a function each, since the pool
+        # takes several of every one.
+        def int_alu():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntAlu'])
+            unit.opLat = 1
+            unit.issueLat = 1
+            return unit
 
-        int_mul = MinorFU()
-        int_mul.opClasses = minorMakeOpClassSet(['IntMult'])
-        int_mul.opLat = 2
-        int_mul.issueLat = 1
+        def int_mul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntMult'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            return unit
 
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
         int_div.opLat = 2
         int_div.issueLat = 3
+        # A divide's latency is set at its commit, unseen at issue, so its
+        # consumers wait for the commit, and one cycle more, since the integer
+        # unit stays busy through serdiv's writeback.
         int_div.timings = [MinorFUTiming(
             description='IntDivSerdiv',
             srcRegsRelativeLats=[0],
-            extraCommitLatExpr=serdivExtraLatency(base=1))]
+            extraCommitLatExpr=serdivExtraLatency(base=1),
+            consumersWaitForCommit=int_divider_wait,
+            consumerReleaseDelay=1 if int_divider_wait else 0)]
 
-        fp_addmul = MinorFU()
-        fp_addmul.opClasses = minorMakeOpClassSet(
-            ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
-        fp_addmul.opLat = 3
-        fp_addmul.issueLat = 1
-        fp_addmul.timings = [MinorFUTiming(
-            description='FpAddMulDouble',
-            srcRegsRelativeLats=[0],
-            mask=0x06000000,
-            match=0x02000000,
-            extraCommitLat=1)]
+        def fp_addmul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(
+                ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
+            unit.opLat = 3
+            unit.issueLat = 1
+            unit.timings = [MinorFUTiming(
+                description='FpAddMulDouble',
+                srcRegsRelativeLats=[0],
+                mask=0x06000000,
+                match=0x02000000,
+                extraCommitLat=1)]
+            return unit
 
-        fp_cvt = MinorFU()
-        fp_cvt.opClasses = minorMakeOpClassSet(['FloatCvt'])
-        fp_cvt.opLat = 2
-        fp_cvt.issueLat = 1
+        # fpnew's NONCOMP and CONV pipelines hold 1 and 2 registers,
+        # a cycle each plus one, as the ADDMUL rows. fmv is NONCOMP, 
+        # so only fcvt takes the third.
+        def fp_cvt():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCvt'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            unit.timings = [MinorFUTiming(
+                description=f'FpConv{name}', srcRegsRelativeLats=[0],
+                mask=0xE000007F, match=match, extraCommitLat=1)
+                for name, match in (('Fp', 0x40000053), ('Int', 0xC0000053))]
+            return unit
 
-        fp_noncomp = MinorFU()
-        fp_noncomp.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
-        fp_noncomp.opLat = 1
-        fp_noncomp.issueLat = 1
+        def fp_noncomp():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            return unit
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
@@ -528,9 +571,16 @@ class CVA6FUPool(MinorFUPool):
         misc.opLat = 1
         misc.issueLat = 1
 
+        # CVA6 writes a result into its scoreboard and issues on, where a Minor
+        # unit holds it until commit, so each pipelined unit has an instance
+        # per entry and executeMaxInFlightInsts is what stops issue.
+        copies = SCOREBOARD_ENTRIES
         self.funcUnits = [
-            int_alu, int_mul, int_div,
-            fp_addmul, fp_cvt, fp_noncomp, fp_divsqrt,
+            *(make() for make in (int_alu, int_mul) for _ in range(copies)),
+            int_div,
+            *(make() for make in (fp_addmul, fp_cvt, fp_noncomp)
+              for _ in range(copies)),
+            fp_divsqrt,
             mem_fu,
             simd_int_fast, simd_complex, simd_matrix, simd_div_sqrt, pred,
             vec_mem_fast, vec_mem_slow, misc,
@@ -543,11 +593,14 @@ class CVA6CPU(RiscvMinorCPU):
                  fence_squash=True, icache_hold=True,
                  kill_on_redirect=True, fetch_limit=None,
                  fetch2_buffer=None, c910_divider=True, divider_queue=True,
-                 drop_killed_lines=True):
+                 drop_killed_lines=True, int_divider_wait=True,
+                 atomic_squash=True, scoreboard=True, flush_at_once=True,
+                 cold_static=True):
         super().__init__()
 
-        self.executeFuncUnits = CVA6FUPool(c910_divider=c910_divider,
-                                           divider_queue=divider_queue)
+        self.executeFuncUnits = CVA6FUPool(
+            c910_divider=c910_divider, divider_queue=divider_queue,
+            int_divider_wait=int_divider_wait)
 
         # This config adopts depth 3 and gem5_config_CVA6.py keeps 2, so a
         # parity run against the stock build needs a way to make them equal.
@@ -566,7 +619,7 @@ class CVA6CPU(RiscvMinorCPU):
         self.decodeInputWidth = 1
         self.decodeCycleInput = False
         self.executeInputWidth = 1
-        self.executeCycleInput = False
+        self.executeCycleInput = flush_at_once
         self.executeIssueLimit = 1
         self.executeMemoryIssueLimit = 1
         self.executeCommitLimit = 2
@@ -593,6 +646,10 @@ class CVA6CPU(RiscvMinorCPU):
             STORE_COLLISION_REPLAY_DELAY if store_forwarding_model else 0)
         self.executeLSQFenceSignalsDcache = fence_signal
         self.executeFenceSquashesPipeline = fence_squash
+        self.executeAtomicSquashesPipeline = atomic_squash
+        self.executeMaxInFlightInsts = SCOREBOARD_ENTRIES if scoreboard else 0
+        self.executeInFlightReleaseDelay = (
+            SCOREBOARD_RELEASE_DELAY if scoreboard else 0)
 
         # Branch predictor.
         self.branchPred = LocalBP(
@@ -601,7 +658,7 @@ class CVA6CPU(RiscvMinorCPU):
             instShiftAmt=1,
         )
         self.branchPred.btb = SimpleBTB(
-            numEntries=32,
+            numEntries=32 if direct_targets else STOCK_BTB_ENTRIES,
             tagBits=20,
             associativity=1,
             instShiftAmt=1,
@@ -619,6 +676,8 @@ class CVA6CPU(RiscvMinorCPU):
 
         if ras_no_recovery:
             self.branchPred.rasNoRecovery = True
+        # A BHT entry with its valid bit clear predicts by the offset's sign.
+        self.branchPred.coldStaticPrediction = cold_static
 
 
 class CVA6Processor(BaseCPUProcessor):
@@ -627,7 +686,9 @@ class CVA6Processor(BaseCPUProcessor):
                  fence_squash=True, icache_hold=True,
                  kill_on_redirect=True, fetch_limit=None,
                  fetch2_buffer=None, c910_divider=True, divider_queue=True,
-                 drop_killed_lines=True):
+                 drop_killed_lines=True, int_divider_wait=True,
+                 atomic_squash=True, scoreboard=True, flush_at_once=True,
+                 cold_static=True):
         cpu = CVA6CPU(direct_targets=direct_targets,
                       store_forwarding_model=store_forwarding_model,
                       fence_signal=fence_signal,
@@ -639,7 +700,12 @@ class CVA6Processor(BaseCPUProcessor):
                       fetch2_buffer=fetch2_buffer,
                       c910_divider=c910_divider,
                       divider_queue=divider_queue,
-                      drop_killed_lines=drop_killed_lines)
+                      drop_killed_lines=drop_killed_lines,
+                      int_divider_wait=int_divider_wait,
+                      atomic_squash=atomic_squash,
+                      scoreboard=scoreboard,
+                      flush_at_once=flush_at_once,
+                      cold_static=cold_static)
         core = BaseCPUCore(core=cpu, isa=ISA.RISCV)
         super().__init__(cores=[core])
 
@@ -789,6 +855,12 @@ parser.add_argument("--no-patch", action="store_true",
                          "calibration started from. With --fetch-limit 2 "
                          "--fetch2-buffer 2 it should reproduce "
                          "gem5_config_CVA6.py on a stock build")
+parser.add_argument("--ddr3-frontend-ns", type=int, default=None,
+                    metavar="NS",
+                    help="With --ddr3, the controller's static frontend "
+                         "latency in ns, gem5's default 10. 30 matches "
+                         "the extra cycle of the DDR3-like testbench's "
+                         "AXI front end")
 parser.add_argument("--no-port-model", action="store_true",
                     help="Remove the axi2mem single-port model")
 parser.add_argument("--no-evict-on-allocate", action="store_true",
@@ -813,7 +885,8 @@ parser.add_argument("--no-cva6-icache-policy", action="store_true",
                          "instruction cache policy")
 parser.add_argument("--no-cva6-direct-targets", action="store_true",
                     help="Direct branches and jumps take targets from the "
-                         "BTB only, the stock gem5 behaviour")
+                         "BTB only, the stock gem5 behaviour, with the "
+                         "4096 entries of gem5_config_CVA6.py")
 parser.add_argument("--no-store-forwarding-model", action="store_true",
                     help="Let the store buffer forward to loads, the stock "
                          "gem5 behaviour, and drop the replay delay with it")
@@ -855,6 +928,26 @@ parser.add_argument("--no-divider-queue", action="store_true",
                          "holding the next divide or square root in fpnew's "
                          "input register, and start a divide's extra latency "
                          "at the commit head, not at the unit's end")
+parser.add_argument("--no-scoreboard", action="store_true",
+                    help="No limit on the instructions issued and not yet "
+                         "committed, where CVA6's scoreboard holds eight")
+parser.add_argument("--no-flush-at-once", action="store_true",
+                    help="Discard the stale instructions waiting at issue one "
+                         "a cycle after a redirect, Minor's pace, instead of "
+                         "all at once as CVA6's flush does")
+parser.add_argument("--no-atomic-squash", action="store_true",
+                    help="Let a committed AMO, LR or SC run on without the "
+                         "pipeline flush and refetch CVA6 takes after each")
+parser.add_argument("--no-int-divider-wait", action="store_true",
+                    help="Let an integer divide's consumers issue on the "
+                         "scoreboard's estimate, before its operand-timed "
+                         "latency is known, instead of the cycle after its "
+                         "commit")
+parser.add_argument("--no-cold-static-prediction", action="store_true",
+                    help="Let a branch-history counter never updated predict "
+                         "not taken, instead of by the offset's sign, as "
+                         "CVA6's BHT does while an entry's valid bit is "
+                         "clear")
 parser.add_argument("--no-ras-decay", action="store_true",
                     help="Repair the RAS on squash, the stock gem5 "
                          "behaviour, instead of CVA6's unrecovered "
@@ -905,7 +998,12 @@ processor = CVA6Processor(direct_targets=direct_targets,
                           fetch2_buffer=args.fetch2_buffer,
                           c910_divider=not args.no_c910_divider,
                           divider_queue=not args.no_divider_queue,
-                          drop_killed_lines=not args.no_drop_killed_lines)
+                          drop_killed_lines=not args.no_drop_killed_lines,
+                          int_divider_wait=not args.no_int_divider_wait,
+                          atomic_squash=not args.no_atomic_squash,
+                          scoreboard=not args.no_scoreboard,
+                          flush_at_once=not args.no_flush_at_once,
+                          cold_static=not args.no_cold_static_prediction)
 
 cache_hierarchy = CVA6CacheHierarchy(
     l1d_size=L1D_SIZE,
@@ -926,6 +1024,9 @@ cache_hierarchy = CVA6CacheHierarchy(
 if args.ddr3:
     memory = (SingleChannelDDR3_1600(size="1GiB") if args.no_port_model
               else Axi2MemPortedDDR3(size="1GiB"))
+    if args.ddr3_frontend_ns is not None:
+        for _ctrl in memory.mem_ctrl:
+            _ctrl.static_frontend_latency = f"{args.ddr3_frontend_ns}ns"
 else:
     mem_class = (SingleChannelSimpleMemory if args.no_port_model
                  else Axi2MemPortedMemory)
@@ -970,9 +1071,14 @@ active = [n for n, on in (
     ("cva6-icache-policy", icache_policy),
     ("cva6-direct-targets", direct_targets),
     ("ras-decay", ras_no_recovery),
+    ("cold-static-prediction", not args.no_cold_static_prediction),
     ("store-forwarding-model", store_forwarding_model),
     ("c910-divider", not args.no_c910_divider),
-    ("divider-queue", not args.no_divider_queue)) if on]
+    ("divider-queue", not args.no_divider_queue),
+    ("int-divider-wait", not args.no_int_divider_wait),
+    ("atomic-squash", not args.no_atomic_squash),
+    ("scoreboard", not args.no_scoreboard),
+    ("flush-at-once", not args.no_flush_at_once)) if on]
 print("Starting CVA6 simulation with: " +
       (", ".join(active) if active else "no transcribed mechanisms"))
 simulator.run()
