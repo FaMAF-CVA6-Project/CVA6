@@ -81,8 +81,8 @@ from m5.objects import (  # type: ignore
 #  11   decodeInputBufferSize 1 -> 8              workload: daxpy, full_test
 #   --- branch prediction ---
 #  12   Morillas 2025 predictor sizing            workload: branch_full_test, btb_pressure, full_test
-#  13   BTB 32 -> 512                             workload: branch_full_test, btb_pressure, full_test
-#  14   BTB 32 -> 4096                            workload: branch_full_test, btb_pressure, full_test
+#  13   BTB 4096 -> 512                           workload: branch_full_test, btb_pressure, full_test
+#  14   BTB 4096 -> 32, CVA6's own                workload: branch_full_test, btb_pressure, full_test
 #   --- LSQ queue geometry ---
 #  15   requests queue 2 -> 4                     workload: store_fwd
 #  16   requests queue 2 -> 8                     workload: store_fwd
@@ -163,10 +163,10 @@ TESTS = {
     12: ("Morillas branch predictor",    {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"localPredictorSize": 1024, "bhtInstShiftAmt": 2,
           "btbNumEntries": 64, "btbAssociativity": 16, "btbInstShiftAmt": 2}),
-    13: ("BTB 32->512",                  {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+    13: ("BTB 4096->512",                {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
          {"btbNumEntries": 512}),
-    14: ("BTB 32->4096",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
-         {"btbNumEntries": 4096}),
+    14: ("BTB 4096->32",                 {}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns",
+         {"btbNumEntries": 32}),
     # --- LSQ queue geometry ---
     15: ("LSQ requests queue 2->4",      {"executeLSQRequestsQueueSize": 4}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
     16: ("LSQ requests queue 2->8",      {"executeLSQRequestsQueueSize": 8}, "16KiB", "32KiB", {}, {}, "50MHz", "0ns", {}),
@@ -300,14 +300,36 @@ def _if(cond, then_expr, else_expr):
     return e
 
 
-def serdivExtraLatency(base=1):
+def serdivExtraLatency(base=1, bit_length=True):
     """Data-dependent latency of the CVA6 integer divider."""
-    bits_a = _un('timingExprSizeInBits', _src(0))
-    bits_b = _un('timingExprSizeInBits', _src(1))
+    # timingExprSizeInBits is ceilLog2, a bit short on a power of two, and
+    # serdiv counts leading zeros, so the length is taken of the value plus 1.
+    if bit_length:
+        bits_a = _un('timingExprSizeInBits',
+                     _bin('timingExprAdd', _src(0), _lit(1)))
+        bits_b = _un('timingExprSizeInBits',
+                     _bin('timingExprAdd', _src(1), _lit(1)))
+    else:
+        bits_a = _un('timingExprSizeInBits', _src(0))
+        bits_b = _un('timingExprSizeInBits', _src(1))
     diff = _bin('timingExprSub', bits_a, bits_b)
     clamped = _if(_bin('timingExprSGreaterThan',
                   bits_a, bits_b), diff, _lit(0))
-    return _bin('timingExprAdd', clamped, _lit(base))
+    # A quotient known to be zero answers in the first DIVIDE cycle
+    # without the FINISH cycle base stands for.
+    early = _bin('timingExprSGreaterThan', bits_b, bits_a)
+    return _if(early, _lit(0), _bin('timingExprAdd', clamped, _lit(base)))
+
+
+# CVA6's scoreboard entries, the instances of each pipelined unit by default,
+# and the patched build's in-flight limit with its release delay, as in
+# gem5_config_CVA6_patch.py.
+SCOREBOARD_ENTRIES = 8
+SCOREBOARD_RELEASE_DELAY = 2
+
+# The BTB standing in for CVA6's pre-decoded direct targets, as in
+# gem5_config_CVA6.py. PATCH_BASE brings the patch tier back to 32.
+BTB_ENTRIES = 4096
 
 
 def minorMakeOpClassSet(op_classes):
@@ -320,18 +342,23 @@ class CVA6FUPool(MinorFUPool):
     # variant selects one FU-level perturbation, "baseline" is the adopted
     # configuration, identical to gem5_config_CVA6.py. An unknown name
     # also gives the baseline.
-    def __init__(self, variant="baseline"):
+    def __init__(self, variant="baseline", copies=SCOREBOARD_ENTRIES,
+                 fp_rtl_latencies=True, serdiv_bit_length=True):
         super().__init__()
 
-        int_alu = MinorFU()
-        int_alu.opClasses = minorMakeOpClassSet(['IntAlu'])
-        int_alu.opLat = 1
-        int_alu.issueLat = 1
+        def int_alu():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntAlu'])
+            unit.opLat = 1
+            unit.issueLat = 1
+            return unit
 
-        int_mul = MinorFU()
-        int_mul.opClasses = minorMakeOpClassSet(['IntMult'])
-        int_mul.opLat = 1 if variant == "int_mul_1" else 2
-        int_mul.issueLat = 1
+        def int_mul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntMult'])
+            unit.opLat = 1 if variant == "int_mul_1" else 2
+            unit.issueLat = 1
+            return unit
 
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
@@ -341,30 +368,43 @@ class CVA6FUPool(MinorFUPool):
             description='IntDivSerdiv',
             srcRegsRelativeLats=[0],
             extraCommitLatExpr=serdivExtraLatency(
-                base=0 if variant == "serdiv_base0" else 1))]
+                base=0 if variant == "serdiv_base0" else 1,
+                bit_length=serdiv_bit_length))]
 
-        fp_addmul = MinorFU()
-        fp_addmul.opClasses = minorMakeOpClassSet(
-            ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
-        fp_addmul.opLat = 3
-        fp_addmul.issueLat = 1
-        if variant != "addmul_flat":
-            fp_addmul.timings = [MinorFUTiming(
-                description='FpAddMulDouble',
-                srcRegsRelativeLats=[0],
-                mask=0x06000000,
-                match=0x02000000,
-                extraCommitLat=1)]
+        def fp_addmul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(
+                ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
+            unit.opLat = 3
+            unit.issueLat = 1
+            if variant != "addmul_flat":
+                unit.timings = [MinorFUTiming(
+                    description='FpAddMulDouble',
+                    srcRegsRelativeLats=[0],
+                    mask=0x06000000,
+                    match=0x02000000,
+                    extraCommitLat=1)]
+            return unit
 
-        fp_cvt = MinorFU()
-        fp_cvt.opClasses = minorMakeOpClassSet(['FloatCvt'])
-        fp_cvt.opLat = 2
-        fp_cvt.issueLat = 1
+        def fp_cvt():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCvt'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            if fp_rtl_latencies:
+                unit.timings = [MinorFUTiming(
+                    description=f'FpConv{name}', srcRegsRelativeLats=[0],
+                    mask=0xE000007F, match=match, extraCommitLat=1)
+                    for name, match in (('Fp', 0x40000053),
+                                        ('Int', 0xC0000053))]
+            return unit
 
-        fp_noncomp = MinorFU()
-        fp_noncomp.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
-        fp_noncomp.opLat = 1
-        fp_noncomp.issueLat = 1
+        def fp_noncomp():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
+            unit.opLat = 2 if fp_rtl_latencies else 1
+            unit.issueLat = 1
+            return unit
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
@@ -503,9 +543,13 @@ class CVA6FUPool(MinorFUPool):
         misc.opLat = 1
         misc.issueLat = 1
 
+        # An instance of each pipelined unit for every scoreboard entry.
         self.funcUnits = [
-            int_alu, int_mul, int_div,
-            fp_addmul, fp_cvt, fp_noncomp, fp_divsqrt,
+            *(make() for make in (int_alu, int_mul) for _ in range(copies)),
+            int_div,
+            *(make() for make in (fp_addmul, fp_cvt, fp_noncomp)
+              for _ in range(copies)),
+            fp_divsqrt,
             mem_fu,
             simd_int_fast, simd_complex, simd_matrix, simd_div_sqrt, pred,
             vec_mem_fast, vec_mem_slow, misc,
@@ -597,8 +641,14 @@ class CVA6CPU(RiscvMinorCPU):
         overrides = dict(overrides or {})
         bp = dict(bp or {})
         fu_variant = bp.pop("fuVariant", "baseline")
+        copies = bp.pop("fuCopies", SCOREBOARD_ENTRIES)
+        fp_rtl_latencies = bp.pop("fpRtlLatencies", True)
+        serdiv_bit_length = bp.pop("serdivBitLength", True)
 
-        self.executeFuncUnits = CVA6FUPool(variant=fu_variant)
+        self.executeFuncUnits = CVA6FUPool(
+            variant=fu_variant, copies=copies,
+            fp_rtl_latencies=fp_rtl_latencies,
+            serdiv_bit_length=serdiv_bit_length)
 
         # Adopted baseline, identical to gem5_config_CVA6.py.
         self.fetch1FetchLimit = 2
@@ -651,7 +701,7 @@ class CVA6CPU(RiscvMinorCPU):
             raise ValueError(f"Unknown branchPred class: {bp_class_name}")
 
         self.branchPred.btb = SimpleBTB(
-            numEntries=bp.get("btbNumEntries", 32),
+            numEntries=bp.get("btbNumEntries", BTB_ENTRIES),
             tagBits=bp.get("btbTagBits", 20),
             associativity=bp.get("btbAssociativity", 1),
             instShiftAmt=bp.get("btbInstShiftAmt", 1),

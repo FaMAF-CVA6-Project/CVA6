@@ -53,6 +53,15 @@ MEM_LATENCY = "0ns"
 L1I_SIZE = "16KiB"
 L1D_SIZE = "32KiB"
 
+# CVA6's scoreboard entries (CVA6ConfigNrScoreboardEntries), and so the
+# instances of each pipelined unit, see CVA6FUPool.
+SCOREBOARD_ENTRIES = 8
+
+# CVA6 pre-decodes every direct target and keeps a 32-entry BTB for JALR.
+# Stock Minor takes a taken target only from the BTB, so one that holds 
+# every taken branch stands in, as directTargetsFromDecode does.
+BTB_ENTRIES = 4096
+
 
 def _lit(value):
     e = TimingExprLiteral()
@@ -91,15 +100,22 @@ def _if(cond, then_expr, else_expr):
 
 def serdivExtraLatency(base=1):
     """Data-dependent latency of the CVA6 integer divider,
-    max(bits(a) - bits(b), 0) + base. The calibration harnesses pass 0 for
-    TEST 21, so base stays a parameter."""
-    bits_a = _un('timingExprSizeInBits', _src(0))
-    bits_b = _un('timingExprSizeInBits', _src(1))
+    max(bits(a) - bits(b), 0) + base, and none when bits(a) < bits(b). The
+    calibration harnesses pass 0 for TEST 21, so base stays a parameter."""
+    # timingExprSizeInBits is ceilLog2, a bit short on a power of two, and
+    # serdiv counts leading zeros, so the length is taken of the value plus 1.
+    bits_a = _un('timingExprSizeInBits',
+                 _bin('timingExprAdd', _src(0), _lit(1)))
+    bits_b = _un('timingExprSizeInBits',
+                 _bin('timingExprAdd', _src(1), _lit(1)))
     diff = _bin('timingExprSub', bits_a, bits_b)
     # max(bits(a) - bits(b), 0), since the subtraction is unsigned and wraps
     clamped = _if(_bin('timingExprSGreaterThan',
                   bits_a, bits_b), diff, _lit(0))
-    return _bin('timingExprAdd', clamped, _lit(base))
+    # A quotient known to be zero answers in the first DIVIDE cycle,
+    # without the FINISH cycle base stands for.
+    early = _bin('timingExprSGreaterThan', bits_b, bits_a)
+    return _if(early, _lit(0), _bin('timingExprAdd', clamped, _lit(base)))
 
 
 def minorMakeOpClassSet(op_classes):
@@ -112,15 +128,21 @@ class CVA6FUPool(MinorFUPool):
     def __init__(self):
         super().__init__()
 
-        int_alu = MinorFU()
-        int_alu.opClasses = minorMakeOpClassSet(['IntAlu'])
-        int_alu.opLat = 1
-        int_alu.issueLat = 1
+        # The pipelined units are made by a function each, since the pool
+        # takes several of every one.
+        def int_alu():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntAlu'])
+            unit.opLat = 1
+            unit.issueLat = 1
+            return unit
 
-        int_mul = MinorFU()
-        int_mul.opClasses = minorMakeOpClassSet(['IntMult'])
-        int_mul.opLat = 2
-        int_mul.issueLat = 1
+        def int_mul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['IntMult'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            return unit
 
         int_div = MinorFU()
         int_div.opClasses = minorMakeOpClassSet(['IntDiv'])
@@ -131,27 +153,40 @@ class CVA6FUPool(MinorFUPool):
             srcRegsRelativeLats=[0],
             extraCommitLatExpr=serdivExtraLatency(base=1))]
 
-        fp_addmul = MinorFU()
-        fp_addmul.opClasses = minorMakeOpClassSet(
-            ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
-        fp_addmul.opLat = 3
-        fp_addmul.issueLat = 1
-        fp_addmul.timings = [MinorFUTiming(
-            description='FpAddMulDouble',
-            srcRegsRelativeLats=[0],
-            mask=0x06000000,
-            match=0x02000000,
-            extraCommitLat=1)]
+        def fp_addmul():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(
+                ['FloatAdd', 'FloatMult', 'FloatMultAcc'])
+            unit.opLat = 3
+            unit.issueLat = 1
+            unit.timings = [MinorFUTiming(
+                description='FpAddMulDouble',
+                srcRegsRelativeLats=[0],
+                mask=0x06000000,
+                match=0x02000000,
+                extraCommitLat=1)]
+            return unit
 
-        fp_cvt = MinorFU()
-        fp_cvt.opClasses = minorMakeOpClassSet(['FloatCvt'])
-        fp_cvt.opLat = 2
-        fp_cvt.issueLat = 1
+        # fpnew's NONCOMP and CONV pipelines hold 1 and 2 registers,
+        # a cycle each plus one, as the ADDMUL rows. fmv is NONCOMP,
+        # so only fcvt takes the third.
+        def fp_cvt():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCvt'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            unit.timings = [MinorFUTiming(
+                description=f'FpConv{name}', srcRegsRelativeLats=[0],
+                mask=0xE000007F, match=match, extraCommitLat=1)
+                for name, match in (('Fp', 0x40000053), ('Int', 0xC0000053))]
+            return unit
 
-        fp_noncomp = MinorFU()
-        fp_noncomp.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
-        fp_noncomp.opLat = 1
-        fp_noncomp.issueLat = 1
+        def fp_noncomp():
+            unit = MinorFU()
+            unit.opClasses = minorMakeOpClassSet(['FloatCmp', 'FloatMisc'])
+            unit.opLat = 2
+            unit.issueLat = 1
+            return unit
 
         fp_divsqrt = MinorFU()
         fp_divsqrt.opClasses = minorMakeOpClassSet(['FloatDiv', 'FloatSqrt'])
@@ -277,9 +312,16 @@ class CVA6FUPool(MinorFUPool):
         misc.opLat = 1
         misc.issueLat = 1
 
+        # CVA6 writes a result into its scoreboard and issues on, where a Minor
+        # unit holds it until commit, so each pipelined unit has an instance
+        # per entry. The limit on the entries themselves needs the patch.
+        copies = SCOREBOARD_ENTRIES
         self.funcUnits = [
-            int_alu, int_mul, int_div,
-            fp_addmul, fp_cvt, fp_noncomp, fp_divsqrt,
+            *(make() for make in (int_alu, int_mul) for _ in range(copies)),
+            int_div,
+            *(make() for make in (fp_addmul, fp_cvt, fp_noncomp)
+              for _ in range(copies)),
+            fp_divsqrt,
             mem_fu,
             simd_int_fast, simd_complex, simd_matrix, simd_div_sqrt, pred,
             vec_mem_fast, vec_mem_slow, misc,
@@ -336,7 +378,7 @@ class CVA6CPU(RiscvMinorCPU):
             instShiftAmt=1,
         )
         self.branchPred.btb = SimpleBTB(
-            numEntries=32,
+            numEntries=BTB_ENTRIES,
             tagBits=20,
             associativity=1,
             instShiftAmt=1,
