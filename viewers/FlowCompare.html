@@ -23,9 +23,9 @@
       --border2: rgba(255, 255, 255, .14);
       --text: #e4e2dc;
       --text2: #a0a09a;
-      --text3: #505050;
-      --text-id: #383838;
-      --text-pc: #505070;
+      --text3: #76766f;
+      --text-id: #6a6a68;
+      --text-pc: #66668c;
       --text-hit: #f0d090;
       --accent: #3ecf9a;
       --warn: #f0a030;
@@ -46,6 +46,26 @@
       --label-row-hit: #4a3a18;
       --scrim: rgba(0, 0, 0, 0.55);
       --shadow: rgba(0, 0, 0, 0.5);
+      /* The diagram's own inks. The script reads them again whenever the theme
+       * changes, since a canvas keeps no reference to a token. */
+      --timeline-row: #1a1a1c;
+      --timeline-row-alternate: #1c1c1e;
+      --grid-minor: rgba(255, 255, 255, 0.03);
+      --grid-major: rgba(255, 255, 255, 0.07);
+      --grid-sparse: rgba(255, 255, 255, 0.05);
+      --ruler-tick: #252525;
+      --ruler-tick-major: #383838;
+      --ruler-text: #909090;
+      --empty-range: #707070;
+      --op-int: #70d090;
+      --op-fp: #5aabf0;
+      --op-mem: #e0a030;
+      --op-branch: #c890e8;
+      --op-flushed: #804040;
+      --forward-arrival: #90a5a5;
+      --stall-ground: #232326;
+      --stall-label: #909090;
+      --stall-axis: #505050;
       --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       --font-mono: 'SF Mono', Menlo, Consolas, monospace;
       /* Canvas geometry depends on these sizes, so the script reads or mirrors
@@ -54,9 +74,71 @@
       --label-w: 390px;
       --mem-wb-h: 140px;
       --label-pad-x: 6px;
+      color-scheme: dark;
     }
 
     /* SHARED END css-tokens */
+
+    /* SHARED BEGIN css-tokens-light */
+
+    /* Needs: css-tokens */
+
+    /* The light look, for printed figures. It restates every colour of css-tokens, so the pages
+     * keep one light palette, and each page restates its own colours beside its own root. */
+    html[data-theme="light"] {
+      --bg: #ffffff;
+      --bg2: #f4f4f2;
+      --bg3: #eaeae6;
+      --bg4: #dcdcd7;
+      --border: rgba(0, 0, 0, 0.09);
+      --border2: rgba(0, 0, 0, 0.18);
+      --text: #1c1c1e;
+      --text2: #45454a;
+      --text3: #6f6f69;
+      --text-id: #8a8a84;
+      --text-pc: #72729a;
+      --text-hit: #8a5a00;
+      --accent: #127552;
+      --warn: #a86400;
+      --bad: #c3373d;
+      --compressed: #0f8a80;
+      --link: #1d64a8;
+      --link-hover: #0f4a82;
+      --link-dim: #5a6f8f;
+      --grip: rgba(29, 100, 168, 0.45);
+      --focus: rgba(29, 100, 168, 0.4);
+      --crosshair: rgba(0, 0, 0, 0.22);
+      --timeline-bg: #ffffff;
+      --scrollbar-thumb: #c4c4c0;
+      --scrollbar-thumb-hover: #b0b0ac;
+      --ruler-bg: #f4f4f1;
+      --label-row: #ffffff;
+      --label-row-alternate: #f5f5f3;
+      --label-row-hit: #fbecc8;
+      --scrim: rgba(0, 0, 0, 0.3);
+      --shadow: rgba(0, 0, 0, 0.18);
+      --timeline-row: #ffffff;
+      --timeline-row-alternate: #f5f5f3;
+      --grid-minor: rgba(0, 0, 0, 0.05);
+      --grid-major: rgba(0, 0, 0, 0.11);
+      --grid-sparse: rgba(0, 0, 0, 0.08);
+      --ruler-tick: #dcdcd8;
+      --ruler-tick-major: #b4b4ae;
+      --ruler-text: #5c5c57;
+      --empty-range: #6b6b66;
+      --op-int: #1d7a4a;
+      --op-fp: #1d64a8;
+      --op-mem: #9a5b00;
+      --op-branch: #7a3fb0;
+      --op-flushed: #a04848;
+      --forward-arrival: #4d6363;
+      --stall-ground: #ecece8;
+      --stall-label: #5c5c57;
+      --stall-axis: #a4a4a0;
+      color-scheme: light;
+    }
+
+    /* SHARED END css-tokens-light */
 
     /* SHARED BEGIN css-buttons */
 
@@ -94,18 +176,6 @@
 
     /* SHARED END css-buttons */
 
-    /* The sample picker, as each viewer styles its own. */
-    .tool-select {
-      padding: 2px 6px;
-      background: var(--bg3);
-      border: 0.5px solid var(--border2);
-      border-radius: 5px;
-      color: var(--text2);
-      font-size: 11px;
-      max-width: 190px;
-      flex-shrink: 0;
-    }
-
     /* SHARED BEGIN css-brand */
 
     /* Needs: css-tokens */
@@ -136,13 +206,33 @@
 
     /* SHARED END css-brand */
 
-    /* FlowCompare's own colours: one per JSON, one for the drift curve and one for the selected
-     * row. */
+    /* FlowCompare's own colours: one per JSON, the drift curve, the selected row, the two signs
+     * of a difference, a muted grey, the chart's guides and one per chart metric, related counters
+     * in related shades. The light theme below restates them all. */
     :root {
       --minor: #8f7fd8;
       --cva6: #3ec0b0;
       --drift: #ebb450;
       --selected-row: #2f3550;
+      --slower: #e2585e;
+      --faster: #3ec0b0;
+      --mark: #7fb8e8;
+      --muted: #96968f;
+      --guide: rgba(255, 255, 255, 0.06);
+      --guide-zero: rgba(255, 255, 255, 0.22);
+      --selection-line: rgba(255, 255, 255, 0.28);
+      --primary-bg: #1f3b31;
+      --primary-bg-hover: #28503f;
+      --drop-bg: rgba(24, 24, 26, 0.85);
+      --metric-cycles: #ebb450;
+      --metric-ipc: #4fcfe0;
+      --metric-ic-misses: #62d48e;
+      --metric-dc-misses: #f27a6b;
+      --metric-branches: #b59cf2;
+      --metric-mispredicted: #ee80c0;
+      --metric-ic-accesses: #a6e6be;
+      --metric-dc-accesses: #f6b4aa;
+      --metric-wrong-path: #a8b0ba;
     }
 
     * {
@@ -159,6 +249,8 @@
       margin: 0;
     }
 
+    /* One screen with the curve taking the room left, which scrolls rather than clips when a
+     * short window cannot fit the open detail. */
     body {
       background: var(--bg);
       color: var(--text);
@@ -166,14 +258,17 @@
       font-size: 12px;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
+    /* The bar wraps onto a second line in a narrow window rather than push its end off screen. */
     #top-bar {
       flex-shrink: 0;
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 8px;
+      gap: 6px 8px;
       padding: 6px 10px;
       background: var(--bg3);
       border-bottom: 0.5px solid var(--border2);
@@ -195,6 +290,27 @@
       margin-right: 4px;
     }
 
+    .tool-button.primary,
+    #top-bar .tool-button.primary {
+      background: var(--primary-bg);
+      border-color: rgba(62, 207, 154, 0.45);
+      color: var(--text);
+    }
+
+    .tool-button.primary:hover:not(:disabled),
+    #top-bar .tool-button.primary:hover:not(:disabled) {
+      background: var(--primary-bg-hover);
+    }
+
+    .bar-label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .bar-spacer {
+      flex: 1;
+    }
+
     .json-slot {
       display: inline-flex;
       align-items: center;
@@ -207,7 +323,11 @@
       font-family: var(--font-mono);
       font-size: 11px;
       color: var(--text2);
-      max-width: 320px;
+      max-width: min(240px, 100%);
+      min-width: 0;
+    }
+
+    .json-slot > span:not(.slot-dot) {
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -236,40 +356,278 @@
       --ink: var(--cva6);
     }
 
-    .offset-label,
-    #offset-value {
-      font-family: var(--font-mono);
+    /* SHARED BEGIN css-menus */
+
+    /* Needs: css-tokens */
+
+    /* The menus drop down from the bar. Each panel is fixed and the script places it under its
+     * button, inside the window whichever line the bar wrapped the button onto. */
+    .menu > summary {
+      list-style: none;
+    }
+
+    .menu > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .menu-panel {
+      position: fixed;
+      z-index: 40;
+      width: min(330px, calc(100vw - 32px));
+      overflow-y: auto;
+      padding: 10px 12px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 6px;
+      box-shadow: 0 8px 28px var(--shadow);
+      white-space: normal;
+      line-height: 1.5;
+      color: var(--text2);
       font-size: 11px;
     }
 
-    .offset-label {
-      color: var(--text3);
+    .menu-panel .option-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 6px 0;
+    }
+
+    .menu-panel p {
+      margin: 4px 0 8px;
+      color: var(--muted, var(--text2));
+    }
+
+    .menu-section {
+      margin: 12px 0 4px;
+      color: var(--muted, var(--text2));
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .menu-section:first-child {
+      margin-top: 0;
+    }
+
+    .menu-checks {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0 10px;
+    }
+
+    .menu-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 2px 0;
+      cursor: pointer;
+    }
+
+    .menu-panel input[type=checkbox] {
+      margin: 0;
+      accent-color: var(--accent);
+    }
+
+    .menu-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 5px 0;
+    }
+
+    .menu-panel input[type=text] {
+      flex: 1;
+      min-width: 0;
+      padding: 3px 6px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 4px;
+      color: var(--text);
+      font-size: 11px;
+    }
+
+    .menu-panel input[type=color] {
+      width: 30px;
+      height: 20px;
+      padding: 0;
+      background: none;
+      border: 0.5px solid var(--border2);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .menu-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 6px 0;
+    }
+
+    /* A select in the bar or in a menu, on the same ground as the buttons. */
+    .tool-select {
+      padding: 2px 6px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 5px;
+      color: var(--text2);
+      font-size: 11px;
+      max-width: 250px;
+      flex-shrink: 0;
+    }
+
+    /* SHARED END css-menus */
+
+    .colour-grid .menu-check {
+      justify-content: space-between;
     }
 
     #offset-value {
-      min-width: 34px;
+      font-family: var(--font-mono);
+      min-width: 40px;
       text-align: center;
+      color: var(--text);
     }
 
-    /* The report reads as a sentence about trust, not as a grid of figures. */
-    #report {
+    #notice {
       flex-shrink: 0;
-      display: flex;
-      align-items: baseline;
-      flex-wrap: wrap;
-      gap: 4px 18px;
-      padding: 7px 12px;
+      padding: 6px 12px;
       background: var(--bg2);
       border-bottom: 0.5px solid var(--border);
-      font-family: var(--font-mono);
       font-size: 11px;
+      line-height: 1.5;
       color: var(--text2);
-      min-height: 30px;
     }
 
-    #report b {
-      color: var(--text);
+    /* Three cards side by side, and in a narrower window the verdict beside the checks that
+     * qualify it, with the metrics below them. A card the View menu hides leaves no gap. */
+    #summary {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg2);
+      border-bottom: 0.5px solid var(--border2);
+    }
+
+    #verdict-card {
+      flex: 1.1 1 240px;
+    }
+
+    #metrics-card {
+      flex: 1.5 1 360px;
+    }
+
+    #checks-card {
+      flex: 1 1 240px;
+    }
+
+    .card {
+      background: var(--bg3);
+      border: 0.5px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    /* The metrics table scrolls inside its card rather than widen the page. */
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    .card-title {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    #verdict-line {
+      font-size: 19px;
+      line-height: 1.3;
+      color: var(--text2);
+    }
+
+    #verdict-line b {
       font-weight: 600;
+    }
+
+    #verdict-sub {
+      margin-top: 6px;
+      line-height: 1.55;
+      color: var(--text2);
+    }
+
+    #verdict-scale {
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* Capped, so a full-width card does not spread the figures away from their labels. */
+    #metrics-table {
+      max-width: 640px;
+    }
+
+    #metrics-table td,
+    #metrics-table th {
+      padding: 2px 8px 2px 0;
+      border: 0;
+      white-space: nowrap;
+    }
+
+    #metrics-table th {
+      position: static;
+      background: none;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: right;
+      border: 0;
+    }
+
+    #metrics-table th:first-child {
+      text-align: left;
+    }
+
+    #metrics-table td:first-child {
+      color: var(--text2);
+      font-family: var(--font-sans);
+    }
+
+    #metrics-table tr.unlike td {
+      color: var(--muted);
+    }
+
+    #metrics-table tr.unlike td:first-child::after {
+      content: '\00a0*';
+    }
+
+    #metrics-note {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    #checks {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      line-height: 1.55;
+    }
+
+    #checks li {
+      display: flex;
+      gap: 7px;
+    }
+
+    #checks .mark {
+      flex-shrink: 0;
+      width: 12px;
+      text-align: center;
+      font-weight: 700;
     }
 
     .good {
@@ -284,17 +642,18 @@
       color: var(--bad);
     }
 
+    /* The chart grows into the room left, but never below a readable height for each of its
+     * panels, and the page scrolls when a small window cannot fit them. */
     #main {
-      flex: 1;
+      flex: 1 0 auto;
       display: flex;
       flex-direction: column;
-      min-height: 0;
     }
 
     #plot-wrap {
       flex: 1;
       position: relative;
-      min-height: 180px;
+      min-height: max(150px, calc(var(--panels, 1) * 115px));
       background: var(--bg);
     }
 
@@ -314,34 +673,97 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      color: var(--text3);
+      color: var(--text2);
       text-align: center;
       padding: 24px;
+      overflow: auto;
     }
 
     #empty .brand-mark {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     #empty h2 {
       margin: 0;
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 500;
-      color: var(--text2);
+      color: var(--text);
     }
 
     #empty p {
       margin: 0;
-      max-width: 52ch;
+      max-width: 60ch;
       line-height: 1.6;
+      font-size: 12px;
+    }
+
+    #empty .empty-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 6px 0;
+    }
+
+    #empty .empty-actions .tool-button {
+      font-size: 13px;
+      padding: 6px 14px;
+    }
+
+    #empty ol {
+      margin: 6px 0 0;
+      padding-left: 20px;
+      max-width: 62ch;
+      text-align: left;
+      line-height: 1.6;
+      color: var(--muted);
       font-size: 11px;
+    }
+
+    #tab-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 0 8px;
+      background: var(--bg3);
+      border-top: 0.5px solid var(--border2);
+      border-bottom: 0.5px solid var(--border2);
+      overflow-x: auto;
+    }
+
+    .tab {
+      flex-shrink: 0;
+      padding: 7px 12px 6px;
+      background: none;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tab:hover {
+      color: var(--text);
+    }
+
+    .tab[aria-selected="true"] {
+      color: var(--text);
+      border-bottom-color: var(--drift);
+    }
+
+    #tab-hint {
+      margin-left: auto;
+      padding-left: 12px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
     }
 
     #list-wrap {
       flex-shrink: 0;
-      height: 232px;
+      height: 230px;
       overflow: auto;
-      border-top: 0.5px solid var(--border2);
       background: var(--bg2);
     }
 
@@ -356,12 +778,13 @@
       position: sticky;
       top: 0;
       background: var(--bg3);
-      color: var(--text3);
+      color: var(--muted);
       font-weight: 500;
       text-align: left;
       padding: 5px 10px;
       border-bottom: 0.5px solid var(--border2);
       white-space: nowrap;
+      z-index: 1;
     }
 
     tbody td {
@@ -370,15 +793,15 @@
       white-space: nowrap;
     }
 
-    tbody tr {
+    #rows tr {
       cursor: pointer;
     }
 
-    tbody tr:hover {
+    #rows tr:hover {
       background: var(--bg4);
     }
 
-    tbody tr.selected {
+    #rows tr.selected {
       background: var(--selected-row);
     }
 
@@ -392,16 +815,20 @@
       font-variant-numeric: tabular-nums;
     }
 
+    th.numeric {
+      text-align: right;
+    }
+
     .slow {
-      color: var(--bad);
+      color: var(--slower);
     }
 
     .fast {
-      color: var(--cva6);
+      color: var(--faster);
     }
 
     .dim {
-      color: var(--text3);
+      color: var(--muted);
     }
 
     .flag {
@@ -416,6 +843,30 @@
       color: var(--cva6);
     }
 
+    /* A row's share of the largest total, as a bar in the colour of its sign. */
+    .bar {
+      display: inline-block;
+      width: 120px;
+      height: 7px;
+      background: var(--bg4);
+      border-radius: 2px;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+    }
+
+    .bar > .slow {
+      background: var(--slower);
+    }
+
+    .bar > .fast {
+      background: var(--faster);
+    }
+
     #detail {
       flex-shrink: 0;
       padding: 8px 12px;
@@ -424,11 +875,14 @@
       font-family: var(--font-mono);
       font-size: 11px;
       overflow-x: auto;
+      max-height: 160px;
     }
 
     #detail .detail-head {
       color: var(--text2);
       margin-bottom: 5px;
+      font-family: var(--font-sans);
+      font-size: 12px;
     }
 
     #detail table {
@@ -449,17 +903,20 @@
     #detail th {
       position: static;
       background: none;
-      color: var(--text3);
+      color: var(--muted);
     }
 
     #detail .detail-note {
       margin-top: 5px;
+      font-family: var(--font-sans);
     }
 
     #tooltip {
       position: fixed;
       z-index: 50;
       display: none;
+      max-width: calc(100vw - 24px);
+      overflow: hidden;
       padding: 7px 10px;
       background: var(--bg2);
       border: 0.5px solid var(--border2);
@@ -483,8 +940,331 @@
       color: var(--drift);
     }
 
+    #help {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--scrim);
+    }
+
+    #help-box {
+      width: min(760px, 92vw);
+      max-height: 86vh;
+      overflow: auto;
+      padding: 18px 22px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 8px;
+      box-shadow: 0 12px 40px var(--shadow);
+      line-height: 1.6;
+      color: var(--text2);
+      font-size: 12.5px;
+    }
+
+    #help-box h2 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    #help-box h3 {
+      margin: 14px 0 4px;
+      font-size: 12.5px;
+      color: var(--text);
+    }
+
+    #help-box p {
+      margin: 0 0 6px;
+    }
+
+    #help-box kbd {
+      padding: 0 5px;
+      border: 0.5px solid var(--border2);
+      border-radius: 3px;
+      background: var(--bg3);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    #help-close {
+      float: right;
+    }
+
     input[type=file] {
       display: none;
+    }
+
+    /* Files dragged over the window, which takes them anywhere. */
+    body.drag-over::after {
+      content: 'Drop the two JSONs to compare them';
+      position: fixed;
+      inset: 8px;
+      z-index: 70;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1.5px dashed var(--accent);
+      border-radius: 8px;
+      background: var(--drop-bg);
+      color: var(--accent);
+      font-size: 14px;
+      pointer-events: none;
+    }
+
+    /* The chart's controls: which metrics, one panel each, as buttons that stay pressed, and what
+     * the panels show as a three-way switch. */
+    #chart-bar {
+      flex-shrink: 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      padding: 6px 10px;
+      background: var(--bg2);
+      border-bottom: 0.5px solid var(--border2);
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    /* A chip's ink is its metric's colour while lines are coloured by metric, so the buttons are
+     * also the chart's key. */
+    .chip {
+      --chip-ink: var(--metric-ink, var(--drift));
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 9px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      background: var(--bg4);
+      color: var(--text);
+    }
+
+    .chip[aria-pressed="true"] {
+      color: var(--text);
+      border-color: var(--chip-ink);
+      background: var(--bg4);
+      background: color-mix(in srgb, var(--chip-ink) 20%, var(--bg3));
+    }
+
+    #metric-chips.by-run .chip {
+      --chip-ink: var(--drift);
+    }
+
+    .chip-swatch,
+    .tip-swatch {
+      flex-shrink: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--chip-ink);
+    }
+
+    .chip-swatch {
+      opacity: 0.4;
+    }
+
+    .chip[aria-pressed="true"] .chip-swatch {
+      opacity: 1;
+    }
+
+    #metric-chips.by-run .chip-swatch {
+      display: none;
+    }
+
+    .chip.unlike::after {
+      content: '*';
+      margin-left: -2px;
+      color: var(--muted);
+    }
+
+    .segmented {
+      display: inline-flex;
+      flex-shrink: 0;
+      border: 0.5px solid var(--border2);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .segmented button {
+      padding: 3px 10px;
+      background: var(--bg3);
+      border: 0;
+      border-left: 0.5px solid var(--border2);
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .segmented button:first-child {
+      border-left: 0;
+    }
+
+    .segmented button:focus-visible {
+      outline-offset: -2px;
+    }
+
+    .segmented button:hover {
+      color: var(--text);
+    }
+
+    .segmented button[aria-checked="true"] {
+      background: var(--bg4);
+      color: var(--text);
+      box-shadow: inset 0 -2px 0 var(--drift);
+    }
+
+    /* A label and its select wrap as one. */
+    .control {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #chart-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      margin-left: auto;
+    }
+
+    .control-label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    #crosshair {
+      position: absolute;
+      display: none;
+      width: 0;
+      border-left: 1px solid var(--selection-line);
+      pointer-events: none;
+    }
+
+    #crosshair.show {
+      display: block;
+    }
+
+    /* The stretch a drag across the chart will zoom into. */
+    #zoom-box {
+      position: absolute;
+      display: none;
+      background: rgba(127, 184, 232, 0.14);
+      border-left: 1px solid var(--mark);
+      border-right: 1px solid var(--mark);
+      pointer-events: none;
+    }
+
+    #zoom-box.show {
+      display: block;
+    }
+
+    #plot {
+      cursor: crosshair;
+    }
+
+    #view-menu .menu-panel {
+      width: min(380px, calc(100vw - 32px));
+    }
+
+    #tooltip .tip-table {
+      width: auto;
+      margin: 3px 0;
+      font-size: 11px;
+    }
+
+    #tooltip .tip-table td {
+      padding: 0 10px 0 0;
+      border: 0;
+      white-space: nowrap;
+    }
+
+    .tip-swatch {
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    /* Figure mode leaves the chart alone on the page, for a screenshot. */
+    body.figure-mode #top-bar,
+    body.figure-mode #notice,
+    body.figure-mode #summary,
+    body.figure-mode #chart-bar,
+    body.figure-mode #tab-bar,
+    body.figure-mode #list-wrap,
+    body.figure-mode #detail,
+    body.hide-summary #summary,
+    body.hide-verdict #verdict-card,
+    body.hide-metrics #metrics-card,
+    body.hide-checks #checks-card,
+    body.hide-chartbar #chart-bar,
+    body.hide-tables #tab-bar,
+    body.hide-tables #list-wrap,
+    body.hide-detail #detail,
+    body.hide-notice #notice {
+      display: none !important;
+    }
+
+    body.figure-mode #plot-wrap {
+      min-height: 0;
+    }
+
+    #figure-hint {
+      position: fixed;
+      top: 10px;
+      right: 12px;
+      z-index: 45;
+      padding: 5px 10px;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: 5px;
+      box-shadow: 0 6px 20px var(--shadow);
+      color: var(--text2);
+      font-size: 11px;
+      pointer-events: none;
+    }
+
+    /* The light look of FlowCompare's own colours. The shared tokens take theirs from the
+     * css-tokens-light block, which MinorFlow and CVA6Flow carry too. */
+    html[data-theme="light"] {
+      --minor: #6450c0;
+      --cva6: #0f766b;
+      --drift: #b87a10;
+      --selected-row: #dde3f6;
+      --slower: #c3373d;
+      --faster: #0f766b;
+      --mark: #1d64a8;
+      --muted: #66665f;
+      --guide: rgba(0, 0, 0, 0.07);
+      --guide-zero: rgba(0, 0, 0, 0.32);
+      --selection-line: rgba(0, 0, 0, 0.35);
+      --primary-bg: #d7efe4;
+      --primary-bg-hover: #c3e6d6;
+      --drop-bg: rgba(255, 255, 255, 0.88);
+      --metric-cycles: #b87a10;
+      --metric-ipc: #0f86a0;
+      --metric-ic-misses: #1d8a4c;
+      --metric-dc-misses: #cc3d2e;
+      --metric-branches: #6f4fc8;
+      --metric-mispredicted: #c23b8a;
+      --metric-ic-accesses: #4f9d70;
+      --metric-dc-accesses: #d0776a;
+      --metric-wrong-path: #6b727c;
     }
 
     :focus-visible {
@@ -495,6 +1275,108 @@
     @media (prefers-reduced-motion: reduce) {
       * {
         transition: none !important;
+      }
+    }
+
+    @media (max-width: 999px) {
+      #checks-card {
+        order: 2;
+      }
+
+      #metrics-card {
+        order: 3;
+        flex-basis: 100%;
+      }
+    }
+
+    /* A window too narrow or too short to fit everything becomes one scrolling page, with the
+     * curve at a fixed height and the table scrolling inside its own box. */
+    @media (max-width: 999px), (max-height: 700px) {
+      html,
+      body {
+        height: auto;
+      }
+
+      body {
+        min-height: 100vh;
+        overflow: visible;
+      }
+
+      #main {
+        flex: 1 0 auto;
+      }
+
+      #plot-wrap {
+        flex: 1 0 auto;
+        min-height: max(300px, calc(var(--panels, 1) * 130px));
+      }
+
+      #list-wrap {
+        height: auto;
+        max-height: 70vh;
+      }
+
+      #detail {
+        max-height: none;
+      }
+    }
+
+    /* A phone: one card per row, and the columns a reader can do without are dropped. */
+    @media (max-width: 640px) {
+      #top-bar {
+        padding: 6px 12px;
+      }
+
+      #sample-separator,
+      #tab-hint,
+      .optional {
+        display: none;
+      }
+
+      #summary {
+        padding: 10px 12px;
+      }
+
+      .card {
+        flex-basis: 100% !important;
+      }
+
+      #verdict-line {
+        font-size: 17px;
+      }
+
+      #plot-wrap {
+        min-height: max(260px, calc(var(--panels, 1) * 120px));
+      }
+
+      .tab {
+        padding: 7px 9px 6px;
+      }
+
+      tbody td,
+      thead th {
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+
+      thead th,
+      #metrics-table td:first-child {
+        white-space: normal;
+      }
+
+      #metrics-table td,
+      #metrics-table th {
+        padding-right: 6px;
+      }
+
+      #rows td:first-child {
+        max-width: 45vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      #detail {
+        padding: 8px 12px;
       }
     }
   </style>
@@ -533,42 +1415,190 @@
       </svg>
       <span><span class="brand-flow">Flow</span>Compare</span>
     </h1>
-    <label class="json-slot minor" id="slot-minor" tabindex="0"
-      title="The gem5 model: a MinorFlow JSON. Either JSON can go in either slot, since metadata.tool decides which is which.">
-      <span class="slot-dot"></span><span id="name-minor">Load gem5 model (MinorFlow JSON)</span>
+    <span class="bar-label" id="sample-label" hidden>Example</span>
+    <select class="tool-select" id="sample-select" hidden
+      title="A program run on the matched gem5 configuration and on the CVA6 RTL, ready to compare."></select>
+    <button class="tool-button primary" id="sample-load-button" hidden
+      title="Load both runs of the chosen program and compare them.">Compare</button>
+    <span class="toolbar-separator" id="sample-separator" hidden>│</span>
+    <button class="tool-button" id="open-button"
+      title="Pick a MinorFlow JSON and a CVA6Flow JSON of the same program, both at once. Dropping them on the window works too.">Open JSONs…</button>
+    <input type="file" id="file-both" accept=".json,application/json" multiple>
+    <label class="json-slot minor" id="slot-minor" tabindex="0" role="button"
+      title="The gem5 run, a MinorFlow JSON. Click to replace it. Either JSON can go in either slot, since each JSON says which tool wrote it.">
+      <span class="slot-dot"></span><span id="name-minor">gem5: none</span>
       <input type="file" id="file-minor" accept=".json,application/json">
     </label>
-    <label class="json-slot cva6" id="slot-cva6" tabindex="0"
-      title="The CVA6 RTL: a CVA6Flow JSON. Either JSON can go in either slot, since metadata.tool decides which is which.">
-      <span class="slot-dot"></span><span id="name-cva6">Load CVA6 RTL (CVA6Flow JSON)</span>
+    <label class="json-slot cva6" id="slot-cva6" tabindex="0" role="button"
+      title="The CVA6 RTL run, a CVA6Flow JSON. Click to replace it. Either JSON can go in either slot, since each JSON says which tool wrote it.">
+      <span class="slot-dot"></span><span id="name-cva6">RTL: none</span>
       <input type="file" id="file-cva6" accept=".json,application/json">
     </label>
-    <span class="toolbar-separator" id="sample-separator" hidden>│</span>
-    <select class="tool-select" id="sample-select" hidden
-      title="A program both viewers keep a sample of, so a pair can be read without files."></select>
-    <button class="tool-button" id="sample-load-button" hidden
-      title="Load both JSONs of the chosen program from the viewers' tests folders.">Load sample pair</button>
-    <span class="toolbar-separator">│</span>
-    <button class="tool-button" id="swap-button" disabled aria-pressed="false"
-      title="Measure the CVA6 RTL against the gem5 model instead, which flips the sign of the drift.">Swap</button>
-    <button class="tool-button" id="copy-report-button" disabled
-      title="Copy the alignment report and the final drift as text.">Copy Report</button>
-    <span class="toolbar-separator">│</span>
-    <span class="offset-label">Offset</span>
-    <button class="tool-button" id="offset-minus" disabled
-      title="Shift the gem5 model stream one instruction earlier against the CVA6 RTL stream.">−</button>
-    <span id="offset-value">0</span>
-    <button class="tool-button" id="offset-plus" disabled
-      title="Shift the gem5 model stream one instruction later against the CVA6 RTL stream.">+</button>
-    <button class="tool-button" id="offset-auto" disabled
-      title="Return to the offset that maximises agreement between the two streams.">Auto</button>
+    <span class="bar-spacer"></span>
+    <button class="tool-button" id="save-screenshot"
+      title="Save the window as a PNG at three times its resolution, into the browser's downloads. The S key does the same and keeps the tooltip under the pointer.">Screenshot</button>
+    <details class="menu" id="view-menu">
+      <summary class="tool-button" title="What the page shows and how it looks, for screenshots and figures.">View ▾</summary>
+      <div class="menu-panel">
+        <div class="menu-section">Page</div>
+        <div class="menu-checks" id="show-page"></div>
+        <div class="menu-section">Chart</div>
+        <div class="menu-checks" id="show-chart"></div>
+        <label class="menu-row">Title <input type="text" id="chart-title" placeholder="none" maxlength="120"></label>
+        <div class="menu-section">Look</div>
+        <label class="menu-row">Theme
+          <select class="tool-select" id="theme-select">
+            <option value="dark">Dark</option>
+            <option value="light">Light, for print</option>
+          </select>
+        </label>
+        <label class="menu-row">Colours <select class="tool-select" id="palette-select"></select></label>
+        <label class="menu-row">Lines coloured
+          <select class="tool-select" id="line-colours">
+            <option value="metric">by metric</option>
+            <option value="run">by run</option>
+          </select>
+        </label>
+        <div class="menu-row" id="custom-colours">
+          <label class="menu-check">gem5 <input type="color" data-token="minor"></label>
+          <label class="menu-check">RTL <input type="color" data-token="cva6"></label>
+          <label class="menu-check">gap <input type="color" data-token="drift"></label>
+        </div>
+        <div class="menu-checks colour-grid" id="custom-metric-colours"></div>
+        <label class="menu-row">Lines
+          <select class="tool-select" id="line-width">
+            <option value="1">thin</option>
+            <option value="1.5">normal</option>
+            <option value="2">thick</option>
+            <option value="3">heavy</option>
+          </select>
+        </label>
+        <label class="menu-row">Chart text
+          <select class="tool-select" id="font-scale">
+            <option value="1">100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+          </select>
+        </label>
+        <div class="menu-buttons">
+          <button class="tool-button" id="figure-mode-button"
+            title="Leave the chart alone on the page. Key: F, and F or Esc brings the page back.">Figure mode</button>
+          <button class="tool-button" id="reset-view"
+            title="Every choice in this menu and on the chart bar back to its default.">Reset view</button>
+        </div>
+      </div>
+    </details>
+    <details class="menu" id="export-menu">
+      <summary class="tool-button" title="Save the chart as a figure or as data, or copy the summary.">Export ▾</summary>
+      <div class="menu-panel">
+        <div class="menu-section">Chart</div>
+        <label class="menu-row">Size
+          <select class="tool-select" id="figure-size">
+            <option value="screen">As on screen</option>
+            <option value="800x400">800 × 400</option>
+            <option value="800x500">800 × 500</option>
+            <option value="640x480">640 × 480</option>
+            <option value="1000x400">1000 × 400</option>
+            <option value="600x600">600 × 600</option>
+          </select>
+        </label>
+        <label class="menu-row">PNG resolution
+          <select class="tool-select" id="png-scale">
+            <option value="2">2×</option>
+            <option value="3">3×</option>
+            <option value="4">4×</option>
+          </select>
+        </label>
+        <label class="menu-check" title="The page shows through the chart. The dark theme's text is near white, so on a white page use the light theme."><input type="checkbox" id="transparent-bg"> Transparent background</label>
+        <label class="menu-row">CSV rows
+          <select class="tool-select" id="csv-rows"
+            title="Every position in view, or at most 2,000 that keep each stretch's first, last, lowest and highest values, small enough for pgfplots.">
+            <option value="all">every position</option>
+            <option value="2000">at most 2,000</option>
+          </select>
+        </label>
+        <div class="menu-buttons">
+          <button class="tool-button" id="save-chart-png" disabled
+            title="The chart alone as a PNG, at the size and resolution above.">Save PNG</button>
+          <button class="tool-button" id="save-chart-svg" disabled
+            title="The chart alone as an SVG, a vector image that stays sharp at any size in a document.">Save SVG</button>
+          <button class="tool-button" id="save-chart-csv" disabled
+            title="Every compared position in view with the chosen metrics on each side, their difference and the relative one, for pgfplots or a spreadsheet.">Save CSV</button>
+        </div>
+        <p>The chart is saved as it looks on screen, with the View menu's theme, colours, lines, text size and title. The sizes are in screen pixels, and the text keeps its size, so a smaller figure has larger text for its width.</p>
+        <div class="menu-section">Summary</div>
+        <div class="menu-buttons">
+          <button class="tool-button" id="copy-report-button" disabled
+            title="Copy the verdict, the metrics and the checks as text.">Copy summary</button>
+        </div>
+      </div>
+    </details>
+    <details class="menu" id="options">
+      <summary class="tool-button" id="options-button"
+        title="How the two instruction streams are lined up.">Alignment ▾</summary>
+      <div class="menu-panel" id="options-panel">
+        <div class="option-row">
+          <span>Offset</span>
+          <button class="tool-button" id="offset-minus" disabled
+            title="Pair each gem5 instruction with the RTL instruction one position earlier.">−</button>
+          <span id="offset-value">0</span>
+          <button class="tool-button" id="offset-plus" disabled
+            title="Pair each gem5 instruction with the RTL instruction one position later.">+</button>
+          <button class="tool-button" id="offset-auto" disabled
+            title="Return to the offset that best lines the two streams up.">Auto</button>
+        </div>
+        <p>The offset is how many positions the gem5 stream is shifted against the RTL stream. FlowCompare finds it by itself, and it is 0 whenever both JSONs cover the main program. Change it only if the checks say the streams part.</p>
+      </div>
+    </details>
+    <button class="tool-button" id="help-button" title="How to read FlowCompare. Key: ?">? Help</button>
   </div>
 
-  <div id="report">Load a MinorFlow JSON and a CVA6Flow JSON of the same program.</div>
+  <div id="notice" hidden></div>
+
+  <div id="summary" hidden>
+    <div class="card" id="verdict-card">
+      <div class="card-title">Verdict</div>
+      <div id="verdict-line"></div>
+      <div id="verdict-sub"></div>
+      <div id="verdict-scale">Graded green within 1%, amber within 5%, red beyond.</div>
+    </div>
+    <div class="card" id="metrics-card">
+      <div class="card-title">Metrics over the compared instructions</div>
+      <div class="table-scroll">
+        <table id="metrics-table"></table>
+      </div>
+      <div id="metrics-note"></div>
+    </div>
+    <div class="card" id="checks-card">
+      <div class="card-title">Can the two runs be compared?</div>
+      <ul id="checks"></ul>
+    </div>
+  </div>
 
   <div id="main">
+    <div id="chart-bar" hidden>
+      <div class="segmented" id="mode-switch" role="radiogroup" aria-label="What each panel shows"></div>
+      <div class="chip-group" id="metric-chips" role="group" aria-label="Metrics on the chart"></div>
+      <button class="tool-button" id="zoom-reset" hidden
+        title="Show every compared instruction again. Double-click on the chart or the 0 key does the same.">Whole program</button>
+      <span id="chart-options">
+        <span class="control" id="ipc-window-label">
+          <label class="control-label" for="ipc-window">IPC window</label>
+          <select class="tool-select" id="ipc-window"
+            title="IPC is taken over this many instructions before each position. Auto scales it to the program."></select>
+        </span>
+        <span class="control">
+          <label class="control-label" for="x-axis">x axis</label>
+          <select class="tool-select" id="x-axis"
+            title="Space the compared instructions evenly, or place each at its commit cycle on one of the runs."></select>
+        </span>
+      </span>
+    </div>
     <div id="plot-wrap">
-      <canvas id="plot"></canvas>
+      <canvas id="plot" role="img" aria-label="The chart, empty until two JSONs are loaded."></canvas>
+      <div id="crosshair"></div>
+      <div id="zoom-box"></div>
       <div id="empty">
         <svg class="brand-mark" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
           <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#18181a" stroke="rgba(255,255,255,0.12)" stroke-width="0.75"/>
@@ -606,36 +1636,67 @@
           <line x1="48.2" y1="38" x2="51.2" y2="38" stroke="#ebb450" stroke-width="1.7" stroke-linecap="round"/>
           <polygon points="55.4,38 51.2,40.31 51.2,35.69" fill="#ebb450"/>
         </svg>
-        <h2>Nothing to compare yet</h2>
-        <p>Drop a MinorFlow JSON and a CVA6Flow JSON anywhere on this window. They must be runs
-          of the same program. The curve shows, instruction by instruction across the committed
-          stream, how many cycles the gem5 model has drifted from the CVA6 RTL.</p>
+        <h2>Compare a gem5 run with the CVA6 RTL, instruction by instruction</h2>
+        <p>FlowCompare lines up the instructions both runs commit, tells you how far gem5's cycle count is from the RTL's, and shows which instructions gain or lose the cycles.</p>
+        <div class="empty-actions">
+          <button class="tool-button primary" id="empty-sample-button" hidden>Compare an example</button>
+          <button class="tool-button" id="empty-open-button">Open two JSONs…</button>
+        </div>
+        <p class="dim">Or drop a MinorFlow JSON and a CVA6Flow JSON of the same program anywhere on this window.</p>
+        <ol>
+          <li>The <b>verdict</b> says how much faster or slower gem5 is than the RTL.</li>
+          <li>The <b>metrics</b> set the two runs' counters side by side.</li>
+          <li>The <b>chart</b> follows the gap across the program, in cycles or any other metric, or draws both runs.</li>
+          <li>The <b>tables</b> name the instructions that open it.</li>
+        </ol>
       </div>
     </div>
-    <div id="list-wrap">
+    <div id="tab-bar" role="tablist" aria-label="Tables" hidden>
+      <button class="tab" id="tab-spots" data-tab="spots" role="tab" aria-selected="true"
+        aria-controls="list-wrap"
+        title="Each instruction of the program, with the cycles it gains or loses over all its runs.">Where the cycles go</button>
+      <button class="tab" id="tab-kinds" data-tab="kinds" role="tab" aria-selected="false"
+        aria-controls="list-wrap" tabindex="-1"
+        title="The same, gathered by instruction type.">By instruction type</button>
+      <button class="tab" id="tab-steps" data-tab="steps" role="tab" aria-selected="false"
+        aria-controls="list-wrap" tabindex="-1"
+        title="The single executions that moved the gap the most.">Biggest single steps</button>
+      <span id="tab-hint">Click a row to mark it on the curve. ↑ and ↓ move through the rows.</span>
+    </div>
+    <div id="list-wrap" role="tabpanel" aria-labelledby="tab-spots" hidden>
       <table>
-        <thead>
-          <tr>
-            <th class="numeric" title="Position of the pair in the aligned committed stream.">pair</th>
-            <th class="numeric" title="How far this instruction moved the drift, in cycles.">step</th>
-            <th class="numeric" title="The drift after this instruction, in cycles.">drift</th>
-            <th>instruction</th>
-            <th class="numeric" title="Commit cycle in the MinorFlow JSON.">model CO</th>
-            <th class="numeric" title="Commit cycle in the CVA6Flow JSON.">RTL CO</th>
-            <th>note</th>
-          </tr>
-        </thead>
-        <tbody id="rows">
-          <tr>
-            <td colspan="7" class="dim placeholder">No alignment yet.</td>
-          </tr>
-        </tbody>
+        <thead id="list-head"></thead>
+        <tbody id="rows"></tbody>
       </table>
     </div>
-    <div id="detail" hidden></div>
+    <div id="detail" aria-live="polite" hidden></div>
   </div>
 
   <div id="tooltip"></div>
+  <div id="figure-hint" hidden>Figure mode. F or Esc brings the page back.</div>
+
+  <div id="help" hidden>
+    <div id="help-box" role="dialog" aria-modal="true" aria-labelledby="help-title">
+      <button class="tool-button" id="help-close">Close</button>
+      <h2 id="help-title">How to read FlowCompare</h2>
+      <p>FlowCompare takes one program run twice, once on gem5's MinorCPU (a MinorFlow JSON) and once on the CVA6 RTL (a CVA6Flow JSON). Both runs commit the same instructions in the same order, so FlowCompare pairs them one by one and compares when each pair commits.</p>
+      <h3>The verdict</h3>
+      <p>How many cycles gem5 needs compared with the RTL, over the main program, from the first compared instruction's commit to the last one's. Negative means gem5 is faster than the hardware. It is the same figure the calibration tables report as the cycle error. When a check is red there is no verdict, since the two runs are then not the same instructions.</p>
+      <h3>The metrics</h3>
+      <p>The counters of both runs over the same instructions. Rows marked * are counted differently by the two tools and are shown for reference, not as model error: the RTL counts every fetch it presents, wrong-path ones included, and the two D-caches count their accesses in different units.</p>
+      <h3>The chart</h3>
+      <p>Left to right is every compared instruction in commit order, from position 0, or each at its commit cycle on one run when the <b>x axis</b> says so. The buttons over the chart choose what it plots, one panel each over the same axis, and Shift-click shows one alone. Every count runs from the first compared instruction, so it ends at the figure the metrics card shows, and IPC is taken over the window of instructions set beside the buttons.</p>
+      <p><b>Difference</b> plots gem5 minus the RTL. For cycles the height is how many cycles gem5 is behind after that instruction, below zero when it is ahead: a slope means a stretch of code runs at a different speed, a jump means one instruction cost very different amounts on the two sides, and a flat stretch means both run in step. <b>Relative</b> plots the same as a percentage of the RTL, which for cycles ends at the verdict, and it starts once the RTL has counted 1% of its total, since a ratio of small counts swings wildly. <b>Both runs</b> draws each run on its own line. Each metric keeps one colour, on its button, its panel and its lines, and in Both runs the RTL is the grey line under gem5's. Hover to read every panel at one position, and click to open that instruction. Drag across the chart to zoom into a stretch, whose panels then scale to it, and double-click, the <b>Whole program</b> button or the 0 key to see everything again.</p>
+      <h3>Figures</h3>
+      <p><b>Screenshot</b>, or the S key, saves the window as a PNG at three times its resolution. <b>Export</b> saves the chart alone as it is in view, zoom included, as a PNG, as an SVG that stays sharp in a document, or as CSV data for pgfplots, at the size chosen there, made taller when its panels would not fit. The CSV can keep at most 2,000 rows, each stretch's first, last, lowest and highest, small enough for LaTeX. <b>View</b> hides any part of the page or of the chart, gives the chart a title, and sets the theme, the colours, whether the lines take their metric's colour or their run's, the line width and the text size. The light theme suits a printed page, and the colour-blind safe and greyscale palettes a reader who needs them. <b>Figure mode</b>, or the F key, leaves the chart alone on the page. The view is remembered in this browser.</p>
+      <h3>The tables</h3>
+      <p><b>Where the cycles go</b> lists each instruction of the program with how many times it ran, the cycles it took on each side on average (from the previous instruction's commit to its own), and the total it adds to the gap. The rows at the top explain most of the verdict. <b>By instruction type</b> gathers the same by kind, for example every <code>fld</code>. <b>Biggest single steps</b> lists the single executions that moved the gap the most. Selecting a row marks its executions on the curve, brings it into a zoom that left it out, and opens the stage-by-stage timing of one of them below.</p>
+      <h3>The checks</h3>
+      <p>FlowCompare only trusts the comparison when both runs commit the same number of instructions and the instructions agree position by position. If a check turns red, the two JSONs are probably not the same program, or one of them is a slice. The <b>Alignment</b> menu can shift one stream against the other.</p>
+      <h3>Keys</h3>
+      <p><kbd>?</kbd> opens and closes this help, <kbd>↑</kbd> and <kbd>↓</kbd> move through the table rows, <kbd>←</kbd> and <kbd>→</kbd> switch tables or modes when those have the focus, <kbd>D</kbd>, <kbd>R</kbd> and <kbd>B</kbd> choose Difference, Relative and Both runs, <kbd>0</kbd> leaves a zoom, <kbd>F</kbd> turns figure mode on and off, <kbd>S</kbd> saves a screenshot with the tooltip under the pointer, and <kbd>Esc</kbd> closes this help or a menu, or leaves figure mode.</p>
+    </div>
+  </div>
 
   <script>
     "use strict";
@@ -981,7 +2042,7 @@
           ['fe1_resp_hi_cycle', 'FE1 hi resp', 'Fetch1 response of the high line'],
         ],
         /* synthesised_stages names fe1 for the response of the record's own line. */
-        synthesisedKeys: rec => new Set(rec.synthesised_stages.map(stage => ({
+        synthesisedKeys: rec => new Set((rec.synthesised_stages || []).map(stage => ({
           fe1: rec.wraps_line ? 'fe1_resp_hi_cycle' : 'fe1_resp_lo_cycle',
           fe2: 'fe2_cycle', dec: 'dec_cycle', fu_done: 'fu_done_cycle',
         })[stage])),
@@ -1008,7 +2069,7 @@
           ['fe2_hi_cycle', 'FE2 hi resp', 'Fetch2 response of the high line'],
         ],
         /* synthesised_stages names the low fetch's two cycles. */
-        synthesisedKeys: rec => new Set(rec.synthesised_stages.map(stage => ({
+        synthesisedKeys: rec => new Set((rec.synthesised_stages || []).map(stage => ({
           fe1: 'fe1_lo_cycle', fe2: 'fe2_lo_cycle',
         })[stage])),
       },
@@ -1089,8 +2150,14 @@
       'fneg.s': 'fsgnjn.s', 'fneg.d': 'fsgnjn.d',
     };
 
-    /* objdump spells an addi whose last operand is a number as add, "add sp,sp,-32". */
+    /* objdump spells an immediate form whose last operand is a number with the register form's
+     * name, "add sp,sp,-32" for addi and "and t1,t0,7" for andi. */
     const RE_NUMERIC_OPERAND = /^-?(?:0x[0-9a-f]+|\d+)$/i;
+    const IMMEDIATE_FORM = {
+      add: 'addi', addw: 'addiw', and: 'andi', or: 'ori', xor: 'xori', slt: 'slti',
+      sltu: 'sltiu', sll: 'slli', srl: 'srli', sra: 'srai', sllw: 'slliw', srlw: 'srliw',
+      sraw: 'sraiw',
+    };
 
     /* Only the mnemonic is compared, since operands carry addresses and symbol names that
      * legitimately differ between the two builds. */
@@ -1102,9 +2169,8 @@
       mnem = mnem.replace(/\[[^\]]*\]$/, '');
       /* gem5 keeps the compressed form, objdump expands it. */
       mnem = mnem.replace(/^c\./, '');
-      if ((mnem === 'add' || mnem === 'addw') && parts.length === 4
-        && RE_NUMERIC_OPERAND.test(parts[3])) {
-        mnem = mnem === 'add' ? 'addi' : 'addiw';
+      if (IMMEDIATE_FORM[mnem] && parts.length === 4 && RE_NUMERIC_OPERAND.test(parts[3])) {
+        mnem = IMMEDIATE_FORM[mnem];
       }
       return MNEM_ALIAS[mnem] || mnem;
     }
@@ -1166,6 +2232,18 @@
     const DRIFT_WARN_SHARE = 0.01;
     const DRIFT_BAD_SHARE = 0.05;
 
+    /* Shares of positions holding the same kind, and the same name, below which the checks turn
+     * amber and red. Every pair of the benchmark set matches 100% by kind and 98.97% or more by
+     * name, and two fp_divsqrt variants still match 96% by kind but only 25% by name. */
+    const KIND_WARN_SHARE = 0.995;
+    const KIND_BAD_SHARE = 0.95;
+    const NAME_WARN_SHARE = 0.95;
+    const NAME_BAD_SHARE = 0.8;
+
+    /* Under region scoping both runs commit the same instructions, so pairing less than this
+     * share of the longer stream means two different programs. */
+    const LENGTH_BAD_SHARE = 0.95;
+
     /* The committed stream in commit order. A flushed record never committed: wrong-path work, or
      * in CVA6Flow an instruction still in flight when the VCD ended. */
     function committedStream(records, region) {
@@ -1177,6 +2255,7 @@
         if (rec.flushed || rec.co_cycle == null) continue;
         out.push({
           rec,
+          idx,
           commit: rec.co_cycle,
           mnem: normMnemonic(rec.disasm),
           cls: normClass(rec.fu, rec.disasm),
@@ -1204,6 +2283,13 @@
       return Array.from(picked).sort((x, y) => x - y);
     }
 
+    /* How much of the shorter stream an offset pairs, which weights its agreement, since
+     * agreement alone prefers a tiny window of near-identical epilogue over the real alignment. */
+    function coverAt(a, b, off) {
+      const paired = Math.min(a.length, b.length - off) - Math.max(0, -off);
+      return Math.max(0, paired) / Math.max(1, Math.min(a.length, b.length));
+    }
+
     /* Agreement at one offset over the given positions of a. */
     function agreementAt(a, b, off, positions) {
       const lo = Math.max(0, -off);
@@ -1219,17 +2305,24 @@
         if (x.cls === y.cls) cls++;
       }
       if (!seen) return { n: 0, mnem: 0, cls: 0, score: 0 };
-      /* Weighted by how much of the shorter stream the offset covers, since agreement alone
-       * prefers a tiny window of near-identical epilogue over the real alignment. */
-      const cover = (hi - lo) / Math.max(1, Math.min(a.length, b.length));
-      return { n: seen, mnem: mnem / seen, cls: cls / seen, score: (mnem / seen) * cover };
+      return {
+        n: seen, mnem: mnem / seen, cls: cls / seen, score: (mnem / seen) * coverAt(a, b, off),
+      };
     }
 
     /* The two builds have different start-up code, so the kernel can begin at a different
-     * position in each stream. A winner near the search edge may be clamped and still score
-     * well, so the headroom is reported with it. */
+     * position in each stream. A winner near the edge of a search the limit cut short may be
+     * clamped and still score well, so the headroom is reported with it. */
     function detectOffset(a, b) {
-      const cap = Math.min(DEFAULT_MAX_OFFSET, Math.max(a.length, b.length) - 1);
+      const reach = Math.max(a.length, b.length) - 1;
+      const cap = Math.min(DEFAULT_MAX_OFFSET, reach);
+      const every = sampledPositions(a.length, Infinity);
+      /* Two equal streams that agree everywhere at 0 score 1 there, which no other offset can
+       * reach, so the search is skipped, the usual case once both main programs are found. */
+      const zero = a.length === b.length ? agreementAt(a, b, 0, every) : null;
+      if (zero && zero.n >= OFFSET_MIN_PAIRS && zero.mnem === 1 && zero.cls === 1) {
+        return { off: 0, mnem: 1, cls: 1, score: zero.score, cap, headroom: cap, nearCap: false };
+      }
       const sample = sampledPositions(a.length, OFFSET_SAMPLE_CAP);
       const scored = [];
       let top = -1;
@@ -1242,9 +2335,13 @@
       /* A loop shifted by whole periods samples as well as the true offset, so every offset near
        * the best is rescored over all its pairs, and a tie goes to the better class agreement,
        * then to the smaller shift. */
-      const every = sampledPositions(a.length, Infinity);
+      const near = scored.filter(s => s.score >= top - OFFSET_RESCORE_BAND)
+        .sort((x, y) => Math.abs(x.off) - Math.abs(y.off) || x.off - y.off);
       let best = null;
-      for (const { off } of scored.filter(s => s.score >= top - OFFSET_RESCORE_BAND)) {
+      for (const { off } of near) {
+        /* A score is agreement times cover, so a cover below the best score cannot win. Without
+         * this a long loop rescores every period in the window, seconds on 300,000 pairs. */
+        if (best && coverAt(a, b, off) < best.score) continue;
         const g = agreementAt(a, b, off, every);
         if (!best || g.score > best.score || (g.score === best.score
           && (g.cls > best.cls || (g.cls === best.cls && Math.abs(off) < Math.abs(best.off))))) {
@@ -1253,11 +2350,12 @@
       }
       if (!best) return { off: 0, mnem: 0, cls: 0, cap, headroom: cap, nearCap: false };
       const headroom = cap - Math.abs(best.off);
-      return Object.assign(best, { cap, headroom, nearCap: headroom < OFFSET_HEADROOM_MIN });
+      return Object.assign(best, { cap, headroom,
+        nearCap: cap < reach && headroom < OFFSET_HEADROOM_MIN });
     }
 
-    /* options: offset (null for the search), reversed (the CVA6 RTL measured against the gem5
-     * model), and minorClipped and cva6Clipped, a side holding a slice of its JSON. */
+    /* options: offset (null for the search), and minorClipped and cva6Clipped, a side holding a
+     * slice of its JSON. */
     function alignRecords(minorRecords, cva6Records, options) {
       const o = options || {};
       /* The workload, not the harness: CVA6's crt.S runs about 1,900 committed instructions
@@ -1320,13 +2418,12 @@
       }
 
       /* Drift counts from the first aligned pair, so a constant head start on either side drops
-       * out and only divergence remains. */
-      const sign = o.reversed ? -1 : 1;
+       * out and only divergence remains. It is gem5 minus RTL, positive when gem5 is behind. */
       if (pairs.length) {
         const a0 = pairs[0].a.commit, b0 = pairs[0].b.commit;
         let prev = 0;
         for (const p of pairs) {
-          p.drift = sign * ((p.a.commit - a0) - (p.b.commit - b0));
+          p.drift = (p.a.commit - a0) - (p.b.commit - b0);
           p.step = p.drift - prev;
           prev = p.drift;
         }
@@ -1349,7 +2446,6 @@
         pairs,
         offset: off,
         autoOffset: o.offset == null,
-        reversed: !!o.reversed,
         offsetSearch: { cap: det.cap, headroom: det.headroom, nearCap: !!det.nearCap },
         region: {
           used: useRegion,
@@ -1376,8 +2472,6 @@
         finalDrift: last ? last.drift : 0,
         minorSpan,
         cva6Span,
-        /* The drift is measured against the reference side's span. */
-        referenceSpan: o.reversed ? minorSpan : cva6Span,
       };
     }
 
@@ -1387,44 +2481,50 @@
     const loaded = { minor: null, cva6: null };
     let alignment = null;
     let offsetOverride = null;
-    let reversed = false;
     let selectedPair = -1;
-    let rankedPairs = [];
+    /* The pairs the chosen table row stands for, marked on the curve. */
+    let highlighted = [];
+    let activeTab = 'spots';
+    let tableRows = [];
+    let selectedRow = -1;
     let plotGeometry = null;
     let plotFramePending = false;
-    /* What the last load has to tell the reader, shown ahead of the report until the next load. */
+    /* What the last load has to tell the reader, shown above the summary until the next load. */
     let loadNotes = [];
 
     const byId = id => document.getElementById(id);
     const plot = byId('plot');
     const tooltip = byId('tooltip');
     const FONT_MONO = cssToken('--font-mono');
-    /* The plot's inks, the colour tokens read once, beside the guide lines no token names. */
-    const INK = Object.freeze({
-      drift: cssToken('--drift'),
-      parted: cssToken('--bad'),
-      axisZero: cssToken('--text2'),
-      axis: cssToken('--text3'),
-      caption: '#707070',
-      guideZero: 'rgba(255,255,255,.22)',
-      guide: 'rgba(255,255,255,.06)',
-      selection: 'rgba(255,255,255,.28)',
-    });
-    /* The drift fill and the parted line are the tokens at these alphas. */
+    const FONT_SANS = cssToken('--font-sans');
+    /* The difference's fill and the parted line are their tokens at these alphas. */
     const DRIFT_FILL_ALPHA = 0.10;
     const PARTED_ALPHA = 0.75;
     const COPY_FLASH_MS = 1200;
-    const CONTROL_IDS = [
-      'swap-button', 'copy-report-button', 'offset-minus', 'offset-plus', 'offset-auto'];
+    /* Rows a table shows at most, and the marks drawn as dots on the curve at most. */
+    const TABLE_ROW_CAP = 300;
+    const MARK_DOT_CAP = 400;
+    const CONTROL_IDS = ['copy-report-button', 'offset-minus', 'offset-plus', 'offset-auto',
+      'save-chart-png', 'save-chart-svg', 'save-chart-csv'];
+    /* The difference the curve, the tables and the detail show, positive when gem5 is behind. */
+    const GAP_NAME = 'gem5 − RTL';
 
-    /* A guide stepped up from a small negative minimum lands on -0, which prints as "-0". */
+    /* A guide stepped up from a small negative minimum lands on -0, which prints as "-0". Both
+     * print a hyphen for the minus, as fmtCount does, so every signed figure reads alike. */
     const signed = n => (n > 0 ? '+' : '') + fmtCount(n === 0 ? 0 : n);
+    const signedFixed = (n, digits) => {
+      const text = Math.abs(n).toFixed(digits);
+      return Number(text) === 0 ? text : (n > 0 ? '+' : '-') + text;
+    };
+    const signClass = n => (n > 0 ? 'slow' : n < 0 ? 'fast' : 'dim');
 
     /* ---- Loading ---- */
 
-    function setReport(html) {
-      byId('report').innerHTML = loadNotes.concat(html ? [html] : [])
-        .join(' <span class="dim">·</span> ');
+    function setNotice(extra) {
+      const notes = loadNotes.concat(extra || []);
+      const el = byId('notice');
+      el.innerHTML = notes.join(' <span class="dim">·</span> ');
+      el.hidden = !notes.length;
     }
 
     /* The parsed JSON as { kind, name, json }, or { refusal } with the HTML saying why not. */
@@ -1451,15 +2551,29 @@
       return verdict.refusal ? verdict : { kind: verdict.kind, name: file.name, json };
     }
 
+    /* A large JSON takes seconds to read and line up, and the work blocks the page, so the notice
+     * says what is being read and a frame passes for it to paint first. */
+    function showReading(files) {
+      const el = byId('notice');
+      el.innerHTML = 'Reading ' + files.map(file =>
+        `<b>"${escapeHtml(file.name)}"</b> (${fmtBytes(file.size)})`).join(' and ') + '…';
+      el.hidden = false;
+      return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+    }
+
     /* Loads files in order into their slots. A second JSON of a kind already loaded by the same
      * drop is refused, and a manual offset belongs to the pair it was chosen for, so it resets. */
     async function loadJsonFiles(files, notes) {
+      /* The menu no longer names what is on screen. */
+      byId('sample-select').value = '';
+      updateExampleButton();
+      await showReading(files);
       const parsed = [];
       for (const file of files) parsed.push(await parseJsonFile(file));
       loadParsed(parsed, notes);
     }
 
-    /* The slots take a parsed JSON whether it came from a file or from a sample. */
+    /* The slots take a parsed JSON whether it came from a file or from an example. */
     function loadParsed(entries, notes) {
       const taken = new Map();
       for (const parsed of entries) {
@@ -1497,22 +2611,43 @@
       });
     }
 
-    /* Two JSONs dropped together is the usual case, and metadata.tool puts each in its slot. */
-    function wireDrop() {
-      document.addEventListener('dragover', ev => ev.preventDefault());
+    /* Two JSONs picked or dropped together is the usual case, and each JSON's metadata.tool
+     * puts it in its slot. */
+    function takeFiles(files) {
+      if (!files || !files.length) return;
+      const notes = files.length > 2
+        ? [`<span class="warn">${fmtCount(files.length)} files were given, and FlowCompare `
+          + 'read the first two.</span>']
+        : [];
+      loadJsonFiles([...files].slice(0, 2), notes);
+    }
+
+    function wireOpen() {
+      const input = byId('file-both');
+      for (const id of ['open-button', 'empty-open-button']) {
+        byId(id).addEventListener('click', () => input.click());
+      }
+      input.addEventListener('change', () => {
+        takeFiles(input.files);
+        input.value = '';
+      });
+      const hasFiles = ev => !!ev.dataTransfer && [...ev.dataTransfer.types].includes('Files');
+      document.addEventListener('dragover', ev => {
+        ev.preventDefault();
+        if (hasFiles(ev)) document.body.classList.add('drag-over');
+      });
+      /* A leave with no element to enter left the window. */
+      document.addEventListener('dragleave', ev => {
+        if (!ev.relatedTarget) document.body.classList.remove('drag-over');
+      });
       document.addEventListener('drop', ev => {
         ev.preventDefault();
-        const files = ev.dataTransfer && ev.dataTransfer.files;
-        if (!files || !files.length) return;
-        const notes = files.length > 2
-          ? [`<span class="warn">${fmtCount(files.length)} files were dropped, and FlowCompare `
-            + 'read the first two.</span>']
-          : [];
-        loadJsonFiles([...files].slice(0, 2), notes);
+        document.body.classList.remove('drag-over');
+        takeFiles(ev.dataTransfer && ev.dataTransfer.files);
       });
     }
 
-    /* ---- Samples ---- */
+    /* ---- Examples ---- */
 
     /* The pairs scripts/make_FlowCompare_pairs.py writes to pairs/ come first: one program on the
      * matched gem5 configuration and on the RTL, each JSON gzipped inside a script. Without them,
@@ -1521,6 +2656,8 @@
     const PAIR_MANIFEST_FILE = 'pairs.js';
     const SAMPLE_DIRS = { minor: 'MinorFlow/tests/', cva6: 'CVA6Flow/tests/' };
     const SAMPLE_MANIFEST_FILE = 'samples.js';
+    /* The example offered first, a short program whose verdict and tables read at a glance. */
+    const PREFERRED_EXAMPLE = 'int_div';
     let samplePairs = [];
 
     function takeGlobal(name) {
@@ -1579,8 +2716,14 @@
         && typeof entry.file === 'string' && typeof entry.label === 'string');
     }
 
+    /* The option text, with the size of the program so a long one is chosen knowingly. */
+    function exampleText(pair) {
+      const n = pair.cva6 && pair.cva6.n_records;
+      return n ? `${pair.label}  (${fmtCount(n)} records)` : pair.label;
+    }
+
     /* A manifest that is missing, or holds no program the other side also has, leaves the
-     * control hidden, so a tree with no samples in it looks the same as before. */
+     * controls hidden, so a tree with no examples in it offers files only. */
     async function initSamples() {
       samplePairs = await readPairs();
       if (!samplePairs.length) {
@@ -1592,28 +2735,45 @@
             : null;
         }).filter(Boolean);
       }
-      const select = byId('sample-select'), button = byId('sample-load-button');
-      select.replaceChildren(...samplePairs.map(pair => {
+      const select = byId('sample-select');
+      /* Shown while the JSONs on screen are the reader's own. */
+      const opened = document.createElement('option');
+      opened.value = '';
+      opened.textContent = 'Opened JSONs';
+      opened.disabled = opened.hidden = true;
+      select.replaceChildren(opened, ...samplePairs.map(pair => {
         const option = document.createElement('option');
         option.value = pair.label;
-        option.textContent = pair.label;
+        option.textContent = exampleText(pair);
         if (pair.model) option.title = `gem5 ${pair.model} against the RTL`;
         return option;
       }));
-      select.hidden = samplePairs.length < 2;
-      button.hidden = samplePairs.length === 0;
-      byId('sample-separator').hidden = samplePairs.length === 0;
-      if (samplePairs.length === 1) button.textContent = `Load ${samplePairs[0].label} pair`;
+      select.value = samplePairs.some(pair => pair.label === PREFERRED_EXAMPLE)
+        ? PREFERRED_EXAMPLE : samplePairs.length ? samplePairs[0].label : '';
+      const none = samplePairs.length === 0;
+      for (const id of ['sample-label', 'sample-select', 'sample-load-button', 'sample-separator',
+        'empty-sample-button']) {
+        byId(id).hidden = none;
+      }
+      updateExampleButton();
+    }
+
+    function updateExampleButton() {
+      const label = byId('sample-select').value;
+      byId('sample-load-button').disabled = !label;
+      if (label) byId('empty-sample-button').textContent = `Compare an example: ${label}`;
     }
 
     async function loadSamplePair() {
       const label = byId('sample-select').value;
       const pair = samplePairs.find(entry => entry.label === label) || samplePairs[0];
       if (!pair) return;
-      const button = byId('sample-load-button');
-      const words = button.textContent;
-      button.disabled = true;
-      button.textContent = 'Loading...';
+      const buttons = [byId('sample-load-button'), byId('empty-sample-button')];
+      const words = buttons.map(button => button.textContent);
+      for (const button of buttons) {
+        button.disabled = true;
+        button.textContent = `Loading ${pair.label}…`;
+      }
       const entries = [], notes = [];
       for (const kind of ['minor', 'cva6']) {
         const file = pair[kind].file;
@@ -1639,8 +2799,10 @@
           : `${pair.label} (${kind === 'minor' ? `gem5 ${pair.model}` : 'RTL'})`;
         entries.push(verdict.refusal ? verdict : { kind: verdict.kind, name, json });
       }
-      button.disabled = false;
-      button.textContent = words;
+      buttons.forEach((button, i) => {
+        button.disabled = false;
+        button.textContent = words[i];
+      });
       loadParsed(entries, notes);
     }
 
@@ -1650,7 +2812,122 @@
       refresh();
     }
 
-    /* ---- Report ---- */
+    /* ---- Metrics ---- */
+
+    /* The index of the first value of an ascending array at or above value. */
+    function lowerBound(sorted, value) {
+      let first = 0, last = sorted.length;
+      while (first < last) {
+        const mid = (first + last) >> 1;
+        if (sorted[mid] < value) first = mid + 1;
+        else last = mid;
+      }
+      return first;
+    }
+
+    /* How many of an ascending array's values fall in [lo, hi]. */
+    function countIn(sorted, lo, hi) {
+      return hi < lo ? 0 : lowerBound(sorted, hi + 1) - lowerBound(sorted, lo);
+    }
+
+    const ascending = values => values.filter(Number.isFinite).sort((x, y) => x - y);
+
+    /* One side's counters over the records the comparison pairs, so they cover what the verdict
+     * does even when the lengths differ. Cycles run from the first paired commit to the last,
+     * and the cache events count from the first of those records' fetches, as Main Code does. */
+    function sideMetrics(kind, pairs) {
+      if (!pairs.length) return {};
+      const records = loaded[kind].json.instructions;
+      const side = kind === 'minor' ? 'a' : 'b';
+      const head = pairs[0][side], tail = pairs[pairs.length - 1][side];
+      const fetchKey = JSON_KINDS[kind].stages[0][0];
+      const first = head.commit, last = tail.commit;
+      let fetchLo = first, branches = 0, mispredicted = 0, wrongPath = 0;
+      for (let idx = head.idx; idx <= tail.idx; idx++) {
+        const rec = records[idx];
+        if (rec[fetchKey] != null && rec[fetchKey] < fetchLo) fetchLo = rec[fetchKey];
+        if (rec.flushed) {
+          wrongPath++;
+          continue;
+        }
+        const control = kind === 'minor' ? rec.is_control === true : rec.fu === 'CTRL_FLOW';
+        if (control) branches++;
+        if (rec.bp_outcome === 'mispred' || rec.bp_outcome === 'unpred') mispredicted++;
+      }
+      const events = alignment.events[kind];
+      const cycles = last - first;
+      return {
+        cycles,
+        instructions: pairs.length,
+        ipc: cycles > 0 ? pairs.length / cycles : null,
+        icMisses: countIn(events.icMisses, fetchLo, last),
+        dcMisses: countIn(events.dcMisses, fetchLo, last),
+        branches,
+        mispredicted,
+        icAccesses: countIn(events.icAccesses, fetchLo, last),
+        dcAccesses: countIn(events.dcAccesses, fetchLo, last),
+        wrongPath,
+        /* Where the chart's counts start, as these do. */
+        fetchLo,
+      };
+    }
+
+    /* The metrics table, in order. alike is false for a counter the two tools define
+     * differently, which is shown for reference rather than as model error. mechanisms are what
+     * each side's figure is fed by, as in the viewers' metric bars, read against degraded. */
+    const METRIC_ROWS = [
+      { key: 'cycles', label: 'Cycles', alike: true, mechanisms: { minor: [], cva6: [] },
+        desc: 'From the first compared instruction\'s commit to the last one\'s. A viewer\'s Main '
+          + 'Code range starts at the first fetch instead, so it reads a few cycles more.' },
+      { key: 'instructions', label: 'Instructions', alike: true,
+        mechanisms: { minor: ['no_commits'], cva6: ['no_commits'] },
+        desc: 'Committed instructions compared, the same on both sides by construction. The checks '
+          + 'say how many each run commits.' },
+      { key: 'ipc', label: 'IPC', alike: true, digits: 4,
+        mechanisms: { minor: ['no_commits'], cva6: ['no_commits'] },
+        desc: 'Instructions per cycle, committed instructions over cycles.' },
+      { key: 'icMisses', label: 'I-cache misses', alike: true,
+        mechanisms: { minor: ['fetch', 'icache'], cva6: ['icache'] },
+        desc: 'Instruction-cache misses that fetched a line from memory.' },
+      { key: 'dcMisses', label: 'D-cache misses', alike: true,
+        mechanisms: { minor: ['dcache'], cva6: ['dcache'] },
+        desc: 'Data-cache misses that fetched a line from memory, loads and stores alike.' },
+      { key: 'branches', label: 'Branches', alike: true,
+        mechanisms: { minor: ['minor_inst'], cva6: [] },
+        desc: 'Committed control-flow instructions: branches, jumps, calls and returns.' },
+      { key: 'mispredicted', label: 'Mispredicted', alike: true,
+        mechanisms: { minor: ['fetch', 'minor_inst'], cva6: ['bp_resolution'] },
+        desc: 'Branches the predictor got wrong or made no prediction for, each costing a '
+          + 'redirect.' },
+      { key: 'icAccesses', label: 'I-cache accesses', alike: false,
+        mechanisms: { minor: ['icache'], cva6: [] },
+        desc: 'The RTL counts every fetch it presents, wrong-path fetches included, which gem5 '
+          + 'never issues, so the two differ by construction.' },
+      { key: 'dcAccesses', label: 'D-cache accesses', alike: false,
+        mechanisms: { minor: ['dcache'], cva6: [] },
+        desc: 'gem5 counts one access per packet and the HPDcache one per request, so the two '
+          + 'count different units.' },
+      { key: 'wrongPath', label: 'Wrong-path records', alike: false,
+        mechanisms: { minor: ['execute', 'minor_inst'], cva6: [] },
+        desc: 'Instructions fetched down a wrong path and flushed. MinorFlow records only those '
+          + 'that reached Execute, and CVA6Flow every one the front end delivered.' },
+    ];
+
+    /* The mechanisms metadata.degraded lists for one side. An absent mechanism must not read as
+     * a measured zero, so every figure it feeds shows "-", by the viewers' rule. */
+    function degradedOf(kind) {
+      const list = loaded[kind].json.metadata.degraded;
+      return new Set(Array.isArray(list) ? list.map(entry => entry && entry.mechanism) : []);
+    }
+
+    /* A side's figure for a row, or null with the reason when a degraded mechanism feeds it. */
+    function metricValue(row, kind) {
+      const lost = row.mechanisms[kind].filter(name => alignment.degraded[kind].has(name));
+      return lost.length ? { value: null, why: `Not observed: metadata.degraded lists `
+        + `${lost.join(', ')}.` } : { value: alignment.metrics[kind][row.key] ?? null, why: null };
+    }
+
+    /* ---- Summary ---- */
 
     function sideMissing(region) {
       return region.missing === 'both' ? 'either JSON'
@@ -1667,110 +2944,195 @@
         + `${escapeHtml(clip.source)}`;
     }
 
-    /* The side whose drift is measured, the one it is measured against, and the grade of the
-     * drift's magnitude. */
+    /* The gap after the last pair, and its grade as a share of the RTL's span. */
     function driftTerms() {
       const d = alignment.finalDrift;
-      const share = alignment.referenceSpan ? Math.abs(d) / alignment.referenceSpan : 0;
+      const share = alignment.cva6Span ? Math.abs(d) / alignment.cva6Span : 0;
       const grade = share >= DRIFT_BAD_SHARE ? 'bad' : share >= DRIFT_WARN_SHARE ? 'warn' : 'good';
+      return { d, share, grade };
+    }
+
+    /* The verdict as { line, sub } in HTML. A red check withholds it, since the gap between two
+     * different instruction streams is not a model error. */
+    function verdictText() {
+      const t = driftTerms();
+      const n = alignment.counts.aligned;
+      if (!n) {
+        return {
+          line: '<b class="bad">Nothing to compare</b>',
+          sub: 'No instruction of one run lines up with one of the other.',
+        };
+      }
+      if (!alignment.trusted) {
+        return {
+          line: '<b class="bad">No verdict</b>, the runs do not line up',
+          sub: `${GAP_NAME} is ${signed(t.d)} cycles over ${plural(n, 'compared instruction')}, `
+            + 'but the checks say they are not the same instructions.',
+        };
+      }
+      /* Without region scoping the checks say what the streams hold. */
+      const scope = alignment.region.used ? ', across the main program' : '';
       return {
-        d, share, grade,
-        name: alignment.reversed ? 'RTL minus model' : 'model minus RTL',
-        reference: alignment.reversed ? 'the model\'s' : 'the RTL\'s',
+        line: t.d === 0 ? '<b class="good">gem5 matches the RTL</b> to the cycle'
+          : `gem5 is <b class="${t.grade}">${fmtPercent(t.share)} `
+            + `${t.d < 0 ? 'faster' : 'slower'}</b> than the RTL`,
+        sub: (t.d === 0 ? `Both take ${fmtCount(alignment.cva6Span)} cycles`
+          : `${fmtCount(Math.abs(t.d))} ${t.d < 0 ? 'fewer' : 'more'} cycles over the RTL's `
+            + fmtCount(alignment.cva6Span))
+          + `${scope}, ${plural(n, 'instruction')} compared.`,
       };
     }
 
-    function buildReport() {
-      const c = alignment.counts, q = alignment.quality;
-      const grade = v => (v >= 0.995 ? 'good' : v >= 0.95 ? 'warn' : 'bad');
-      const parts = [];
-      parts.push(`committed <b>${fmtCount(c.minorCommitted)}</b> model `
-        + `<span class="dim">vs</span> <b>${fmtCount(c.cva6Committed)}</b> RTL`);
-      if (c.minorCommitted !== c.cva6Committed) {
-        parts.push(`<span class="warn">counts differ by `
-          + `${fmtCount(Math.abs(c.minorCommitted - c.cva6Committed))}</span>`);
-      }
-      parts.push(`aligned <b>${fmtCount(c.aligned)}</b>`);
-      const clipped = { minor: clippedText('minor'), cva6: clippedText('cva6') };
-      for (const kind of ['minor', 'cva6']) {
-        if (clipped[kind]) parts.push(`<span class="warn">${clipped[kind]}</span>`);
-      }
-      /* Said either way, since a reader cannot otherwise tell whether a drift includes the
-       * harness. A slice has no start-up or teardown to include. */
-      const region = alignment.region;
-      if (region.used) {
-        parts.push('<span class="good">main program only</span>');
+    function buildVerdict() {
+      const { line, sub } = verdictText();
+      byId('verdict-line').innerHTML = line;
+      byId('verdict-sub').innerHTML = sub;
+      byId('verdict-scale').hidden = !alignment.trusted || !alignment.counts.aligned;
+    }
+
+    const fmtMetric = (row, v) => (v == null ? '-' : row.digits ? v.toFixed(row.digits)
+      : fmtCount(v));
+
+    /* A row's difference and error, the error left out for a counter the tools define
+     * differently, since it is not model error. */
+    function metricDelta(row) {
+      const g = metricValue(row, 'minor'), r = metricValue(row, 'cva6');
+      const diff = g.value != null && r.value != null ? g.value - r.value : null;
+      const share = row.alike && diff != null && r.value ? diff / r.value : null;
+      return {
+        g, r, share,
+        diffText: diff == null ? '-' : row.digits ? signedFixed(diff, row.digits) : signed(diff),
+        errorText: !row.alike ? '' : share == null ? '-'
+          : (share > 0 ? '+' : '') + fmtPercent(share),
+      };
+    }
+
+    function buildMetrics() {
+      const head = '<tr><th>metric</th><th class="minor-ink">gem5</th><th class="cva6-ink">RTL</th>'
+        + `<th>${GAP_NAME}</th><th>error</th></tr>`;
+      const cell = (row, side) => `<td class="numeric"${side.why
+        ? ` title="${escapeHtml(side.why)}"` : ''}>${fmtMetric(row, side.value)}</td>`;
+      const body = METRIC_ROWS.map(row => {
+        const m = metricDelta(row);
+        const grade = m.share == null ? 'dim' : Math.abs(m.share) >= DRIFT_BAD_SHARE ? 'bad'
+          : Math.abs(m.share) >= DRIFT_WARN_SHARE ? 'warn' : '';
+        return `<tr class="${row.alike ? '' : 'unlike'}" title="${escapeHtml(row.desc)}">`
+          + `<td>${row.label}</td>${cell(row, m.g)}${cell(row, m.r)}`
+          + `<td class="numeric">${m.diffText}</td>`
+          + `<td class="numeric ${grade}">${m.errorText}</td></tr>`;
+      }).join('');
+      byId('metrics-table').innerHTML = head + body;
+      byId('metrics-note').textContent = '* counted differently by the two tools, shown for '
+        + 'reference. Hover a row for what it counts.';
+    }
+
+    const worseState = (x, y) => (x === 'bad' || y === 'bad' ? 'bad'
+      : x === 'warn' || y === 'warn' ? 'warn' : 'good');
+    const gradeShare = (v, warn, bad) => (v >= warn ? 'good' : v >= bad ? 'warn' : 'bad');
+
+    /* Each check as [state, text], state good, warn or bad, the text HTML. */
+    function checkList() {
+      const c = alignment.counts, q = alignment.quality, region = alignment.region;
+      const out = [];
+      if (c.minorCommitted === c.cva6Committed) {
+        out.push(['good', `Same length: both commit ${plural(c.cva6Committed, 'instruction')}`]);
       } else {
-        const sides = region.missing === 'both' ? ['minor', 'cva6'] : [region.missing];
-        const whole = sides.every(kind => !clipped[kind]);
-        parts.push(`<span class="bad">every record: no main-program region in `
-          + `${sideMissing(region)}${whole ? ', so start-up and teardown are included' : ''}`
-          + '</span>');
+        const longer = Math.max(c.minorCommitted, c.cva6Committed);
+        const short = !c.aligned || (region.used && c.aligned < LENGTH_BAD_SHARE * longer);
+        out.push([short ? 'bad' : 'warn', `Lengths differ: ${fmtCount(c.minorCommitted)} on `
+          + `gem5, ${fmtCount(c.cva6Committed)} on the RTL, ${fmtCount(c.aligned)} compared`]);
       }
-      parts.push(`offset <b>${signed(alignment.offset)}</b>`
-        + (alignment.autoOffset ? '' : ' <span class="warn">manual</span>'));
-      const search = alignment.offsetSearch;
-      if (search.nearCap) {
-        parts.push(`<span class="bad">only ${fmtCount(search.headroom)} of slack to the `
-          + `±${fmtCount(search.cap)} search limit, so the offset may be clamped</span>`);
-      }
-      parts.push(`mnemonic <span class="${grade(q.mnemonic)}">${fmtPercent(q.mnemonic)}</span>`);
-      parts.push(`class <span class="${grade(q.klass)}">${fmtPercent(q.klass)}</span>`);
-      if (c.noDisasm) {
-        parts.push(`<span class="dim">${fmtCount(c.noDisasm)} without disassembly</span>`);
-      }
-      /* An offset one pair out leaves no long run, only alternating misses, so the class
-       * agreement decides before the absence of a run is called agreement. */
       if (q.sustainedAt >= 0) {
-        parts.push(`<span class="bad">streams part at pair ${fmtCount(q.sustainedAt)}</span>`);
-      } else if (c.comparable && grade(q.klass) === 'bad') {
-        parts.push('<span class="bad">most pairs disagree, so the offset may be wrong</span>');
+        out.push(['bad', `The streams part at position ${fmtCount(q.sustainedAt)}, so the `
+          + 'curve right of the red line is not trustworthy']);
       } else if (c.comparable) {
-        parts.push('<span class="good">streams agree throughout</span>');
+        const state = worseState(gradeShare(q.klass, KIND_WARN_SHARE, KIND_BAD_SHARE),
+          gradeShare(q.mnemonic, NAME_WARN_SHARE, NAME_BAD_SHARE));
+        out.push([state, `${state === 'bad' ? 'Different' : 'Same'} instructions: `
+          + `${fmtPercent(q.klass)} of positions match by kind, ${fmtPercent(q.mnemonic)} by name`
+          + (state === 'bad' ? ', too few for one program' : '')]);
       }
-      if (q.disagree) {
-        parts.push(`<span class="dim">${fmtCount(q.disagree)} unmatched, longest run `
-          + `${fmtCount(q.longestRun)}</span>`);
+      if (region.used) {
+        out.push(['good', 'Main program only, start-up and exit left out']);
+      } else {
+        const clipped = ['minor', 'cva6'].some(kind => clippedText(kind));
+        out.push(['warn', `Whole JSONs lined up, since ${sideMissing(region)} has no `
+          + `main-program markers${clipped ? '' : ', so start-up and exit are included'}`]);
       }
-      if (q.headUnmatched || q.tailUnmatched) {
-        parts.push(`<span class="dim">${fmtCount(q.headUnmatched + q.tailUnmatched)} of those `
-          + 'in the harness brackets</span>');
+      for (const kind of ['minor', 'cva6']) {
+        const clip = clippedText(kind);
+        if (clip) out.push(['warn', clip.charAt(0).toUpperCase() + clip.slice(1)]);
+        const lost = [...alignment.degraded[kind]];
+        if (lost.length) {
+          out.push(['warn', `The ${JSON_KINDS[kind].viewer} JSON lists `
+            + `${escapeHtml(lost.join(', '))} as degraded, so the metrics they feed read -`]);
+        }
       }
-      const drift = driftTerms();
-      parts.push(`${drift.name} <b class="${drift.grade}">${signed(drift.d)}c</b> over `
-        + `${drift.reference} ${fmtCount(alignment.referenceSpan)}c `
-        + `<span class="dim">(${fmtPercent(drift.share)})</span>`);
-      setReport(parts.join(' <span class="dim">·</span> '));
+      const search = alignment.offsetSearch, off = signed(alignment.offset);
+      if (!alignment.autoOffset) {
+        out.push(['warn', `Offset set by hand to ${off}`]);
+      } else if (search.nearCap) {
+        out.push(['bad', `Offset ${off} is near the search limit, so it may be wrong`]);
+      } else if (alignment.offset !== 0) {
+        out.push(region.used
+          ? ['warn', `Offset ${off}, though two runs of one program line up at 0`]
+          : ['good', `Streams lined up with an offset of ${off}`]);
+      }
+      if (c.noDisasm) {
+        out.push(['warn', `${plural(c.noDisasm, 'record')} without disassembly`]);
+      }
+      return out;
+    }
+
+    const CHECK_MARKS = {
+      good: ['✓', 'passes'], warn: ['!', 'needs a look'], bad: ['✗', 'fails'],
+    };
+
+    function buildChecks() {
+      byId('checks').innerHTML = alignment.checks.map(([state, text]) => {
+        const [mark, word] = CHECK_MARKS[state];
+        return `<li><span class="mark ${state}" role="img" aria-label="${word}">${mark}</span>`
+          + `<span>${text}</span></li>`;
+      }).join('');
+    }
+
+    function buildSummary() {
+      buildVerdict();
+      buildMetrics();
+      buildChecks();
+    }
+
+    /* The text of some HTML this page wrote, entities decoded, for the clipboard. */
+    function plainText(html) {
+      const el = document.createElement('div');
+      el.innerHTML = html;
+      return el.textContent;
     }
 
     function reportText() {
-      const c = alignment.counts, q = alignment.quality, region = alignment.region;
-      const search = alignment.offsetSearch;
-      const drift = driftTerms();
-      const records = kind => {
-        const clip = loaded[kind].json.metadata.clipped;
-        return clip ? `${fmtCount(clip.first_record)} to ${fmtCount(clip.last_record)} of `
-          + `${fmtCount(clip.n_records_source)} in ${clip.source}`
-          : `all ${fmtCount(loaded[kind].json.instructions.length)}`;
-      };
-      return [
-        `gem5 model  ${loaded.minor.name}`,
-        `CVA6 RTL    ${loaded.cva6.name}`,
-        `records     ${records('minor')} model, ${records('cva6')} RTL`,
-        `scope       ${region.used ? 'main program only'
-          : `EVERY RECORD, no main-program region in ${sideMissing(region)}`}`,
-        `committed   ${fmtCount(c.minorCommitted)} model, ${fmtCount(c.cva6Committed)} RTL, `
-          + `${fmtCount(c.aligned)} aligned`,
-        `offset      ${signed(alignment.offset)}${alignment.autoOffset ? ' (auto)' : ' (manual)'}`
-          + (search.nearCap ? `, MAY BE CLAMPED: ${fmtCount(search.headroom)} of slack to the `
-            + `+/-${fmtCount(search.cap)} search limit` : ''),
-        `agreement   mnemonic ${fmtPercent(q.mnemonic)}, class ${fmtPercent(q.klass)}`
-          + (c.noDisasm ? `, ${fmtCount(c.noDisasm)} without disassembly` : ''),
-        `unmatched   ${fmtCount(q.disagree)}, longest run ${fmtCount(q.longestRun)}`
-          + (q.sustainedAt >= 0 ? `, sustained from pair ${fmtCount(q.sustainedAt)}` : ''),
-        `span        ${fmtCount(alignment.minorSpan)} model, ${fmtCount(alignment.cva6Span)} RTL`,
-        `drift       ${signed(drift.d)} cycles (${fmtPercent(drift.share)}), ${drift.name}`,
-      ].join('\n');
+      const { line, sub } = verdictText();
+      const pad = (text, width) => String(text).padEnd(width);
+      const lines = [
+        `gem5  ${loaded.minor.name}`,
+        `RTL   ${loaded.cva6.name}`,
+        '',
+        plainText(line),
+        plainText(sub),
+        '',
+        `${pad('metric', 22)}${pad('gem5', 12)}${pad('RTL', 12)}${pad('gem5 - RTL', 12)}error`,
+      ];
+      for (const row of METRIC_ROWS) {
+        const m = metricDelta(row);
+        lines.push(`${pad(row.label + (row.alike ? '' : ' *'), 22)}`
+          + `${pad(fmtMetric(row, m.g.value), 12)}${pad(fmtMetric(row, m.r.value), 12)}`
+          + `${pad(m.diffText, 12)}${m.errorText}`.trimEnd());
+      }
+      lines.push('* counted differently by the two tools', '');
+      const marks = { good: '[ok]', warn: '[!]', bad: '[x]' };
+      for (const [state, text] of alignment.checks) {
+        lines.push(`${marks[state]} ${plainText(text)}`);
+      }
+      return lines.join('\n');
     }
 
     async function copyReport() {
@@ -1780,10 +3142,10 @@
         COPY_FLASH_MS);
     }
 
-    /* ---- Divergence list ---- */
+    /* ---- Tables ---- */
 
-    function placeholderRow(text) {
-      return `<tr><td colspan="7" class="dim placeholder">${text}</td></tr>`;
+    function placeholderRow(text, span) {
+      return `<tr><td colspan="${span}" class="dim placeholder">${text}</td></tr>`;
     }
 
     /* The instruction text of a pair, both sides when their mnemonics differ. */
@@ -1796,45 +3158,195 @@
       return escapeHtml(clip(p.b.text || p.a.text || '(no disassembly)'));
     }
 
-    function buildList() {
-      const body = byId('rows');
+    /* Each pair's own commit interval on either side, the cycles since the pair before it
+     * committed. The step is their difference, signed like the drift. */
+    function intervals() {
+      const pairs = alignment.pairs;
+      return pairs.map((p, k) => (k === 0 ? { a: 0, b: 0 }
+        : { a: p.a.commit - pairs[k - 1].a.commit, b: p.b.commit - pairs[k - 1].b.commit }));
+    }
+
+    /* Pairs gathered by a key, each group with its runs, per-side cycles, total step, the pairs
+     * it stands for and the one that moved the curve the most. */
+    function groupPairs(keyOf) {
+      const gaps = intervals();
+      const groups = new Map();
+      for (const p of alignment.pairs) {
+        if (p.k === 0) continue;
+        const key = keyOf(p);
+        let g = groups.get(key);
+        if (!g) {
+          g = { key, p, runs: 0, a: 0, b: 0, total: 0, ks: [], best: p.k, bestStep: 0 };
+          groups.set(key, g);
+        }
+        g.runs++;
+        g.a += gaps[p.k].a;
+        g.b += gaps[p.k].b;
+        g.total += p.step;
+        g.ks.push(p.k);
+        if (Math.abs(p.step) > Math.abs(g.bestStep)) {
+          g.best = p.k;
+          g.bestStep = p.step;
+        }
+      }
+      return [...groups.values()].sort((x, y) => Math.abs(y.total) - Math.abs(x.total)
+        || y.runs - x.runs);
+    }
+
+    /* The per-run and total columns both grouped tables share. The bar is the row's total
+     * against the largest one, a picture of the total column, so a screen reader skips it. */
+    function groupCells(g, maxTotal) {
+      const width = maxTotal ? Math.round(Math.abs(g.total) / maxTotal * 100) : 0;
+      return `<td class="numeric">${fmtCount(g.runs)}</td>`
+        + `<td class="numeric">${(g.a / g.runs).toFixed(2)}</td>`
+        + `<td class="numeric">${(g.b / g.runs).toFixed(2)}</td>`
+        + `<td class="numeric ${signClass(g.total)}">${signedFixed(g.total / g.runs, 2)}</td>`
+        + `<td class="numeric ${signClass(g.total)}">${signed(g.total)}</td>`
+        + '<td class="optional" aria-hidden="true"><span class="bar">'
+        + `<span class="${signClass(g.total)}" style="width:${width}%"></span></span></td>`;
+    }
+
+    /* Columns a phone drops carry the class optional. */
+    function groupHead(first, second) {
+      const perRun = 'Average cycles from the previous instruction\'s commit to this one\'s';
+      return '<tr>'
+        + `<th>${first[0]}</th>`
+        + `<th class="optional" title="${second[1]}">${second[0]}</th>`
+        + '<th class="numeric" title="How many times it committed.">runs</th>'
+        + `<th class="numeric" title="${perRun}, on gem5.">gem5 cycles/run</th>`
+        + `<th class="numeric" title="${perRun}, on the RTL.">RTL cycles/run</th>`
+        + `<th class="numeric" title="${GAP_NAME}, per run. Red means gem5 spends more.">`
+        + 'difference/run</th>'
+        + `<th class="numeric" title="${GAP_NAME}, over every run. The totals of all rows add up `
+        + 'to the verdict\'s cycles.">total</th>'
+        + '<th class="optional"></th></tr>';
+    }
+
+    const TABS = {
+      spots: {
+        columns: 8,
+        head: () => groupHead(['instruction'], ['address', 'Its address in the RTL build.']),
+        rows() {
+          const groups = groupPairs(p => p.b.rec.pc || p.a.rec.pc).filter(g => g.total !== 0);
+          const max = groups.length ? Math.abs(groups[0].total) : 0;
+          return { total: groups.length, rows: groups.slice(0, TABLE_ROW_CAP).map(g => ({
+            k: g.best, ks: g.ks,
+            html: `<td>${pairText(g.p, 44)}</td><td class="dim optional">`
+              + `${escapeHtml(g.p.b.rec.pc || '')}</td>${groupCells(g, max)}`,
+          })) };
+        },
+        empty: 'No instruction takes a different number of cycles on the two sides.',
+      },
+      kinds: {
+        columns: 8,
+        head: () => groupHead(['instruction type'],
+          ['class', 'The coarse class both tools agree on.']),
+        rows() {
+          const groups = groupPairs(p => p.b.mnem || p.a.mnem || '?').filter(g => g.total !== 0);
+          const max = groups.length ? Math.abs(groups[0].total) : 0;
+          return { total: groups.length, rows: groups.slice(0, TABLE_ROW_CAP).map(g => ({
+            k: g.best, ks: g.ks,
+            html: `<td>${escapeHtml(g.key)}</td><td class="dim optional">`
+              + `${escapeHtml(g.p.b.cls)}</td>${groupCells(g, max)}`,
+          })) };
+        },
+        empty: 'No instruction type takes a different number of cycles on the two sides.',
+      },
+      steps: {
+        columns: 7,
+        head() {
+          return '<tr><th class="numeric" title="Position in the compared stream, from 0, as on '
+            + 'the curve.">position</th>'
+            + `<th class="numeric" title="How far this one execution moved the gap, ${GAP_NAME}.">`
+            + 'change</th>'
+            + '<th class="numeric" title="The gap after it, the height of the curve.">gap so far</th>'
+            + '<th>instruction</th>'
+            + '<th class="numeric optional" title="Commit cycle in the MinorFlow JSON.">'
+            + 'gem5 commit</th>'
+            + '<th class="numeric optional" title="Commit cycle in the CVA6Flow JSON.">'
+            + 'RTL commit</th>'
+            + '<th>note</th></tr>';
+        },
+        rows() {
+          const moved = alignment.pairs.filter(p => p.step !== 0)
+            .sort((x, y) => Math.abs(y.step) - Math.abs(x.step) || x.k - y.k);
+          return { total: moved.length, rows: moved.slice(0, TABLE_ROW_CAP).map(p => {
+              const note = !p.testable ? '<span class="dim">no disassembly</span>'
+                : !p.agree ? '<span class="bad">the streams differ here</span>'
+                  : !p.mnemOk ? `<span class="dim">named ${escapeHtml(p.a.mnem)} and `
+                    + `${escapeHtml(p.b.mnem)}</span>` : '';
+              return {
+                k: p.k, ks: [p.k],
+                html: `<td class="numeric dim">${fmtCount(p.k)}</td>`
+                  + `<td class="numeric ${signClass(p.step)}">${signed(p.step)}</td>`
+                  + `<td class="numeric">${signed(p.drift)}</td>`
+                  + `<td>${escapeHtml((p.b.text || p.a.text).slice(0, 44))}</td>`
+                  + `<td class="numeric dim optional">${fmtCount(p.a.commit)}</td>`
+                  + `<td class="numeric dim optional">${fmtCount(p.b.commit)}</td>`
+                  + `<td>${note}</td>`,
+              };
+            }) };
+        },
+        empty: 'The two runs commit in lockstep. No instruction moved the curve.',
+      },
+    };
+
+    /* The tabs follow the ARIA pattern: the chosen one alone is in the tab order, and the arrow
+     * keys move between them. */
+    function buildTable() {
+      const tab = TABS[activeTab];
+      for (const button of document.querySelectorAll('.tab')) {
+        const chosen = button.dataset.tab === activeTab;
+        button.setAttribute('aria-selected', String(chosen));
+        button.tabIndex = chosen ? 0 : -1;
+      }
+      byId('list-wrap').setAttribute('aria-labelledby', `tab-${activeTab}`);
+      selectedRow = -1;
       if (!alignment || !alignment.pairs.length) {
-        body.innerHTML = placeholderRow('No alignment yet.');
-        rankedPairs = [];
+        byId('list-head').innerHTML = '';
+        byId('rows').innerHTML = placeholderRow('Nothing to compare.', 1);
+        tableRows = [];
         return;
       }
-      /* Ranked by how far one instruction moved the curve, which is the question the curve
-       * raises. Ties keep program order. */
-      rankedPairs = alignment.pairs.filter(p => p.step !== 0)
-        .sort((x, y) => Math.abs(y.step) - Math.abs(x.step) || x.k - y.k)
-        .slice(0, 300);
-      if (!rankedPairs.length) {
-        body.innerHTML = placeholderRow(
-          'The two runs commit in lockstep. No instruction moved the curve.');
-        return;
+      byId('list-head').innerHTML = tab.head();
+      const { rows, total } = tab.rows();
+      tableRows = rows;
+      /* The rows past the cap are the smallest, and a last row says how many were left out. */
+      const rest = total - rows.length;
+      byId('rows').innerHTML = !rows.length ? placeholderRow(tab.empty, tab.columns)
+        : rows.map((row, i) => `<tr data-row="${i}">${row.html}</tr>`).join('')
+          + (rest > 0 ? placeholderRow(`${plural(rest, 'more row')} below these are not listed.`,
+            tab.columns) : '');
+    }
+
+    /* i is a table row, or -1 for none, as after a click on the curve picks a single pair. */
+    function markRow(i) {
+      selectedRow = i;
+      for (const tr of byId('rows').querySelectorAll('tr[data-row]')) {
+        const chosen = tr.dataset.row === String(i);
+        tr.classList.toggle('selected', chosen);
+        tr.setAttribute('aria-selected', String(chosen));
       }
-      body.innerHTML = rankedPairs.map(p => {
-        const note = !p.testable ? '<span class="dim">no disassembly</span>'
-          : !p.agree ? '<span class="bad">streams differ here</span>'
-            : !p.mnemOk
-              ? `<span class="flag">${escapeHtml(p.a.mnem)} vs ${escapeHtml(p.b.mnem)}</span>`
-              : '';
-        return `<tr data-k="${p.k}">`
-          + `<td class="numeric dim">${fmtCount(p.k)}</td>`
-          + `<td class="numeric ${p.step > 0 ? 'slow' : 'fast'}">${signed(p.step)}</td>`
-          + `<td class="numeric">${signed(p.drift)}</td>`
-          + `<td>${escapeHtml((p.b.text || p.a.text).slice(0, 44))}</td>`
-          + `<td class="numeric dim">${fmtCount(p.a.commit)}</td>`
-          + `<td class="numeric dim">${fmtCount(p.b.commit)}</td>`
-          + `<td>${note}</td></tr>`;
-      }).join('');
+    }
+
+    function selectRow(i) {
+      const row = tableRows[i];
+      if (!row) return;
+      markRow(i);
+      const tr = byId('rows').querySelector(`tr[data-row="${i}"]`);
+      if (tr) tr.scrollIntoView({ block: 'nearest' });
+      highlighted = row.ks;
+      /* A row outside a zoom moves the zoom to it, as wide as it was. */
+      if (viewRange && (row.k < viewRange[0] || row.k > viewRange[1])) {
+        const span = viewRange[1] - viewRange[0], last = alignment.pairs.length - 1;
+        const lo = Math.max(0, Math.min(last - span, row.k - Math.round(span / 2)));
+        viewRange = [lo, lo + span];
+      }
+      selectPair(row.k);
     }
 
     function selectPair(k) {
       selectedPair = k;
-      for (const row of byId('rows').querySelectorAll('tr')) {
-        row.classList.toggle('selected', row.dataset.k === String(k));
-      }
       showDetail(k);
       drawPlot();
     }
@@ -1852,7 +3364,7 @@
       const cells = stages => stages.map(([key, , name]) =>
         `<td title="${escapeHtml(name)}">${rebase(key, rec[key])}</td>`).join('');
       let html = `<table><tr><th></th>${head}</tr>`
-        + `<tr><th><span class="${inkClass}">${spec.side}</span> `
+        + `<tr><th><span class="${inkClass}">${kind === 'minor' ? 'gem5' : 'RTL'}</span> `
         + `#${escapeHtml(rec.id)} ${escapeHtml(rec.pc)}</th>${cells(spec.stages)}</tr>`;
       if (withHiRow) {
         const blanks = '<td></td>'.repeat(spec.stages.length - spec.hiStages.length);
@@ -1868,22 +3380,795 @@
         el.hidden = true;
         return;
       }
+      const gap = k === 0 ? { a: 0, b: 0 }
+        : { a: p.a.commit - alignment.pairs[k - 1].a.commit,
+          b: p.b.commit - alignment.pairs[k - 1].b.commit };
       const wraps = !!(p.a.rec.wraps_line || p.b.rec.wraps_line);
-      const synthesised = p.a.rec.synthesised_stages.length || p.b.rec.synthesised_stages.length;
-      el.innerHTML = `<div class="detail-head">pair ${fmtCount(k)} <span class="dim">·</span> `
-        + `${pairText(p)} `
-        + `<span class="dim">· step ${signed(p.step)}c · drift ${signed(p.drift)}c</span></div>`
+      const synthesised = [p.a.rec, p.b.rec].some(rec => (rec.synthesised_stages || []).length);
+      const runs = highlighted.length > 1 ? `, one of ${plural(highlighted.length, 'run')} marked `
+        + 'on the curve' : '';
+      el.innerHTML = `<div class="detail-head"><b>${pairText(p)}</b> `
+        + `<span class="dim">at position ${fmtCount(k)}${runs}.</span> `
+        + `It took <span class="minor-ink">${plural(gap.a, 'cycle')} on gem5</span> and `
+        + `<span class="cva6-ink">${plural(gap.b, 'cycle')} on the RTL</span> after the `
+        + `instruction before it, a change of <span class="${signClass(p.step)}">`
+        + `${signed(p.step)}</span>, leaving ${GAP_NAME} at ${signed(p.drift)}.</div>`
         + detailTable('minor', p.a.rec, wraps, 'minor-ink')
         + detailTable('cva6', p.b.rec, wraps, 'cva6-ink')
-        + '<div class="dim detail-note">Cycles are relative to each instruction\'s own commit, '
-        + 'since the two runs start at different absolute cycles. The # is the record\'s id in '
-        + 'its own JSON.'
+        + '<div class="dim detail-note">Each stage in cycles before (-) its own commit, since '
+        + 'the two runs start at different absolute cycles. The # is the record\'s id in its '
+        + 'own JSON, for finding it in a viewer.'
         + (synthesised ? ' ~ marks a cycle the tracer synthesised rather than observed.' : '')
         + '</div>';
       el.hidden = false;
     }
 
-    /* ---- The drift curve ---- */
+    function moveRow(delta) {
+      if (!tableRows.length) return;
+      const next = selectedRow < 0 ? 0
+        : Math.max(0, Math.min(tableRows.length - 1, selectedRow + delta));
+      selectRow(next);
+    }
+
+    /* ---- The chart ---- */
+
+    /* What the chart can plot, each a series per side over the compared positions, keyed as the
+     * metrics-table row whose mechanisms say whether a side observed it. The counts run from the
+     * first compared instruction, so each ends at the figure the table shows. */
+    const CHART_METRICS = [
+      { key: 'cycles', label: 'Cycles' },
+      { key: 'ipc', label: 'IPC', rate: true, digits: 3 },
+      { key: 'icMisses', label: 'I-cache misses' },
+      { key: 'dcMisses', label: 'D-cache misses' },
+      { key: 'branches', label: 'Branches' },
+      { key: 'mispredicted', label: 'Mispredicted' },
+      { key: 'icAccesses', label: 'I-cache accesses', unlike: true },
+      { key: 'dcAccesses', label: 'D-cache accesses', unlike: true },
+      { key: 'wrongPath', label: 'Wrong-path records', unlike: true },
+    ];
+    const chartMetric = key => CHART_METRICS.find(metric => metric.key === key);
+    /* Each metric's colour is a token, icMisses's --metric-ic-misses. */
+    const metricToken = key => `metric-${key.replace(/[A-Z]/g, c => `-${c.toLowerCase()}`)}`;
+    /* The counters kept as event cycles in ic_events and dc_events. The rest are counted per
+     * record. */
+    const EVENT_KEYS = ['icMisses', 'dcMisses', 'icAccesses', 'dcAccesses'];
+
+    const MODES = {
+      diff: { label: 'Difference', title: 'gem5 minus the RTL at each position. Key: D' },
+      rel: { label: 'Relative', title: 'gem5 minus the RTL as a percentage of the RTL. Key: R' },
+      both: { label: 'Both runs', title: 'Each run on its own line. Key: B' },
+    };
+    const X_AXES = {
+      position: 'compared instructions, in commit order',
+      rtl: 'RTL cycles since the first compared commit',
+      gem5: 'gem5 cycles since the first compared commit',
+    };
+    const IPC_WINDOWS = ['auto', 64, 256, 1024, 4096];
+    /* A relative count starts once the RTL has counted this share of its total, since a ratio of
+     * small counts swings wildly. */
+    const RELATIVE_FLOOR = 0.01;
+
+    /* ---- The view ---- */
+
+    /* How the page and the chart look, kept in this browser between visits. Storage can be missing
+     * or refused, and then the defaults hold for the visit. */
+    const SETTINGS_KEY = 'flowcompare.view.v1';
+    const SHOW_PAGE = { verdict: 'Verdict', metrics: 'Metrics', checks: 'Checks',
+      chartbar: 'Chart controls', tables: 'Tables', detail: 'Instruction detail',
+      notice: 'Notices' };
+    const SHOW_CHART = { legend: 'Labels and legend', grid: 'Grid', axes: 'Axes',
+      markers: 'Selection and row marks', fill: 'Fill under the difference' };
+    const DEFAULT_SETTINGS = Object.freeze({
+      metrics: ['cycles'], mode: 'diff', ipcWindow: 'auto', xAxis: 'position',
+      theme: 'dark', palette: 'default', custom: null, lineColours: 'metric', lineWidth: 1.5,
+      fontScale: 1,
+      title: '', figureSize: 'screen', pngScale: 3, transparent: false, csvRows: 'all',
+      show: Object.fromEntries(Object.keys({ ...SHOW_PAGE, ...SHOW_CHART }).map(key => [key, true])),
+    });
+
+    function loadSettings() {
+      const base = structuredClone(DEFAULT_SETTINGS);
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
+      } catch (err) {
+        saved = null;
+      }
+      if (!saved || typeof saved !== 'object') return base;
+      const merged = { ...base, ...saved, show: { ...base.show, ...(saved.show || {}) } };
+      merged.metrics = (Array.isArray(saved.metrics) ? saved.metrics : []).filter(chartMetric);
+      if (!merged.metrics.length) merged.metrics = base.metrics;
+      if (!MODES[merged.mode]) merged.mode = base.mode;
+      if (!X_AXES[merged.xAxis]) merged.xAxis = base.xAxis;
+      if (!['metric', 'run'].includes(merged.lineColours)) merged.lineColours = base.lineColours;
+      if (!['all', '2000'].includes(merged.csvRows)) merged.csvRows = base.csvRows;
+      /* Custom colours are kept per theme, since a colour that reads on one ground may not on the
+       * other. */
+      const custom = merged.custom;
+      if (!custom || typeof custom !== 'object'
+        || Object.keys(custom).some(theme => !['dark', 'light'].includes(theme))) {
+        merged.custom = null;
+      }
+      if (typeof merged.title !== 'string') merged.title = '';
+      return merged;
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch (err) {
+        /* A refused write only means the view is not remembered. */
+      }
+    }
+
+    let settings = loadSettings();
+
+    /* The metrics' colours of a palette, listed in the order of CHART_METRICS. */
+    const metricColours = list =>
+      Object.fromEntries(CHART_METRICS.map((metric, i) => [metricToken(metric.key), list[i]]));
+
+    /* The run and metric colours of each palette, per theme. The default palette is the
+     * stylesheet's own, and custom takes the ones the reader picked. Okabe-Ito's yellow and
+     * orange darken on white, and the accesses are paler shades of their misses. */
+    const PALETTES = {
+      default: { label: 'FlowCompare' },
+      okabe: {
+        label: 'Colour-blind safe',
+        dark: { minor: '#e69f00', cva6: '#56b4e9', drift: '#cc79a7', slower: '#d55e00',
+          faster: '#009e73', ...metricColours(['#cc79a7', '#56b4e9', '#009e73', '#d55e00',
+            '#e69f00', '#f0e442', '#6cc4a6', '#eb9a66', '#999999']) },
+        light: { minor: '#e69f00', cva6: '#0072b2', drift: '#cc79a7', slower: '#d55e00',
+          faster: '#009e73', ...metricColours(['#cc79a7', '#0072b2', '#009e73', '#d55e00',
+            '#c98a00', '#1c1c1e', '#4fae8e', '#e0884f', '#777777']) },
+      },
+      grey: {
+        label: 'Greyscale',
+        dark: { minor: '#e4e2dc', cva6: '#8f8f8a', drift: '#e4e2dc', slower: '#e4e2dc',
+          faster: '#8f8f8a', mark: '#b4b4ae',
+          ...metricColours(Array(CHART_METRICS.length).fill('#e4e2dc')) },
+        light: { minor: '#1c1c1e', cva6: '#77776f', drift: '#1c1c1e', slower: '#1c1c1e',
+          faster: '#77776f', mark: '#5a5a55',
+          ...metricColours(Array(CHART_METRICS.length).fill('#1c1c1e')) },
+      },
+      custom: { label: 'Custom' },
+    };
+    const PALETTE_TOKENS = ['minor', 'cva6', 'drift', 'slower', 'faster', 'mark',
+      ...CHART_METRICS.map(metric => metricToken(metric.key))];
+    const themeName = () => (settings.theme === 'light' ? 'light' : 'dark');
+
+    /* The theme is an attribute the stylesheet keys on, and a palette sets the run colours on the
+     * root, so the page's inks and the chart's follow together. */
+    function applyLook() {
+      const root = document.documentElement;
+      root.dataset.theme = settings.theme === 'light' ? 'light' : 'dark';
+      for (const token of PALETTE_TOKENS) root.style.removeProperty(`--${token}`);
+      const palette = PALETTES[settings.palette] || PALETTES.default;
+      const colours = settings.palette === 'custom' ? (settings.custom || {})[root.dataset.theme]
+        : palette[root.dataset.theme];
+      for (const token of PALETTE_TOKENS) {
+        if (colours && colours[token]) root.style.setProperty(`--${token}`, colours[token]);
+      }
+      for (const input of document.querySelectorAll('input[data-token]')) {
+        input.value = toHex(cssToken(`--${input.dataset.token}`));
+      }
+      schedulePlot();
+    }
+
+    /* A colour the stylesheet holds as a hex, as an input of type colour needs. The grey stands
+     * for anything else, since a canvas keeps its last good colour. */
+    const colourProbe = document.createElement('canvas').getContext('2d');
+
+    function toHex(colour) {
+      colourProbe.fillStyle = '#888888';
+      colourProbe.fillStyle = colour;
+      const value = colourProbe.fillStyle;
+      return /^#[0-9a-f]{6}$/i.test(value) ? value : '#888888';
+    }
+
+    /* Each hidden part is a class on the body, so readiness, which sets hidden, and the reader's
+     * choice never undo each other. */
+    function applyShow() {
+      const body = document.body;
+      for (const key of Object.keys(SHOW_PAGE)) {
+        body.classList.toggle(`hide-${key}`, !settings.show[key]);
+      }
+      body.classList.toggle('hide-summary',
+        !settings.show.verdict && !settings.show.metrics && !settings.show.checks);
+      schedulePlot();
+    }
+
+    function setFigureMode(on) {
+      document.body.classList.toggle('figure-mode', on);
+      closeMenus();
+      hideTip(tooltip);
+      const hint = byId('figure-hint');
+      clearTimeout(Number(hint.dataset.timer));
+      hint.hidden = !on;
+      if (on) hint.dataset.timer = String(setTimeout(() => { hint.hidden = true; }, 2600));
+      schedulePlot();
+    }
+
+    /* ---- Series ---- */
+
+    /* Each side's event cycles, ascending, read once per load. dc allocs are the HPDcache's
+     * refills, prefetches left out, and gem5 lists its misses directly. */
+    function sideEvents(kind) {
+      const json = loaded[kind].json;
+      const ic = json.ic_events || {}, dc = json.dc_events || {};
+      return {
+        icMisses: ascending(ic.miss_cycles || []),
+        dcMisses: kind === 'minor' ? ascending(dc.miss_cycles || [])
+          : ascending((dc.allocs || []).filter(alloc => alloc.is_prefetch !== true)
+            .map(alloc => alloc.cycle)),
+        icAccesses: ascending(ic.access_cycles || []),
+        dcAccesses: ascending(dc.access_cycles || []),
+      };
+    }
+
+    let seriesCache = new Map();
+
+    function ipcWindow(n) {
+      if (settings.ipcWindow !== 'auto') return Number(settings.ipcWindow);
+      return Math.min(4096, Math.max(16, 2 ** Math.round(Math.log2(Math.max(1, n / 150)))));
+    }
+
+    /* One metric's value on each side after each compared position, null for a side whose JSON
+     * did not observe it. */
+    function seriesFor(key) {
+      const id = key === 'ipc' ? `ipc:${ipcWindow(alignment.pairs.length)}` : key;
+      if (!seriesCache.has(id)) {
+        seriesCache.set(id, { minor: sideSeries('minor', key), cva6: sideSeries('cva6', key) });
+      }
+      return seriesCache.get(id);
+    }
+
+    function sideSeries(kind, key) {
+      const row = METRIC_ROWS.find(entry => entry.key === key);
+      if (row.mechanisms[kind].some(name => alignment.degraded[kind].has(name))) return null;
+      const pairs = alignment.pairs, n = pairs.length, side = kind === 'minor' ? 'a' : 'b';
+      const out = new Float64Array(n);
+      const commit = k => pairs[k][side].commit;
+      if (key === 'cycles') {
+        for (let k = 0; k < n; k++) out[k] = commit(k) - commit(0);
+      } else if (key === 'ipc') {
+        const w = ipcWindow(n);
+        for (let k = 0; k < n; k++) {
+          const j = Math.max(0, k - w), span = commit(k) - commit(j);
+          out[k] = k > j && span > 0 ? (k - j) / span : NaN;
+        }
+      } else if (EVENT_KEYS.includes(key)) {
+        /* From the first compared record's fetch, as the table counts. */
+        const events = alignment.events[kind][key];
+        let at = lowerBound(events, alignment.metrics[kind].fetchLo), count = 0;
+        for (let k = 0; k < n; k++) {
+          while (at < events.length && events[at] <= commit(k)) {
+            at++;
+            count++;
+          }
+          out[k] = count;
+        }
+      } else {
+        const records = loaded[kind].json.instructions;
+        const counts = {
+          branches: rec => !rec.flushed && (kind === 'minor' ? rec.is_control === true
+            : rec.fu === 'CTRL_FLOW'),
+          mispredicted: rec => !rec.flushed && (rec.bp_outcome === 'mispred'
+            || rec.bp_outcome === 'unpred'),
+          wrongPath: rec => !!rec.flushed,
+        }[key];
+        let idx = pairs[0][side].idx, count = 0;
+        for (let k = 0; k < n; k++) {
+          for (const last = pairs[k][side].idx; idx <= last; idx++) {
+            if (counts(records[idx])) count++;
+          }
+          out[k] = count;
+        }
+      }
+      return out;
+    }
+
+    /* The lines one metric's panel draws: gem5 minus the RTL, raw or relative, or one per run.
+     * Coloured by metric, a panel's lines take its metric's colour, and the RTL, the reference,
+     * is a grey line drawn under gem5's, or over it where greyscale dashes it. */
+    function panelLines(metric, ink) {
+      const { minor: g, cva6: r } = seriesFor(metric.key);
+      const own = ink.byMetric ? ink.metric[metric.key] : null;
+      const grey = settings.palette === 'grey';
+      if (settings.mode === 'both') {
+        return [
+          g && { values: g, colour: own || ink.minor, dash: null },
+          r && { values: r, colour: own ? ink.reference : ink.cva6, under: !!own && !grey,
+            dash: grey ? [5, 3] : null },
+        ].filter(Boolean);
+      }
+      if (!g || !r) return [];
+      const n = g.length, out = new Float64Array(n);
+      for (let k = 0; k < n; k++) {
+        out[k] = settings.mode !== 'rel' ? g[k] - r[k] : relativeAt(metric, g, r, k);
+      }
+      return [{ values: out, colour: own || ink.drift, dash: null, fill: true }];
+    }
+
+    /* gem5 minus the RTL in % of the RTL, none until the RTL has counted RELATIVE_FLOOR of its
+     * total, the same in the chart, the tooltip and the CSV. */
+    function relativeAt(metric, g, r, k) {
+      if (!g || !r) return NaN;
+      const floor = metric.rate ? 0 : Math.max(1, Math.abs(r[r.length - 1]) * RELATIVE_FLOOR);
+      return r[k] && Math.abs(r[k]) >= floor ? (g[k] - r[k]) / r[k] * 100 : NaN;
+    }
+
+    /* The x of each position, null to space the positions evenly, else a run's cycles, which the
+     * cycles series already holds. */
+    function xValues() {
+      if (settings.xAxis === 'position') return null;
+      return seriesFor('cycles')[settings.xAxis === 'gem5' ? 'minor' : 'cva6'];
+    }
+
+    /* ---- Drawing ---- */
+
+    function chartInks() {
+      const token = name => cssToken(`--${name}`);
+      return {
+        minor: token('minor'), cva6: token('cva6'), drift: token('drift'),
+        slower: token('slower'), faster: token('faster'), mark: token('mark'),
+        parted: token(settings.palette === 'grey' ? 'text2' : 'bad'), text: token('text'),
+        axis: token('muted'), axisZero: token('text2'),
+        guide: token('guide'), guideZero: token('guide-zero'),
+        selection: token('selection-line'), bg: token('bg'), reference: token('muted'),
+        byMetric: settings.lineColours === 'metric',
+        metric: Object.fromEntries(CHART_METRICS.map(m => [m.key, token(metricToken(m.key))])),
+      };
+    }
+
+    /* The range a little wider than the data on any side not at zero, and guides inside it at
+     * 1, 2, 2.5 or 5 times a power of ten, rounded down so there are at least target intervals.
+     * An integer count never takes a fractional step. */
+    function niceTicks(lo, hi, target, integer, pad = 0) {
+      if (!(hi > lo)) hi = lo + (integer ? 1 : Math.max(Math.abs(lo) * 0.1, 1e-3));
+      const margin = (hi - lo) * pad;
+      if (hi !== 0) hi += margin;
+      if (lo !== 0) lo -= margin;
+      const raw = (hi - lo) / Math.max(1, target);
+      const exp = Math.floor(Math.log10(raw));
+      const factors = integer && exp <= 0 ? [5, 2, 1] : [5, 2.5, 2, 1];
+      const factor = factors.find(f => f * 10 ** exp <= raw * (1 + 1e-9)) || 1;
+      const step = Math.max(integer ? 1 : 0, factor * 10 ** exp);
+      const ticks = [];
+      for (let i = Math.ceil(lo / step - 1e-9); i * step <= hi + step * 1e-9; i++) {
+        ticks.push(i === 0 ? 0 : i * step);
+      }
+      const decimals = integer ? 0 : Math.max(0, -exp) + (factor === 2.5 ? 1 : 0);
+      return { lo, hi, ticks, decimals };
+    }
+
+    function tickText(metric, v, decimals) {
+      if (settings.mode === 'rel') return `${signedFixed(v, decimals)}%`;
+      if (settings.mode === 'diff') return metric.rate ? signedFixed(v, decimals) : signed(v);
+      return metric.rate ? v.toFixed(decimals) : fmtCount(v);
+    }
+
+    /* A value as the tooltip and the CSV give it, by what it is rather than by the mode. */
+    function valueText(metric, v, as) {
+      if (v == null || !Number.isFinite(v)) return '-';
+      if (as === 'rel') return `${signedFixed(v, 2)}%`;
+      if (as === 'diff') return metric.rate ? signedFixed(v, metric.digits) : signed(v);
+      return metric.rate ? v.toFixed(metric.digits) : fmtCount(v);
+    }
+
+    function panelLabel(metric, n) {
+      const span = metric.key === 'ipc' ? ` over ${fmtCount(ipcWindow(n))} instructions`
+        : ' so far';
+      const what = settings.mode === 'both' ? '' : settings.mode === 'rel'
+        ? `, ${GAP_NAME} in % of the RTL` : `, ${GAP_NAME}`;
+      return `${metric.label}${metric.unlike ? ' *' : ''}${span}${what}`;
+    }
+
+    /* What each sign of a difference means, in the colours the tables give them. */
+    function signHint(metric, ink) {
+      if (settings.mode === 'both') return [];
+      if (metric.key === 'cycles') {
+        return [['above zero gem5 is behind', ink.slower], ['below, ahead', ink.faster]];
+      }
+      if (metric.key === 'ipc') {
+        return [['above zero gem5 runs faster', ink.faster], ['below, slower', ink.slower]];
+      }
+      return [['above zero gem5 counts more', ink.minor], ['below, the RTL does', ink.cva6]];
+    }
+
+    /* The points of a series worth drawing: all of them while they fit, else per fraction of a
+     * pixel the first, lowest, highest and last in order, so no spike is lost. NaN breaks it. */
+    function tracePoints(values, k0, k1, X, Y, perPixel) {
+      const segments = [];
+      let seg = [], col = NaN, first = -1, last = -1, low = -1, high = -1;
+      const flush = () => {
+        if (first < 0) return;
+        for (const k of [...new Set([first, low, high, last])].sort((x, y) => x - y)) {
+          seg.push([X(k), Y(values[k])]);
+        }
+        first = -1;
+      };
+      for (let k = k0; k <= k1; k++) {
+        const v = values[k];
+        if (!Number.isFinite(v)) {
+          flush();
+          if (seg.length) segments.push(seg);
+          seg = [];
+          col = NaN;
+          continue;
+        }
+        const c = Math.floor(X(k) * perPixel);
+        if (c !== col) {
+          flush();
+          col = c;
+          first = last = low = high = k;
+          continue;
+        }
+        last = k;
+        if (v < values[low]) low = k;
+        if (v > values[high]) high = k;
+      }
+      flush();
+      if (seg.length) segments.push(seg);
+      return segments;
+    }
+
+    /* The positions the chart shows, all of them unless a drag zoomed into a stretch. */
+    let viewRange = null;
+
+    function visibleRange() {
+      const n = alignment.pairs.length;
+      if (!viewRange) return [0, n - 1];
+      const k0 = Math.max(0, Math.min(n - 1, viewRange[0]));
+      return [k0, Math.max(k0 + 1, Math.min(n - 1, viewRange[1]))];
+    }
+
+    function programName() {
+      const name = (loaded.cva6 && loaded.cva6.name) || (loaded.minor && loaded.minor.name) || '';
+      return name.replace(/\s*\((?:RTL|gem5[^)]*)\)$/, '').replace(/\.json$/i, '');
+    }
+
+    /* Text cut to a width, with an ellipsis where it had to be. */
+    function fitText(ctx, text, width) {
+      if (ctx.measureText(text).width <= width) return text;
+      let cut = text.length;
+      while (cut > 0 && ctx.measureText(`${text.slice(0, cut).trimEnd()}…`).width > width) cut--;
+      return cut ? `${text.slice(0, cut).trimEnd()}…` : '';
+    }
+
+    /* Text broken into at most lines lines of a width, the last one cut if it must be. */
+    function wrapText(ctx, text, width, lines) {
+      const out = [];
+      let line = '';
+      for (const word of text.split(/\s+/).filter(Boolean)) {
+        const next = line ? `${line} ${word}` : word;
+        if (line && ctx.measureText(next).width > width && out.length < lines - 1) {
+          out.push(line);
+          line = word;
+        } else {
+          line = next;
+        }
+      }
+      if (line) out.push(fitText(ctx, line, width));
+      return out;
+    }
+
+    /* The parts of the chart whose height does not follow the figure's: the margins, the title's
+     * lines, the legend, each panel's label and the x axis. minH leaves every panel MIN_PANEL_H. */
+    const MIN_PANEL_H = 36;
+
+    function chartFrame(ctx, w) {
+      const s = settings.fontScale, show = settings.show;
+      const count = Math.max(1, settings.metrics.filter(chartMetric).length);
+      ctx.font = `600 ${13 * s}px ${FONT_SANS}`;
+      const titleLines = wrapText(ctx, settings.title.trim(), w - 16 * s, 2);
+      const f = { s, edge: 8 * s, padR: 14 * s, gap: 10 * s, titleLines,
+        titleH: titleLines.length ? titleLines.length * 18 * s + 4 * s : 0,
+        legendH: show.legend ? 16 * s : 0, labelH: show.legend ? 17 * s : 6 * s,
+        bottomH: show.axes ? 34 * s : 8 * s };
+      f.headerH = f.titleH + f.legendH + (f.titleH || f.legendH ? 4 * s : 0);
+      f.fixedH = f.edge + f.headerH + f.bottomH + (f.gap + f.labelH) * count - f.gap;
+      f.minH = Math.ceil(f.fixedH + count * MIN_PANEL_H * s);
+      return f;
+    }
+
+    /* Draws the chart into ctx, a canvas context or an SvgContext, w by h CSS pixels, one panel
+     * per metric over a shared x axis, and returns where things are, for the pointer. perPixel is
+     * how finely a long series is thinned. */
+    function renderChart(ctx, w, h, perPixel) {
+      const ink = chartInks();
+      const s = settings.fontScale, show = settings.show, mode = settings.mode;
+      const n = alignment.pairs.length;
+      const [k0, k1] = visibleRange();
+      const font = `${10 * s}px ${FONT_MONO}`;
+      const metrics = settings.metrics.map(chartMetric).filter(Boolean);
+      const frame = chartFrame(ctx, w);
+      const { edge, padR, gap, titleH, legendH, headerH, labelH } = frame;
+      ctx.font = font;
+      ctx.textBaseline = 'middle';
+      /* Round joins, as the SVG has, so a noisy series looks as noisy as it is. */
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'butt';
+      const ph = Math.max(12, (h - frame.fixedH) / metrics.length);
+
+      /* Each panel's range is taken over the positions in view, from zero for the whole program
+       * and fitted to the data in a zoom, where zero would squash the stretch. */
+      const zoomed = k1 - k0 + 1 < n;
+      const panels = metrics.map(metric => {
+        const lines = panelLines(metric, ink);
+        let lo = zoomed ? Infinity : 0, hi = zoomed ? -Infinity : 0, finite = 0;
+        for (const line of lines) {
+          for (let k = k0; k <= k1; k++) {
+            const v = line.values[k];
+            if (!Number.isFinite(v)) continue;
+            finite++;
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+          }
+        }
+        if (!finite) [lo, hi] = [0, 1];
+        const integer = !metric.rate && mode !== 'rel';
+        const target = Math.max(2, Math.min(6, Math.floor(ph / (30 * s))));
+        return { metric, lines, finite, ...niceTicks(lo, hi, target, integer, 0.06) };
+      });
+
+      /* The left margin fits the widest guide label, so a large count is never cut. */
+      let labelW = 0;
+      if (show.axes) {
+        for (const p of panels) {
+          for (const v of p.ticks) {
+            labelW = Math.max(labelW, ctx.measureText(tickText(p.metric, v, p.decimals)).width);
+          }
+        }
+      }
+      const padL = show.axes ? Math.ceil(labelW + 12 * s) : edge;
+      const pw = Math.max(1, w - padL - padR);
+      const xs = xValues();
+      const x0 = xs ? xs[k0] : k0;
+      const xSpan = ((xs ? xs[k1] : k1) - x0) || 1;
+      const X = k => padL + ((xs ? xs[k] : k) - x0) / xSpan * pw;
+
+      let y = edge;
+      if (titleH) {
+        ctx.font = `600 ${13 * s}px ${FONT_SANS}`;
+        ctx.fillStyle = ink.text;
+        ctx.textAlign = 'center';
+        frame.titleLines.forEach((line, i) => ctx.fillText(line, w / 2, y + (i + 0.5) * 18 * s));
+        ctx.font = font;
+        y += titleH;
+      }
+      if (show.legend) {
+        drawLegend(ctx, { ink, padL, pw, y: y + legendH / 2, s, n, k0, k1 });
+        y += legendH;
+      }
+      if (headerH) y += 4 * s;
+
+      const geometry = { padL, pw, n, k0, k1, xs, x0, xSpan, top: y + labelH, bottom: y,
+        panels: [] };
+      for (const p of panels) {
+        const top = y + labelH;
+        const Y = v => top + (p.hi - v) / (p.hi - p.lo) * ph;
+        drawPanel(ctx, p, { top, ph, padL, pw, X, Y, labelY: y + labelH / 2, ink, s, n, k0, k1,
+          perPixel });
+        geometry.panels.push({ key: p.metric.key, lines: p.lines, Y });
+        geometry.bottom = top + ph;
+        y = top + ph + gap;
+      }
+      if (show.axes) drawXAxis(ctx, { bottom: geometry.bottom, padL, pw, x0, xSpan, ink, s });
+      return geometry;
+    }
+
+    /* The program on the left and the key to the lines on the right. Coloured by metric, a line's
+     * sample is a dash in each shown metric's colour. */
+    function drawLegend(ctx, g) {
+      const { ink, padL, pw, y, s, n, k0, k1 } = g;
+      const shown = settings.metrics.map(key => ink.metric[key]).filter(Boolean);
+      const own = colour => (ink.byMetric && shown.length ? shown : [colour]);
+      const dashed = settings.palette === 'grey' ? [5, 3] : null;
+      const items = settings.mode === 'both'
+        ? [['gem5', own(ink.minor), null], ['RTL', [ink.byMetric ? ink.reference : ink.cva6], dashed]]
+        : [[settings.mode === 'rel' ? `${GAP_NAME}, % of the RTL` : GAP_NAME, own(ink.drift), null]];
+      const sample = 18 * s, space = 6 * s, between = 16 * s;
+      const widths = items.map(([text]) => sample + space + ctx.measureText(text).width);
+      let x = padL + pw - widths.reduce((sum, width) => sum + width, 0)
+        - between * (items.length - 1);
+      const about = `${programName()} · ` + (k1 - k0 + 1 < n
+        ? `positions ${fmtCount(k0)} to ${fmtCount(k1)} of ${fmtCount(n)}`
+        : plural(n, 'compared instruction'));
+      if (ctx.measureText(about).width + 20 * s <= x - padL) {
+        ctx.fillStyle = ink.axis;
+        ctx.textAlign = 'left';
+        ctx.fillText(about, padL, y);
+      }
+      items.forEach(([text, colours, dash], i) => {
+        ctx.lineWidth = Math.max(2, settings.lineWidth);
+        ctx.setLineDash(dash ? dash.map(d => d * s) : []);
+        const part = sample / colours.length;
+        colours.forEach((colour, j) => {
+          ctx.strokeStyle = colour;
+          ctx.beginPath();
+          ctx.moveTo(x + j * part, y);
+          ctx.lineTo(x + (j + 1) * part, y);
+          ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        ctx.fillStyle = ink.text;
+        ctx.textAlign = 'left';
+        ctx.fillText(text, x + sample + space, y);
+        x += widths[i] + between;
+      });
+    }
+
+    function drawPanel(ctx, p, g) {
+      const { top, ph, padL, pw, X, Y, ink, s, k0, k1 } = g;
+      const inView = k => k >= k0 && k <= k1;
+      const show = settings.show;
+      if (show.legend) {
+        let x = padL;
+        if (ink.byMetric) {
+          ctx.fillStyle = ink.metric[p.metric.key];
+          ctx.beginPath();
+          ctx.arc(x + 4 * s, g.labelY, 4 * s, 0, Math.PI * 2);
+          ctx.fill();
+          x += 13 * s;
+        }
+        ctx.textAlign = 'left';
+        ctx.fillStyle = ink.text;
+        const label = fitText(ctx, panelLabel(p.metric, g.n), padL + pw - x);
+        ctx.fillText(label, x, g.labelY);
+        /* The hint goes only as far as fits, since the label must never run off the panel. */
+        x += ctx.measureText(`${label}   `).width;
+        for (const [text, colour] of signHint(p.metric, ink)) {
+          const width = ctx.measureText(text).width;
+          if (x + width > padL + pw) break;
+          ctx.fillStyle = colour;
+          ctx.fillText(text, x, g.labelY);
+          x += width + ctx.measureText('   ').width;
+        }
+      }
+
+      /* Guides, the zero line stronger, since the sign is the first thing a difference says. A
+       * label that would touch one already drawn is left out, zero's drawn first. */
+      ctx.lineWidth = 1;
+      for (const v of p.ticks) {
+        if (v !== 0 && !show.grid) continue;
+        const y = Math.round(Y(v)) + 0.5;
+        ctx.strokeStyle = v === 0 ? ink.guideZero : ink.guide;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(padL + pw, y);
+        ctx.stroke();
+      }
+      if (show.axes) {
+        const placed = [];
+        ctx.textAlign = 'right';
+        for (const v of [...p.ticks].sort((x, y) => (y === 0) - (x === 0))) {
+          const y = Y(v);
+          if (placed.some(other => Math.abs(other - y) < 11 * s)) continue;
+          placed.push(y);
+          ctx.fillStyle = v === 0 ? ink.axisZero : ink.axis;
+          ctx.fillText(tickText(p.metric, v, p.decimals), padL - 6 * s, y);
+        }
+      }
+      if (!p.lines.length || !p.finite) {
+        ctx.fillStyle = ink.axis;
+        ctx.textAlign = 'center';
+        ctx.fillText(!p.lines.length ? 'Not observed: a JSON lists what feeds it as degraded'
+          : settings.mode === 'rel' ? 'No relative values here: the RTL counts none of these'
+            : 'No values in this stretch', padL + pw / 2, top + ph / 2);
+        return;
+      }
+
+      const y0 = Math.min(top + ph, Math.max(top, Y(0)));
+      const traced = p.lines.map(line => tracePoints(line.values, k0, k1, X, Y, g.perPixel));
+      p.lines.forEach((line, i) => {
+        if (!line.fill || !show.fill) return;
+        ctx.fillStyle = line.colour;
+        ctx.globalAlpha = DRIFT_FILL_ALPHA;
+        for (const seg of traced[i]) {
+          ctx.beginPath();
+          ctx.moveTo(seg[0][0], y0);
+          for (const [x, y] of seg) ctx.lineTo(x, y);
+          ctx.lineTo(seg[seg.length - 1][0], y0);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      });
+      const under = i => (p.lines[i].under ? 0 : 1);
+      for (const i of [...p.lines.keys()].sort((a, b) => under(a) - under(b))) {
+        const line = p.lines[i];
+        ctx.strokeStyle = line.colour;
+        ctx.lineWidth = settings.lineWidth;
+        ctx.setLineDash(line.dash ? line.dash.map(d => d * s) : []);
+        ctx.beginPath();
+        for (const seg of traced[i]) {
+          seg.forEach(([x, y], j) => (j ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      /* Where the streams part, everything to the right is unreliable. */
+      const parted = alignment.quality.sustainedAt;
+      if (inView(parted)) {
+        ctx.strokeStyle = ink.parted;
+        ctx.globalAlpha = PARTED_ALPHA;
+        ctx.setLineDash([3 * s, 3 * s]);
+        ctx.beginPath();
+        ctx.moveTo(X(parted), top);
+        ctx.lineTo(X(parted), top + ph);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+      if (!show.markers) return;
+
+      /* The chosen row's runs, ticks along the bottom and dots on the first line while they fit. */
+      const first = p.lines[0].values;
+      if (highlighted.length) {
+        /* One tick per pixel, and a light rug once they crowd, so a row that runs thousands of
+         * times does not draw a solid bar. */
+        const columns = new Set();
+        for (const k of highlighted) if (inView(k)) columns.add(Math.round(X(k)));
+        const dense = columns.size > pw / 3;
+        const tall = (dense ? 4 : 7) * s;
+        ctx.fillStyle = ink.mark;
+        ctx.globalAlpha = dense ? 0.3 : 0.9;
+        for (const x of columns) ctx.fillRect(x - 0.5, top + ph - tall, 1, tall);
+        ctx.globalAlpha = 1;
+        if (highlighted.length <= MARK_DOT_CAP) {
+          for (const k of highlighted) {
+            if (!inView(k) || !Number.isFinite(first[k])) continue;
+            ctx.beginPath();
+            ctx.arc(X(k), Y(first[k]), 2 * s, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      if (inView(selectedPair)) {
+        const x = X(selectedPair);
+        ctx.strokeStyle = ink.selection;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, top + ph);
+        ctx.stroke();
+        for (const line of p.lines) {
+          const v = line.values[selectedPair];
+          if (!Number.isFinite(v)) continue;
+          ctx.fillStyle = line.colour;
+          ctx.beginPath();
+          ctx.arc(x, Y(v), 3.5 * s, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    /* The x axis under the last panel, its labels kept inside the chart at both ends. */
+    function drawXAxis(ctx, g) {
+      const { bottom, padL, pw, x0, xSpan, ink, s } = g;
+      const t = niceTicks(x0, x0 + xSpan, Math.max(2, Math.floor(pw / (140 * s))), true);
+      ctx.strokeStyle = ink.guideZero;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padL, Math.round(bottom) + 0.5);
+      ctx.lineTo(padL + pw, Math.round(bottom) + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = ink.axis;
+      ctx.textAlign = 'center';
+      for (const v of t.ticks) {
+        if (v < x0 || v > x0 + xSpan) continue;
+        const x = padL + (v - x0) / xSpan * pw;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x) + 0.5, bottom);
+        ctx.lineTo(Math.round(x) + 0.5, bottom + 4 * s);
+        ctx.stroke();
+        const text = fmtCount(v);
+        const half = ctx.measureText(text).width / 2;
+        ctx.fillText(text, Math.min(padL + pw - half, Math.max(padL + half, x)), bottom + 12 * s);
+      }
+      ctx.fillText(fitText(ctx, X_AXES[settings.xAxis], pw), padL + pw / 2, bottom + 26 * s);
+    }
 
     function drawPlot() {
       plotFramePending = false;
@@ -1893,105 +4178,14 @@
       ctx.clearRect(0, 0, w, h);
       if (!alignment || !alignment.pairs.length) {
         plotGeometry = null;
+        plot.setAttribute('aria-label', 'The chart, empty until two runs line up.');
         return;
       }
-
-      const pairs = alignment.pairs;
-      const padL = 62, padR = 14, padT = 16, padB = 24;
-      const pw = Math.max(1, w - padL - padR), ph = Math.max(1, h - padT - padB);
-
-      let dMin = 0, dMax = 0;
-      for (const p of pairs) {
-        if (p.drift < dMin) dMin = p.drift;
-        if (p.drift > dMax) dMax = p.drift;
-      }
-      if (dMin === dMax) {
-        dMin -= 1;
-        dMax += 1;
-      }
-      const span = dMax - dMin;
-      const X = k => padL + (pairs.length < 2 ? 0 : k / (pairs.length - 1) * pw);
-      const Y = d => padT + (dMax - d) / span * ph;
-      plotGeometry = { padL, pw, n: pairs.length };
-
-      /* Guides at a round cycle step, with a stronger zero line because the sign of the drift is
-       * the first thing to read. */
-      const rawStep = span / 4;
-      const mag = Math.pow(10, Math.floor(Math.log10(Math.max(1, rawStep))));
-      const step = Math.max(1, Math.ceil(rawStep / mag) * mag);
-      ctx.font = '10px ' + FONT_MONO;
-      ctx.textBaseline = 'middle';
-      for (let v = Math.ceil(dMin / step) * step; v <= dMax; v += step) {
-        const y = Y(v);
-        ctx.strokeStyle = v === 0 ? INK.guideZero : INK.guide;
-        ctx.beginPath();
-        ctx.moveTo(padL, y);
-        ctx.lineTo(padL + pw, y);
-        ctx.stroke();
-        ctx.fillStyle = v === 0 ? INK.axisZero : INK.axis;
-        ctx.textAlign = 'right';
-        ctx.fillText(signed(v), padL - 7, y);
-      }
-
-      /* Filled to zero, so which side is ahead reads without the axis. */
-      const y0 = Y(0);
-      ctx.beginPath();
-      ctx.moveTo(X(0), y0);
-      for (let i = 0; i < pairs.length; i++) ctx.lineTo(X(i), Y(pairs[i].drift));
-      ctx.lineTo(X(pairs.length - 1), y0);
-      ctx.closePath();
-      ctx.fillStyle = INK.drift;
-      ctx.globalAlpha = DRIFT_FILL_ALPHA;
-      ctx.fill();
-      ctx.globalAlpha = 1;
-
-      ctx.beginPath();
-      for (let i = 0; i < pairs.length; i++) {
-        const x = X(i), y = Y(pairs[i].drift);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.strokeStyle = INK.drift;
-      ctx.lineWidth = 1.4;
-      ctx.stroke();
-
-      /* Where the streams part, everything to the right is unreliable. */
-      const parted = alignment.quality.sustainedAt;
-      if (parted >= 0 && parted < pairs.length) {
-        const x = X(parted);
-        ctx.strokeStyle = INK.parted;
-        ctx.globalAlpha = PARTED_ALPHA;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(x, padT);
-        ctx.lineTo(x, padT + ph);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.globalAlpha = 1;
-      }
-
-      if (selectedPair >= 0 && selectedPair < pairs.length) {
-        const x = X(selectedPair), y = Y(pairs[selectedPair].drift);
-        ctx.strokeStyle = INK.selection;
-        ctx.beginPath();
-        ctx.moveTo(x, padT);
-        ctx.lineTo(x, padT + ph);
-        ctx.stroke();
-        ctx.fillStyle = INK.drift;
-        ctx.beginPath();
-        ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.fillStyle = INK.axis;
-      ctx.textAlign = 'left';
-      ctx.fillText('pair 0', padL, padT + ph + 10);
-      ctx.textAlign = 'right';
-      ctx.fillText(`pair ${fmtCount(pairs.length - 1)}`, padL + pw, padT + ph + 10);
-      ctx.textAlign = 'left';
-      ctx.fillStyle = INK.caption;
-      ctx.fillText(alignment.reversed ? 'CVA6 RTL behind gem5 model, in cycles'
-        : 'gem5 model behind CVA6 RTL, in cycles', padL + 4, padT + 6);
+      plotGeometry = renderChart(ctx, w, h, window.devicePixelRatio || 1);
+      const names = settings.metrics.map(key => chartMetric(key).label).join(', ');
+      plot.setAttribute('aria-label', `Chart of ${names}, ${MODES[settings.mode].label}, across `
+        + `${plural(alignment.pairs.length, 'compared instruction')}. The cycle gap, ${GAP_NAME}, `
+        + `ends at ${signed(alignment.finalDrift)} cycles.`);
     }
 
     function schedulePlot() {
@@ -2000,68 +4194,942 @@
       requestAnimationFrame(drawPlot);
     }
 
+    /* The position under the pointer, the nearest by x when the axis is in cycles. */
     function pairAtPointer(ev) {
+      const g = plotGeometry;
       const rect = plot.getBoundingClientRect();
-      const frac = (ev.clientX - rect.left - plotGeometry.padL) / plotGeometry.pw;
-      return Math.round(Math.max(0, Math.min(1, frac)) * (plotGeometry.n - 1));
+      const frac = Math.max(0, Math.min(1, (ev.clientX - rect.left - g.padL) / g.pw));
+      if (!g.xs) return g.k0 + Math.round(frac * (g.k1 - g.k0));
+      const target = g.x0 + frac * g.xSpan;
+      let lo = g.k0, hi = g.k1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (g.xs[mid] < target) lo = mid + 1;
+        else hi = mid;
+      }
+      return lo > g.k0 && target - g.xs[lo - 1] < g.xs[lo] - target ? lo - 1 : lo;
+    }
+
+    function pairX(k) {
+      const g = plotGeometry;
+      return g.padL + ((g.xs ? g.xs[k] : k) - g.x0) / g.xSpan * g.pw;
+    }
+
+    /* Every panel's figures at one position, each side and their difference. */
+    function tipHtml(k) {
+      const p = alignment.pairs[k];
+      const narrow = window.innerWidth < 480;
+      const rows = settings.metrics.map(chartMetric).map(metric => {
+        const { minor, cva6 } = seriesFor(metric.key);
+        const g = minor ? minor[k] : NaN, r = cva6 ? cva6[k] : NaN;
+        const d = g - r;
+        /* Cycles and IPC say slower or faster, and a count says which run counted more. */
+        const tone = !Number.isFinite(d) ? 'dim' : metric.key === 'ipc' ? signClass(-d)
+          : metric.key === 'cycles' ? signClass(d)
+            : d > 0 ? 'minor-ink' : d < 0 ? 'cva6-ink' : 'dim';
+        const rel = relativeAt(metric, minor, cva6, k);
+        const swatch = settings.lineColours === 'metric' ? '<span class="tip-swatch" '
+          + `style="background: var(--${metricToken(metric.key)})"></span>` : '';
+        return `<tr><td>${swatch}${escapeHtml(metric.label)}</td>`
+          + `<td class="numeric minor-ink">${valueText(metric, g, 'value')}</td>`
+          + `<td class="numeric cva6-ink">${valueText(metric, r, 'value')}</td>`
+          + `<td class="numeric ${tone}">${valueText(metric, d, 'diff')}</td>`
+          + (narrow ? '' : `<td class="numeric dim">${Number.isFinite(rel)
+            ? valueText(metric, rel, 'rel') : ''}</td>`) + '</tr>';
+      }).join('');
+      return `<div class="tip-title">position ${fmtCount(k)} · ${pairText(p, 40)}</div>`
+        + '<table class="tip-table"><tr class="dim"><td></td><td class="numeric">gem5</td>'
+        + `<td class="numeric">RTL</td><td class="numeric">${GAP_NAME}</td>`
+        + `${narrow ? '' : '<td></td>'}</tr>`
+        + `${rows}</table><div><span class="${signClass(p.step)}">${signed(p.step)}</span>`
+        + '<span class="dim"> cycles from this instruction · gem5 commit '
+        + `${fmtCount(p.a.commit)} · RTL commit ${fmtCount(p.b.commit)}</span></div>`
+        + '<div class="dim">click to open it</div>';
     }
 
     function onPlotMouseMove(ev) {
+      const cross = byId('crosshair');
       if (!alignment || !plotGeometry) {
         hideTip(tooltip);
+        cross.classList.remove('show');
         return;
       }
       const k = pairAtPointer(ev);
-      const p = alignment.pairs[k];
-      placeTip(tooltip, `<div class="tip-title">pair ${fmtCount(k)} ${pairText(p, 40)}</div>`
-        + `<div class="tip-drift">drift ${signed(p.drift)}c`
-        + `<span class="dim"> · step ${signed(p.step)}c</span></div>`
-        + `<div class="dim">model CO ${fmtCount(p.a.commit)} `
-        + `· RTL CO ${fmtCount(p.b.commit)}</div>`, ev.clientX, ev.clientY);
+      const g = plotGeometry;
+      cross.style.left = `${Math.round(pairX(k))}px`;
+      cross.style.top = `${g.top}px`;
+      cross.style.height = `${Math.max(0, g.bottom - g.top)}px`;
+      cross.classList.add('show');
+      placeTip(tooltip, tipHtml(k), ev.clientX, ev.clientY);
+    }
+
+    function onPlotLeave() {
+      hideTip(tooltip);
+      byId('crosshair').classList.remove('show');
+    }
+
+    function setZoom(range) {
+      viewRange = range;
+      byId('zoom-reset').hidden = !range;
+      hideTip(tooltip);
+      drawPlot();
+    }
+
+    /* A drag across the chart zooms into the stretch it covers, and a press that barely moves is a
+     * click, which opens the instruction under it. A double-click's second click is left out, and
+     * the double-click puts back what its first one replaced. */
+    const DOUBLE_CLICK_MS = 500;
+
+    function wireChartPointer() {
+      let drag = null, lastClick = null;
+      const box = byId('zoom-box');
+      plot.addEventListener('mousedown', ev => {
+        if (ev.button !== 0 || !alignment || !plotGeometry) return;
+        drag = { x: ev.clientX, k: pairAtPointer(ev) };
+        ev.preventDefault();
+      });
+      window.addEventListener('mousemove', ev => {
+        if (!drag) return;
+        const rect = plot.getBoundingClientRect(), g = plotGeometry;
+        const clamp = x => Math.max(g.padL, Math.min(g.padL + g.pw, x - rect.left));
+        const a = clamp(drag.x), b = clamp(ev.clientX);
+        Object.assign(box.style, { left: `${Math.min(a, b)}px`, width: `${Math.abs(b - a)}px`,
+          top: `${g.top}px`, height: `${Math.max(0, g.bottom - g.top)}px` });
+        box.classList.toggle('show', Math.abs(b - a) > 4);
+      });
+      window.addEventListener('mouseup', ev => {
+        if (!drag) return;
+        const from = drag;
+        drag = null;
+        box.classList.remove('show');
+        if (Math.abs(ev.clientX - from.x) > 4) {
+          const k = pairAtPointer(ev);
+          if (Math.abs(k - from.k) >= 2) setZoom([Math.min(k, from.k), Math.max(k, from.k)]);
+          return;
+        }
+        const now = performance.now();
+        if (lastClick && now - lastClick.time < DOUBLE_CLICK_MS
+          && Math.abs(ev.clientX - lastClick.x) <= 4) return;
+        lastClick = { time: now, x: ev.clientX, row: selectedRow, highlighted, pair: selectedPair };
+        /* A point on the curve is one pair, so no table row stays chosen. */
+        markRow(-1);
+        highlighted = [];
+        selectPair(from.k);
+      });
+      plot.addEventListener('dblclick', () => {
+        if (lastClick) {
+          markRow(lastClick.row);
+          ({ highlighted, pair: selectedPair } = lastClick);
+          showDetail(selectedPair);
+          lastClick = null;
+        }
+        setZoom(null);
+      });
+      byId('zoom-reset').addEventListener('click', () => setZoom(null));
+    }
+
+    /* ---- Exports ---- */
+
+    /* Enough of a canvas context for renderChart, recorded as SVG, so a figure stays sharp at
+     * any size in a document. A colour with alpha becomes a colour and an opacity, which every
+     * SVG reader understands. */
+    class SvgContext {
+      constructor(width, height) {
+        this.width = width;
+        this.height = height;
+        this.parts = [];
+        this.path = '';
+        this.stack = [];
+        this.fillStyle = '#000000';
+        this.strokeStyle = '#000000';
+        this.lineWidth = 1;
+        this.globalAlpha = 1;
+        this.font = `10px ${FONT_MONO}`;
+        this.textAlign = 'start';
+        this.textBaseline = 'alphabetic';
+        this.dash = [];
+        this.measurer = document.createElement('canvas').getContext('2d');
+      }
+
+      save() {
+        const { fillStyle, strokeStyle, lineWidth, globalAlpha, font, textAlign, textBaseline,
+          dash } = this;
+        this.stack.push({ fillStyle, strokeStyle, lineWidth, globalAlpha, font, textAlign,
+          textBaseline, dash });
+      }
+
+      restore() {
+        Object.assign(this, this.stack.pop() || {});
+      }
+
+      setLineDash(dash) {
+        this.dash = dash.slice();
+      }
+
+      setTransform() {}
+
+      clearRect() {}
+
+      beginPath() {
+        this.path = '';
+      }
+
+      moveTo(x, y) {
+        this.path += `M${svgNum(x)} ${svgNum(y)}`;
+      }
+
+      lineTo(x, y) {
+        this.path += `L${svgNum(x)} ${svgNum(y)}`;
+      }
+
+      closePath() {
+        this.path += 'Z';
+      }
+
+      /* Only whole circles are drawn, so an arc is two half circles. */
+      arc(x, y, r) {
+        const d = svgNum(2 * r), rr = svgNum(r);
+        this.path += `M${svgNum(x - r)} ${svgNum(y)}a${rr} ${rr} 0 1 0 ${d} 0`
+          + `a${rr} ${rr} 0 1 0 ${svgNum(-2 * r)} 0`;
+      }
+
+      paint(attribute, colour) {
+        const match = /^rgba?\(([^)]*)\)$/.exec(String(colour).trim());
+        let value = String(colour), opacity = this.globalAlpha;
+        if (match) {
+          const parts = match[1].split(/[\s,/]+/).filter(Boolean);
+          value = `rgb(${parts.slice(0, 3).join(',')})`;
+          if (parts.length > 3) opacity *= parseFloat(parts[3]);
+        }
+        return `${attribute}="${escapeHtml(value)}"`
+          + (opacity < 1 ? ` ${attribute}-opacity="${svgNum(opacity, 3)}"` : '');
+      }
+
+      fill() {
+        if (this.path) this.parts.push(`<path d="${this.path}" ${this.paint('fill', this.fillStyle)}/>`);
+      }
+
+      stroke() {
+        if (!this.path) return;
+        const dash = this.dash.length ? ` stroke-dasharray="${this.dash.map(d => svgNum(d)).join(' ')}"`
+          : '';
+        this.parts.push(`<path d="${this.path}" fill="none" ${this.paint('stroke', this.strokeStyle)}`
+          + ` stroke-width="${svgNum(this.lineWidth)}" stroke-linejoin="round"`
+          + ` stroke-linecap="butt"${dash}/>`);
+      }
+
+      fillRect(x, y, w, h) {
+        this.parts.push(`<rect x="${svgNum(x)}" y="${svgNum(y)}" width="${svgNum(w)}" `
+          + `height="${svgNum(h)}" ${this.paint('fill', this.fillStyle)}/>`);
+      }
+
+      measureText(text) {
+        this.measurer.font = this.font;
+        return this.measurer.measureText(text);
+      }
+
+      /* A canvas's middle is the middle of the em box, which SVG readers and PDF converters place
+       * differently, so the text sits on its alphabetic baseline, moved by what the canvas measures. */
+      fillText(text, x, y) {
+        const anchor = { center: 'middle', right: 'end', end: 'end' }[this.textAlign] || 'start';
+        const font = /^(?:(\d{3}|bold)\s+)?(\d*\.?\d+)px\s+(.+)$/.exec(this.font) || [];
+        const size = parseFloat(font[2]) || 10;
+        let base = y;
+        if (this.textBaseline === 'middle') {
+          this.measurer.font = this.font;
+          const m = this.measurer.measureText(text || 'x');
+          base += ((m.emHeightAscent ?? size * 0.8) - (m.emHeightDescent ?? size * 0.2)) / 2;
+        }
+        this.parts.push(`<text x="${svgNum(x)}" y="${svgNum(base)}" `
+          + `font-family="${escapeHtml(font[3] || 'monospace')}" font-size="${svgNum(size)}"`
+          + (font[1] ? ` font-weight="${font[1]}"` : '')
+          + ` text-anchor="${anchor}" `
+          + `${this.paint('fill', this.fillStyle)}>${escapeHtml(text)}</text>`);
+      }
+
+      toString() {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${this.width}" `
+          + `height="${this.height}" viewBox="0 0 ${this.width} ${this.height}">\n`
+          + `${this.parts.join('\n')}\n</svg>\n`;
+      }
+    }
+
+    const svgNum = (v, digits = 2) => String(+Number(v).toFixed(digits));
+
+    /* The chart's size for a figure, as on screen or a fixed shape, taller where its panels
+     * would not fit, and whether it had to be. */
+    function figureSize() {
+      const wrap = byId('plot-wrap');
+      const [w, h] = settings.figureSize === 'screen' ? [wrap.clientWidth, wrap.clientHeight]
+        : settings.figureSize.split('x').map(Number);
+      const need = chartFrame(colourProbe, w).minH;
+      return need > h ? [w, need, true] : [w, h, false];
+    }
+
+    const savedLabel = (w, h, taller) => (taller ? `Saved, ${w} × ${h} to fit` : 'Saved');
+
+    function figureName(extension) {
+      const program = programName().replace(/[^\w.-]+/g, '_') || 'chart';
+      return `FlowCompare_${program}_${settings.metrics.join('-')}_${settings.mode}.${extension}`;
+    }
+
+    function download(blob, name) {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      /* Its click must not reach the page, which would take it for a click outside the menu. */
+      link.addEventListener('click', ev => ev.stopPropagation());
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    }
+
+    async function saveChartPng() {
+      if (!alignment || !alignment.pairs.length) return;
+      const [w, h, taller] = figureSize();
+      const scale = Number(settings.pngScale) || 3;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      if (!settings.transparent) {
+        ctx.fillStyle = cssToken('--bg');
+        ctx.fillRect(0, 0, w, h);
+      }
+      renderChart(ctx, w, h, scale);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      if (blob) download(blob, figureName('png'));
+      flashButtonLabel(byId('save-chart-png'), blob ? savedLabel(w, h, taller) : 'Failed',
+        COPY_FLASH_MS);
+    }
+
+    function saveChartSvg() {
+      if (!alignment || !alignment.pairs.length) return;
+      const [w, h, taller] = figureSize();
+      const svg = new SvgContext(w, h);
+      if (!settings.transparent) {
+        svg.fillStyle = cssToken('--bg');
+        svg.fillRect(0, 0, w, h);
+      }
+      renderChart(svg, w, h, 1);
+      download(new Blob([svg.toString()], { type: 'image/svg+xml' }), figureName('svg'));
+      flashButtonLabel(byId('save-chart-svg'), savedLabel(w, h, taller), COPY_FLASH_MS);
+    }
+
+    /* The positions a CSV keeps: all of them, or under a cap per stretch the first, the last,
+     * and the lowest and highest of every line the chart draws, so no spike is lost. */
+    function csvPositions(k0, k1, lines, cap) {
+      const all = k1 - k0 + 1;
+      if (!cap || all <= cap) return Array.from({ length: all }, (_, i) => k0 + i);
+      const bins = Math.max(1, Math.floor(cap / (2 + 2 * lines.length)));
+      const keep = new Set();
+      for (let b = 0; b < bins; b++) {
+        const lo = k0 + Math.floor(all * b / bins), hi = k0 + Math.floor(all * (b + 1) / bins) - 1;
+        if (hi < lo) continue;
+        keep.add(lo).add(hi);
+        for (const values of lines) {
+          let min = -1, max = -1;
+          for (let k = lo; k <= hi; k++) {
+            if (!Number.isFinite(values[k])) continue;
+            if (min < 0 || values[k] < values[min]) min = k;
+            if (max < 0 || values[k] > values[max]) max = k;
+          }
+          if (min >= 0) keep.add(min).add(max);
+        }
+      }
+      return [...keep].sort((a, b) => a - b);
+    }
+
+    /* The positions in view with the chosen metrics on each side, their difference and the
+     * relative one, for pgfplots or a spreadsheet. */
+    function saveChartCsv() {
+      if (!alignment || !alignment.pairs.length) return;
+      const metrics = settings.metrics.map(chartMetric);
+      const quote = text => `"${String(text).replace(/"/g, '""')}"`;
+      const number = (metric, v, digits) => (Number.isFinite(v)
+        ? (metric.rate || digits ? v.toFixed(digits ?? metric.digits) : String(v)) : '');
+      const head = ['position', 'gem5_commit', 'rtl_commit', 'instruction'];
+      for (const metric of metrics) {
+        const name = metric.key === 'ipc' ? `ipc_w${ipcWindow(alignment.pairs.length)}` : metric.key;
+        head.push(`${name}_gem5`, `${name}_rtl`, `${name}_diff`, `${name}_rel_percent`);
+      }
+      const series = metrics.map(metric => seriesFor(metric.key));
+      const lines = [head.join(',')];
+      const [k0, k1] = visibleRange();
+      const drawn = metrics.flatMap(metric => panelLines(metric, chartInks()))
+        .map(line => line.values);
+      for (const k of csvPositions(k0, k1, drawn, Number(settings.csvRows) || 0)) {
+        const p = alignment.pairs[k];
+        const cells = [k, p.a.commit, p.b.commit, quote(p.b.text || p.a.text || '')];
+        metrics.forEach((metric, i) => {
+          const { minor, cva6 } = series[i];
+          const g = minor ? minor[k] : NaN, r = cva6 ? cva6[k] : NaN;
+          cells.push(number(metric, g), number(metric, r), number(metric, g - r),
+            number(metric, relativeAt(metric, minor, cva6, k), 4));
+        });
+        lines.push(cells.join(','));
+      }
+      download(new Blob([lines.join('\n') + '\n'], { type: 'text/csv' }), figureName('csv'));
+      flashButtonLabel(byId('save-chart-csv'), 'Saved', COPY_FLASH_MS);
+    }
+
+    /* ---- Screenshots ---- */
+
+    /* The window as a PNG, as MinorFlow's and CVA6Flow's Screenshot saves it: the page drawn from a
+     * copy of itself inside an SVG foreignObject, the chart painted in from a bitmap redrawn at the
+     * scale, and whatever lies over it, the tooltip or an open menu, as a second layer. */
+    const SCREENSHOT_SCALE = 3;
+
+    /* Firefox leaves native controls out of an SVG image, so each is drawn as a plain box that
+     * looks like it, and null means it is not on screen. */
+    function drawControl(node) {
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      if (style.display === 'none' || node.type === 'hidden' || node.type === 'file'
+        || !rect.width) return null;
+      const accent = cssToken('--accent');
+      const box = document.createElement('span');
+      Object.assign(box.style, {
+        display: 'inline-block', position: 'relative', boxSizing: 'border-box', flexShrink: '0',
+        width: `${rect.width}px`, height: `${rect.height}px`, margin: style.margin,
+        verticalAlign: style.verticalAlign, opacity: node.disabled ? '0.5' : '1',
+      });
+      if (node.type === 'checkbox' || node.type === 'radio') {
+        Object.assign(box.style, {
+          border: `1px solid ${node.checked ? accent : style.color}`,
+          borderRadius: node.type === 'radio' ? '50%' : '3px',
+          background: node.checked ? accent : 'transparent',
+        });
+        if (node.checked && node.type === 'checkbox') {
+          box.innerHTML = '<svg viewBox="0 0 16 16" width="100%" height="100%" '
+            + 'style="position:absolute;left:0;top:0"><path d="M3.5 8.5 L6.5 11.5 L12.5 4.5" '
+            + `fill="none" stroke="${cssToken('--bg')}" stroke-width="2.2" `
+            + 'stroke-linecap="round" stroke-linejoin="round"/></svg>';
+        }
+      } else if (node.type === 'color') {
+        Object.assign(box.style, { background: node.value, borderRadius: '4px',
+          border: `1px solid ${cssToken('--border2')}` });
+      } else {
+        Object.assign(box.style, {
+          display: 'inline-flex', alignItems: 'center', background: style.backgroundColor,
+          color: style.color, padding: style.padding,
+          border: `${style.borderTopWidth} ${style.borderTopStyle} ${style.borderTopColor}`,
+          borderRadius: style.borderTopLeftRadius, fontFamily: style.fontFamily,
+          fontSize: style.fontSize, whiteSpace: 'nowrap', overflow: 'hidden',
+        });
+        if (node.tagName === 'SELECT') {
+          const option = node.options[node.selectedIndex];
+          box.textContent = `${option ? option.text : ''} ▾`;
+        } else {
+          box.textContent = node.value || node.placeholder || '';
+          if (!node.value) box.style.color = getComputedStyle(node, '::placeholder').color;
+        }
+      }
+      return box;
+    }
+
+    async function capturePage(scale) {
+      const width = document.documentElement.clientWidth;
+      const height = document.documentElement.clientHeight;
+      const xhtml = 'http://www.w3.org/1999/xhtml';
+      /* devicePixelRatio is replaceable, so the chart redraws itself at the scale with no change
+       * to its sizing, and the browser's own definition goes back afterwards. */
+      const realRatio = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio');
+      const shots = new Map();
+      Object.defineProperty(window, 'devicePixelRatio', { configurable: true, get: () => scale });
+      try {
+        drawPlot();
+        if (plot.width && plot.height && plot.getClientRects().length) {
+          const shot = document.createElement('canvas');
+          shot.width = plot.width;
+          shot.height = plot.height;
+          shot.getContext('2d').drawImage(plot, 0, 0);
+          shots.set(plot, shot);
+        }
+      } finally {
+        if (realRatio) Object.defineProperty(window, 'devicePixelRatio', realRatio);
+        else delete window.devicePixelRatio;
+        drawPlot();
+      }
+      const overlaps = (a, b) =>
+        a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      /* A box out of the flow that follows the chart, or one fixed to the window, such as an open
+       * menu, lies over it. */
+      const isOver = node => {
+        const position = getComputedStyle(node).position;
+        if (!/absolute|fixed/.test(position)) return false;
+        const box = node.getBoundingClientRect();
+        return box.width > 0 && box.height > 0 && [...shots.keys()].some(canvas =>
+          !node.contains(canvas) && (position === 'fixed' || canvas.compareDocumentPosition(node)
+            & Node.DOCUMENT_POSITION_FOLLOWING) && overlaps(box, canvas.getBoundingClientRect()));
+      };
+      /* A copy of the page, walked beside the live one for what the markup does not hold: each
+       * control's state, each box's scroll, and the chart, which becomes an empty box. */
+      const copy = document.body.cloneNode(true);
+      const live = document.body.querySelectorAll('*');
+      const copied = copy.querySelectorAll('*');
+      const scrolled = [], over = [], painted = [], twins = new Map();
+      if (window.scrollX || window.scrollY) {
+        scrolled.push([copy, document.body, window.scrollX, window.scrollY]);
+      }
+      live.forEach((node, i) => {
+        const twin = copied[i];
+        twins.set(node, twin);
+        if (node.tagName === 'CANVAS') {
+          const stand = document.createElement('span');
+          stand.id = node.id;
+          stand.className = node.className;
+          stand.setAttribute('style', node.getAttribute('style') || '');
+          stand.style.display = getComputedStyle(node).display;
+          if (shots.has(node)) painted.push(node);
+          twin.replaceWith(stand);
+          return;
+        }
+        if (node.tagName === 'INPUT' || node.tagName === 'SELECT') {
+          const drawn = drawControl(node);
+          if (drawn) twin.replaceWith(drawn);
+          return;
+        }
+        if (!over.some(([, shown]) => shown.contains(node)) && isOver(node)) over.push([twin, node]);
+        if (node.scrollTop || node.scrollLeft) {
+          scrolled.push([twin, node, node.scrollLeft, node.scrollTop]);
+        }
+      });
+      copy.querySelectorAll('script, #figure-hint').forEach(node => node.remove());
+      /* The window's own scroll moves the body's boxes, except those fixed to the window. */
+      for (const [box, node, left, top] of scrolled) {
+        [...box.children].forEach((child, i) => {
+          if (node.children[i] && getComputedStyle(node.children[i]).position === 'fixed') return;
+          const own = child.style.transform;
+          child.style.transform = `translate(${-left}px,${-top}px)` + (own ? ` ${own}` : '');
+        });
+      }
+      /* The copy's text can wrap a little differently, Firefox's most of all, so every box on the
+       * way down to a chart keeps its height on screen, and the chart painted in at its place on
+       * screen lands on its box. */
+      for (const canvas of painted) {
+        for (let node = canvas; node.parentElement && node !== document.body;
+          node = node.parentElement) {
+          const parent = getComputedStyle(node.parentElement);
+          const column = parent.display.includes('flex') && parent.flexDirection.startsWith('column');
+          for (const sibling of node.parentElement.children) {
+            const style = getComputedStyle(sibling);
+            if (/absolute|fixed/.test(style.position) || style.display === 'none'
+              || !twins.has(sibling)) continue;
+            Object.assign(twins.get(sibling).style, {
+              height: `${sibling.getBoundingClientRect().height}px`,
+              minHeight: '0', maxHeight: 'none', boxSizing: 'border-box' },
+            column ? { flex: '0 0 auto' } : {});
+          }
+        }
+      }
+      /* The page's stylesheet with the root and the body pointed at the boxes that stand in for
+       * them, the theme's attribute and the palette's colours carried over, and no scrollbars. */
+      const css = [...document.querySelectorAll('style')].map(style => style.textContent).join('\n')
+        .replace(/html\[data-theme="light"\]/g, '.capture-root[data-theme="light"]')
+        .replace(/:root\b/g, '.capture-root')
+        .replace(/(^|[\s,}])html(?=[\s,{.:#[>])/g, '$1.capture-root')
+        .replace(/(^|[\s,}])body(?=[\s,{.:#[>])/g, '$1.capture-body')
+        + '\n.capture-root * { scrollbar-width: none !important; }'
+        + '\n.capture-root *::-webkit-scrollbar { display: none !important; }';
+      const units = { vh: height / 100, vw: width / 100, vmin: Math.min(width, height) / 100,
+        vmax: Math.max(width, height) / 100 };
+      const pixels = css.replace(/(\d*\.?\d+)(vh|vw|vmin|vmax)\b/g,
+        (match, value, unit) => `${parseFloat(value) * units[unit]}px`);
+      const root = document.createElementNS(xhtml, 'div');
+      root.className = 'capture-root';
+      root.dataset.theme = document.documentElement.dataset.theme || 'dark';
+      /* Scaled by zoom, since WebKit ignores the SVG's viewBox for foreignObject content. */
+      root.setAttribute('style', `width:${width}px;height:${height}px;overflow:hidden;`
+        + `zoom:${scale};${document.documentElement.getAttribute('style') || ''}`);
+      const style = document.createElementNS(xhtml, 'style');
+      style.textContent = pixels;
+      const body = document.createElementNS(xhtml, 'div');
+      body.className = `capture-body ${document.body.className}`;
+      body.setAttribute('style', `width:${width}px;height:${height}px;margin:0;overflow:hidden;`);
+      while (copy.firstChild) body.appendChild(copy.firstChild);
+      root.append(style, body);
+      const toImage = async () => {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width * scale}" `
+          + `height="${height * scale}">`
+          + `<foreignObject x="0" y="0" width="${width * scale}" height="${height * scale}">`
+          + `${new XMLSerializer().serializeToString(root)}</foreignObject></svg>`;
+        const image = new Image();
+        image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+        await image.decode();
+        return image;
+      };
+      const out = document.createElement('canvas');
+      out.width = width * scale;
+      out.height = height * scale;
+      const ctx = out.getContext('2d');
+      for (const [twin] of over) twin.style.visibility = 'hidden';
+      ctx.drawImage(await toImage(), 0, 0, out.width, out.height);
+      for (const canvas of painted) {
+        const at = canvas.getBoundingClientRect();
+        ctx.drawImage(shots.get(canvas), at.left * scale, at.top * scale, at.width * scale,
+          at.height * scale);
+      }
+      if (over.length) {
+        root.style.visibility = 'hidden';
+        for (const [twin] of over) twin.style.visibility = 'visible';
+        ctx.drawImage(await toImage(), 0, 0, out.width, out.height);
+      }
+      return new Promise((resolve, reject) =>
+        out.toBlob(blob => (blob ? resolve(blob) : reject(new Error('no PNG'))), 'image/png'));
+    }
+
+    async function saveScreenshot() {
+      const button = byId('save-screenshot');
+      try {
+        const blob = await capturePage(SCREENSHOT_SCALE);
+        const program = programName().replace(/[^\w.-]+/g, '_');
+        download(blob, `FlowCompare${program ? `_${program}` : ''}.png`);
+        flashButtonLabel(button, 'Saved', COPY_FLASH_MS);
+      } catch (err) {
+        console.error(err);
+        flashButtonLabel(button, 'Screenshot failed', COPY_FLASH_MS);
+      }
+    }
+
+    /* ---- The controls ---- */
+
+    /* The chart bar and the View and Export menus are built from the tables above, and every
+     * change goes through here, so the controls always say what the chart shows. */
+    function buildChartControls() {
+      byId('metric-chips').innerHTML = CHART_METRICS.map(metric => {
+        const row = METRIC_ROWS.find(entry => entry.key === metric.key);
+        return `<button class="chip${metric.unlike ? ' unlike' : ''}" data-metric="${metric.key}" `
+          + `style="--metric-ink: var(--${metricToken(metric.key)})" aria-pressed="false" `
+          + `title="${escapeHtml(row.desc)} Shift-click to show it alone.">`
+          + `<span class="chip-swatch"></span>${escapeHtml(metric.label)}</button>`;
+      }).join('');
+      byId('mode-switch').innerHTML = Object.entries(MODES).map(([mode, spec]) =>
+        `<button role="radio" data-mode="${mode}" aria-checked="false" title="${spec.title}">`
+        + `${spec.label}</button>`).join('');
+      byId('ipc-window').innerHTML = IPC_WINDOWS.map(w => `<option value="${w}">`
+        + `${w === 'auto' ? 'auto' : `${fmtCount(w)} instructions`}</option>`).join('');
+      byId('x-axis').innerHTML = Object.entries({ position: 'Position', rtl: 'RTL cycles',
+        gem5: 'gem5 cycles' }).map(([value, label]) =>
+        `<option value="${value}">${label}</option>`).join('');
+      const checks = shows => Object.entries(shows).map(([key, label]) =>
+        `<label class="menu-check"><input type="checkbox" data-show="${key}"> ${label}</label>`)
+        .join('');
+      byId('show-page').innerHTML = checks(SHOW_PAGE);
+      byId('show-chart').innerHTML = checks(SHOW_CHART);
+      byId('palette-select').innerHTML = Object.entries(PALETTES).map(([key, palette]) =>
+        `<option value="${key}">${palette.label}</option>`).join('');
+      byId('custom-metric-colours').innerHTML = CHART_METRICS.map(metric =>
+        `<label class="menu-check">${escapeHtml(metric.label)} `
+        + `<input type="color" data-token="${metricToken(metric.key)}"></label>`).join('');
+    }
+
+    function syncControls() {
+      byId('plot-wrap').style.setProperty('--panels', String(settings.metrics.length));
+      for (const chip of document.querySelectorAll('#metric-chips .chip')) {
+        chip.setAttribute('aria-pressed', String(settings.metrics.includes(chip.dataset.metric)));
+      }
+      for (const button of document.querySelectorAll('#mode-switch button')) {
+        const chosen = button.dataset.mode === settings.mode;
+        button.setAttribute('aria-checked', String(chosen));
+        button.tabIndex = chosen ? 0 : -1;
+      }
+      byId('ipc-window').value = String(settings.ipcWindow);
+      byId('ipc-window-label').hidden = !settings.metrics.includes('ipc');
+      byId('x-axis').value = settings.xAxis;
+      for (const input of document.querySelectorAll('input[data-show]')) {
+        input.checked = !!settings.show[input.dataset.show];
+      }
+      byId('theme-select').value = settings.theme;
+      byId('palette-select').value = settings.palette;
+      byId('line-colours').value = settings.lineColours;
+      byId('metric-chips').classList.toggle('by-run', settings.lineColours !== 'metric');
+      byId('custom-colours').hidden = settings.palette !== 'custom';
+      byId('custom-metric-colours').hidden = settings.palette !== 'custom'
+        || settings.lineColours !== 'metric';
+      byId('line-width').value = String(settings.lineWidth);
+      byId('font-scale').value = String(settings.fontScale);
+      byId('chart-title').value = settings.title;
+      byId('figure-size').value = settings.figureSize;
+      byId('png-scale').value = String(settings.pngScale);
+      byId('transparent-bg').checked = !!settings.transparent;
+      byId('csv-rows').value = settings.csvRows;
+    }
+
+    /* A change of what the chart shows redraws it, and one of how the page looks restyles it. */
+    function changeSettings(change, restyle) {
+      Object.assign(settings, change);
+      saveSettings();
+      syncControls();
+      if (restyle) applyLook();
+      applyShow();
+      hideTip(tooltip);
+      schedulePlot();
+    }
+
+    function toggleMetric(key, alone) {
+      let metrics = alone ? [key] : settings.metrics.includes(key)
+        ? settings.metrics.filter(other => other !== key) : [...settings.metrics, key];
+      if (!metrics.length) metrics = [key];
+      /* Panels keep the order of the buttons, whatever order they were chosen in. */
+      metrics = CHART_METRICS.map(metric => metric.key).filter(k => metrics.includes(k));
+      changeSettings({ metrics });
+    }
+
+    function wireChartControls() {
+      byId('metric-chips').addEventListener('click', ev => {
+        const chip = ev.target.closest('.chip');
+        if (chip) toggleMetric(chip.dataset.metric, ev.shiftKey || ev.altKey);
+      });
+      byId('mode-switch').addEventListener('click', ev => {
+        const button = ev.target.closest('button');
+        if (button) changeSettings({ mode: button.dataset.mode });
+      });
+      /* The modes are a radio group: the arrow keys move the choice. */
+      byId('mode-switch').addEventListener('keydown', ev => {
+        if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight') return;
+        const modes = Object.keys(MODES);
+        const step = ev.key === 'ArrowRight' ? 1 : modes.length - 1;
+        const mode = modes[(modes.indexOf(settings.mode) + step) % modes.length];
+        changeSettings({ mode });
+        byId('mode-switch').querySelector(`[data-mode="${mode}"]`).focus();
+        ev.preventDefault();
+        ev.stopPropagation();
+      });
+      byId('ipc-window').addEventListener('change', ev => changeSettings({
+        ipcWindow: ev.target.value === 'auto' ? 'auto' : Number(ev.target.value) }));
+      byId('x-axis').addEventListener('change', ev => changeSettings({ xAxis: ev.target.value }));
+      for (const id of ['show-page', 'show-chart']) {
+        byId(id).addEventListener('change', ev => {
+          const key = ev.target.dataset.show;
+          if (key) changeSettings({ show: { ...settings.show, [key]: ev.target.checked } });
+        });
+      }
+      byId('theme-select').addEventListener('change', ev =>
+        changeSettings({ theme: ev.target.value }, true));
+      byId('palette-select').addEventListener('change', ev => {
+        const palette = ev.target.value;
+        /* Custom starts from the colours on screen, so the first pick changes one of them only. */
+        const onScreen = () => Object.fromEntries([...document.querySelectorAll('input[data-token]')]
+          .map(input => [input.dataset.token, toHex(cssToken(`--${input.dataset.token}`))]));
+        const all = settings.custom || {}, theme = themeName();
+        const custom = palette === 'custom'
+          ? { ...all, [theme]: { ...onScreen(), ...(all[theme] || {}) } } : settings.custom;
+        changeSettings({ palette, custom }, true);
+      });
+      byId('line-colours').addEventListener('change', ev =>
+        changeSettings({ lineColours: ev.target.value }));
+      for (const input of document.querySelectorAll('input[data-token]')) {
+        input.addEventListener('input', ev => {
+          const all = settings.custom || {}, theme = themeName();
+          changeSettings({ palette: 'custom', custom: { ...all,
+            [theme]: { ...(all[theme] || {}), [input.dataset.token]: ev.target.value } } }, true);
+        });
+      }
+      byId('line-width').addEventListener('change', ev =>
+        changeSettings({ lineWidth: Number(ev.target.value) }));
+      byId('font-scale').addEventListener('change', ev =>
+        changeSettings({ fontScale: Number(ev.target.value) }));
+      byId('chart-title').addEventListener('input', ev => changeSettings({ title: ev.target.value }));
+      byId('figure-size').addEventListener('change', ev =>
+        changeSettings({ figureSize: ev.target.value }));
+      byId('png-scale').addEventListener('change', ev =>
+        changeSettings({ pngScale: Number(ev.target.value) }));
+      byId('transparent-bg').addEventListener('change', ev =>
+        changeSettings({ transparent: ev.target.checked }));
+      byId('csv-rows').addEventListener('change', ev => changeSettings({ csvRows: ev.target.value }));
+      byId('figure-mode-button').addEventListener('click', () => setFigureMode(true));
+      byId('reset-view').addEventListener('click', () => {
+        settings = structuredClone(DEFAULT_SETTINGS);
+        changeSettings({}, true);
+        setZoom(null);
+      });
+      byId('save-screenshot').addEventListener('click', saveScreenshot);
+      byId('save-chart-png').addEventListener('click', saveChartPng);
+      byId('save-chart-svg').addEventListener('click', saveChartSvg);
+      byId('save-chart-csv').addEventListener('click', saveChartCsv);
+    }
+
+    /* ---- Menus ---- */
+
+    /* SHARED BEGIN menus */
+
+    /* Needs: css-menus */
+
+    function closeMenus(except) {
+      for (const menu of document.querySelectorAll('details.menu[open]')) {
+        if (menu !== except) menu.open = false;
+      }
+    }
+
+    /* Each open menu's panel under its button, right-aligned to it where the window allows, and no
+     * taller than the room below it. */
+    function placeMenus() {
+      for (const menu of document.querySelectorAll('details.menu[open]')) {
+        const button = menu.querySelector('summary').getBoundingClientRect();
+        const panel = menu.querySelector('.menu-panel');
+        const room = window.innerWidth - panel.offsetWidth - 16;
+        panel.style.left = `${Math.max(16, Math.min(room, button.right - panel.offsetWidth))}px`;
+        panel.style.top = `${button.bottom + 6}px`;
+        panel.style.maxHeight = `${Math.max(160, window.innerHeight - button.bottom - 22)}px`;
+      }
+    }
+
+    function wireMenus() {
+      for (const menu of document.querySelectorAll('details.menu')) {
+        menu.addEventListener('toggle', () => {
+          if (menu.open) closeMenus(menu);
+          placeMenus();
+        });
+      }
+      document.addEventListener('click', ev => {
+        if (!ev.target.closest('details.menu')) closeMenus();
+      });
+      window.addEventListener('resize', placeMenus);
+      window.addEventListener('scroll', placeMenus, { passive: true });
+    }
+
+    /* SHARED END menus */
+
+    /* ---- Help ---- */
+
+    /* Focus goes to Close while the help is open and back where it was after. */
+    let helpReturnFocus = null;
+
+    function setHelp(open) {
+      const help = byId('help');
+      if (open === !help.hidden) return;
+      help.hidden = !open;
+      if (open) {
+        helpReturnFocus = document.activeElement;
+        byId('help-close').focus();
+      } else if (helpReturnFocus && helpReturnFocus.focus) {
+        helpReturnFocus.focus();
+      }
     }
 
     /* ---- Refresh and start-up ---- */
 
     function refresh() {
+      const labels = { minor: 'gem5', cva6: 'RTL' };
       for (const kind of Object.keys(JSON_KINDS)) {
-        byId(`name-${kind}`).textContent = loaded[kind] ? loaded[kind].name
-          : `Load ${JSON_KINDS[kind].side} (${JSON_KINDS[kind].viewer} JSON)`;
+        byId(`name-${kind}`).textContent = loaded[kind]
+          ? `${labels[kind]}: ${loaded[kind].name}` : `${labels[kind]}: none`;
         byId(`slot-${kind}`).classList.toggle('filled', !!loaded[kind]);
       }
       const ready = !!(loaded.minor && loaded.cva6);
       for (const id of CONTROL_IDS) byId(id).disabled = !ready;
-      byId('swap-button').setAttribute('aria-pressed', String(reversed));
       selectedPair = -1;
+      highlighted = [];
+      seriesCache = new Map();
+      viewRange = null;
+      byId('zoom-reset').hidden = true;
       byId('detail').hidden = true;
       byId('empty').hidden = ready;
+      for (const id of ['summary', 'chart-bar', 'tab-bar', 'list-wrap']) byId(id).hidden = !ready;
+      const extra = [];
       if (!ready) {
         alignment = null;
-        setReport(loaded.minor || loaded.cva6
-          ? 'One JSON loaded. Add the other to compare.'
-          : 'Load a MinorFlow JSON and a CVA6Flow JSON of the same program.');
+        if (loaded.minor || loaded.cva6) {
+          extra.push(`One JSON loaded. Add the ${loaded.minor ? 'CVA6Flow' : 'MinorFlow'} JSON `
+            + 'of the same program to compare.');
+        }
       } else {
         alignment = alignRecords(loaded.minor.json.instructions, loaded.cva6.json.instructions, {
-          offset: offsetOverride, reversed,
+          offset: offsetOverride,
           minorClipped: !!loaded.minor.json.metadata.clipped,
           cva6Clipped: !!loaded.cva6.json.metadata.clipped,
         });
+        alignment.events = { minor: sideEvents('minor'), cva6: sideEvents('cva6') };
+        alignment.metrics = {
+          minor: sideMetrics('minor', alignment.pairs),
+          cva6: sideMetrics('cva6', alignment.pairs),
+        };
+        alignment.degraded = { minor: degradedOf('minor'), cva6: degradedOf('cva6') };
+        alignment.checks = checkList();
+        alignment.trusted = !alignment.checks.some(([state]) => state === 'bad');
         byId('offset-value').textContent = signed(alignment.offset);
-        buildReport();
+        buildSummary();
       }
-      buildList();
+      setNotice(extra);
+      buildTable();
+      drawPlot();
+    }
+
+    function wireKeys() {
+      document.addEventListener('keydown', ev => {
+        const typing = ev.target.closest && ev.target.closest('input, select, textarea');
+        if (ev.key === 'Tab' && !byId('help').hidden) {
+          const stops = [...byId('help-box').querySelectorAll('button, a[href], input, select')];
+          const at = stops.indexOf(document.activeElement);
+          const next = ev.shiftKey ? (at <= 0 ? stops.length - 1 : at - 1)
+            : (at < 0 || at === stops.length - 1 ? 0 : at + 1);
+          stops[next].focus();
+          ev.preventDefault();
+          return;
+        }
+        if (ev.key === 'Escape') {
+          const menu = ev.target.closest && ev.target.closest('details.menu[open]');
+          setHelp(false);
+          closeMenus();
+          if (menu) menu.querySelector('summary').focus();
+          if (document.body.classList.contains('figure-mode')) setFigureMode(false);
+          return;
+        }
+        if (typing || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+        const key = ev.key.toLowerCase();
+        if (ev.key === '?') {
+          setHelp(byId('help').hidden);
+          ev.preventDefault();
+        } else if (!byId('help').hidden) {
+          return;
+        } else if (key === 'f') {
+          setFigureMode(!document.body.classList.contains('figure-mode'));
+          ev.preventDefault();
+        } else if (key === 's') {
+          saveScreenshot();
+          ev.preventDefault();
+        } else if (key === '0' && viewRange) {
+          setZoom(null);
+          ev.preventDefault();
+        } else if (alignment && (key === 'd' || key === 'r' || key === 'b')) {
+          changeSettings({ mode: { d: 'diff', r: 'rel', b: 'both' }[key] });
+          ev.preventDefault();
+        } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+          moveRow(ev.key === 'ArrowDown' ? 1 : -1);
+          ev.preventDefault();
+        } else if ((ev.key === 'ArrowLeft' || ev.key === 'ArrowRight')
+          && ev.target.closest && ev.target.closest('.tab')) {
+          const tabs = [...document.querySelectorAll('.tab')];
+          const step = ev.key === 'ArrowRight' ? 1 : tabs.length - 1;
+          const next = tabs[(tabs.indexOf(ev.target.closest('.tab')) + step) % tabs.length];
+          next.focus();
+          chooseTab(next.dataset.tab);
+          ev.preventDefault();
+        }
+      });
+    }
+
+    function chooseTab(name) {
+      activeTab = name;
+      highlighted = [];
+      selectedPair = -1;
+      byId('detail').hidden = true;
+      buildTable();
       drawPlot();
     }
 
     function startUp() {
       wireSlot('minor');
       wireSlot('cva6');
-      wireDrop();
+      wireOpen();
+      wireKeys();
       byId('sample-load-button').addEventListener('click', loadSamplePair);
+      byId('empty-sample-button').addEventListener('click', loadSamplePair);
+      byId('sample-select').addEventListener('change', updateExampleButton);
       initSamples();
-      byId('swap-button').addEventListener('click', () => {
-        reversed = !reversed;
-        refresh();
-      });
       byId('copy-report-button').addEventListener('click', copyReport);
       byId('offset-minus').addEventListener('click', () => nudgeOffset(-1));
       byId('offset-plus').addEventListener('click', () => nudgeOffset(1));
@@ -2069,15 +5137,27 @@
         offsetOverride = null;
         refresh();
       });
+      for (const button of document.querySelectorAll('.tab')) {
+        button.addEventListener('click', () => chooseTab(button.dataset.tab));
+      }
       byId('rows').addEventListener('click', ev => {
         const row = ev.target.closest('tr');
-        if (row && row.dataset.k) selectPair(parseInt(row.dataset.k, 10));
+        if (row && row.dataset.row) selectRow(parseInt(row.dataset.row, 10));
       });
+      byId('help-button').addEventListener('click', () => setHelp(true));
+      byId('help-close').addEventListener('click', () => setHelp(false));
+      byId('help').addEventListener('click', ev => {
+        if (ev.target === byId('help')) setHelp(false);
+      });
+      buildChartControls();
+      syncControls();
+      applyLook();
+      applyShow();
+      wireChartControls();
+      wireMenus();
       plot.addEventListener('mousemove', onPlotMouseMove);
-      plot.addEventListener('mouseleave', () => hideTip(tooltip));
-      plot.addEventListener('click', ev => {
-        if (alignment && plotGeometry) selectPair(pairAtPointer(ev));
-      });
+      plot.addEventListener('mouseleave', onPlotLeave);
+      wireChartPointer();
       new ResizeObserver(schedulePlot).observe(byId('plot-wrap'));
       refresh();
     }
