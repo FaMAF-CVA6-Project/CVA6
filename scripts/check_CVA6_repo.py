@@ -62,7 +62,7 @@ REPO = repo_root()
 OWN_PATHS = (
     "scripts", "gem5_config_CVA6", "dockerfiles", "verilator_changes",
     "assets", "viewers/MinorFlow", "viewers/CVA6Flow",
-    "viewers/FlowCompare.html", ".github/workflows/flowcompare-pages.yml",
+    "viewers/FlowCompare.html", ".github/workflows/FlowCompare-pages.yml",
     "README.md", "LICENSE.FaMAF", "CITATION.cff", ".dockerignore",
     ".gitignore",
 )
@@ -618,6 +618,24 @@ def check_formatting():
     return bad
 
 # SHARED END py-check-common
+
+
+# The project names as our file names spell them. gem5 is lowercase by its
+# own convention, and upstream's files are not ours to name.
+PROJECT_NAMES = ("CVA6Flow", "MinorFlow", "FlowCompare", "CVA6")
+
+
+def check_file_names():
+    """Our file and folder names spell the project names as the project
+    does, CVA6 and FlowCompare, never cva6 or flowcompare."""
+    bad = set()
+    for rel in owned():
+        for part in rel.split("/"):
+            for name in PROJECT_NAMES:
+                for match in re.finditer(re.escape(name), part, re.I):
+                    if match.group(0) != name:
+                        bad.add(f"{rel}: {match.group(0)} is spelt {name}")
+    return sorted(bad)
 
 
 # SHARED BEGIN py-check-shared-blocks
@@ -1281,6 +1299,7 @@ CHECKS = (
     ("shared-blocks", check_shared_blocks),
     ("dockerfiles", check_dockerfiles),
     ("script-names", check_script_names),
+    ("file-names", check_file_names),
     ("links", check_links),
     ("submodule-links", check_submodule_links),
     ("comments", check_comments),

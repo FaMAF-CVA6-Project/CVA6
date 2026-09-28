@@ -1514,7 +1514,7 @@
 
     /* ---- Samples ---- */
 
-    /* The pairs scripts/make_flowcompare_pairs.py writes to pairs/ come first: one program on the
+    /* The pairs scripts/make_FlowCompare_pairs.py writes to pairs/ come first: one program on the
      * matched gem5 configuration and on the RTL, each JSON gzipped inside a script. Without them,
      * a program both viewers have a sample of in tests/ is the pair. */
     const PAIR_DIR = 'pairs/';
@@ -1619,7 +1619,7 @@
         const file = pair[kind].file;
         if (!await loadScript(pair.dir[kind] + file)) {
           notes.push(`<span class="bad"><b>"${escapeHtml(file)}"</b> did not load. `
-            + (pair.packed ? 'A pair is written by scripts/make_flowcompare_pairs.py'
+            + (pair.packed ? 'A pair is written by scripts/make_FlowCompare_pairs.py'
               : 'A sample is written by the viewer\'s own make_&lt;Viewer&gt;_sample.py')
             + ` and read from ${escapeHtml(pair.dir[kind])}.</span>`);
           continue;

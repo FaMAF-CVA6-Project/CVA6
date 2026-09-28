@@ -12,9 +12,9 @@ JSONs named after their programs, as a batch run leaves them once converted.
 A program whose JSON on either side is 50 MiB or more is left out, and a
 second run replaces what the first wrote.
 
-    python3 scripts/make_flowcompare_pairs.py
-    python3 scripts/make_flowcompare_pairs.py --model DIR --label Stock
-    python3 scripts/make_flowcompare_pairs.py --dry-run
+    python3 scripts/make_FlowCompare_pairs.py
+    python3 scripts/make_FlowCompare_pairs.py --model DIR --label Stock
+    python3 scripts/make_FlowCompare_pairs.py --dry-run
 """
 import argparse
 import base64

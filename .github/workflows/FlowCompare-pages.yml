@@ -9,7 +9,7 @@ on:
     paths:
       - viewers/FlowCompare.html
       - viewers/pairs/**
-      - .github/workflows/flowcompare-pages.yml
+      - .github/workflows/FlowCompare-pages.yml
   workflow_dispatch:
 
 permissions:
