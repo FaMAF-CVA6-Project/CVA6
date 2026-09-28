@@ -83,58 +83,59 @@
 
     /* Needs: css-tokens */
 
-    /* The light look, a calm off-white ground rather than paper white, for daylight and figures.
-     * It restates every colour of css-tokens, and each page restates its own beside its root. */
+    /* The light look, a palette of its own after macOS's: grey chrome, white controls and rows,
+     * near-black text and Apple's system hues. It restates every colour of css-tokens. */
     html[data-theme="light"] {
-      --bg: #eeeeea;
-      --bg2: #e5e5e0;
-      --bg3: #dadad4;
-      --bg4: #cfcfc8;
-      --border: rgba(0, 0, 0, 0.1);
-      --border2: rgba(0, 0, 0, 0.19);
-      --text: #2a2a2e;
-      --text2: #4a4a50;
-      --text3: #65655f;
-      --text-id: #7f7f79;
-      --text-pc: #62628c;
-      --text-hit: #6e4800;
-      --accent: #0f6e4c;
-      --warn: #8f5600;
-      --bad: #b3313a;
-      --compressed: #0c7d74;
-      --link: #1a5a98;
-      --link-hover: #0f4478;
-      --link-dim: #56698a;
-      --grip: rgba(26, 90, 152, 0.45);
-      --focus: rgba(26, 90, 152, 0.4);
-      --crosshair: rgba(0, 0, 0, 0.22);
-      --timeline-bg: #eeeeea;
-      --scrollbar-thumb: #bdbdb6;
-      --scrollbar-thumb-hover: #a8a8a1;
-      --ruler-bg: #e5e5e0;
-      --label-row: #eeeeea;
-      --label-row-alternate: #e7e7e2;
-      --label-row-hit: #efd9a4;
-      --scrim: rgba(0, 0, 0, 0.25);
-      --shadow: rgba(0, 0, 0, 0.16);
-      --timeline-row: #eeeeea;
-      --timeline-row-alternate: #e7e7e2;
-      --grid-minor: rgba(0, 0, 0, 0.05);
-      --grid-major: rgba(0, 0, 0, 0.11);
-      --grid-sparse: rgba(0, 0, 0, 0.08);
-      --ruler-tick: #cfcfc9;
-      --ruler-tick-major: #a9a9a3;
-      --ruler-text: #55554f;
-      --empty-range: #66665f;
-      --op-int: #1a7044;
-      --op-fp: #1a5a98;
-      --op-mem: #8a5200;
-      --op-branch: #6e38a0;
-      --op-flushed: #984242;
-      --forward-arrival: #4a5f5f;
-      --stall-ground: #e2e2dd;
-      --stall-label: #55554f;
-      --stall-axis: #9d9d97;
+      --bg: #f2f2f5;
+      --bg2: #eaeaee;
+      --bg3: #ffffff;
+      --bg4: #e0e0e5;
+      --border: rgba(0, 0, 0, 0.08);
+      --border2: rgba(0, 0, 0, 0.14);
+      --text: #1d1d1f;
+      --text2: #48484a;
+      --text3: #636366;
+      --text-id: #8e8e93;
+      --text-pc: #5f5e9c;
+      --text-hit: #7a4f00;
+      --accent: #13744f;
+      --warn: #c93400;
+      --bad: #d70015;
+      --compressed: #00788d;
+      --link: #0066cc;
+      --link-hover: #004f9e;
+      --link-dim: #6e7a8a;
+      --grip: rgba(0, 122, 255, 0.4);
+      --focus: rgba(0, 122, 255, 0.4);
+      --crosshair: rgba(0, 0, 0, 0.16);
+      --timeline-bg: #ffffff;
+      --scrollbar-thumb: #c7c7cc;
+      --scrollbar-thumb-hover: #aeaeb2;
+      --ruler-bg: #f6f6f8;
+      --label-row: #ffffff;
+      --label-row-alternate: #f6f6f8;
+      --label-row-hit: #fff1c2;
+      --scrim: rgba(0, 0, 0, 0.2);
+      --shadow: rgba(0, 0, 0, 0.12);
+      --timeline-row: #ffffff;
+      --timeline-row-alternate: #f6f6f8;
+      --grid-minor: rgba(0, 0, 0, 0.035);
+      --grid-major: rgba(0, 0, 0, 0.08);
+      --grid-sparse: rgba(0, 0, 0, 0.055);
+      --ruler-tick: #d8d8dc;
+      --ruler-tick-major: #aeaeb2;
+      --ruler-text: #636366;
+      --empty-range: #8e8e93;
+      --op-int: #1e7a34;
+      --op-fp: #0060c0;
+      --op-mem: #9a5a00;
+      --op-branch: #8944ab;
+      --op-flushed: #c0474f;
+      --forward-arrival: #6e7e7e;
+      --stall-ground: #f2f2f5;
+      --stall-label: #636366;
+      --stall-axis: #aeaeb2;
+      --swatch-edge: rgba(0, 0, 0, 0.16);
       color-scheme: light;
     }
 
@@ -1242,29 +1243,29 @@
     /* The light look of FlowCompare's own colours. The shared tokens take theirs from the
      * css-tokens-light block, which MinorFlow and CVA6Flow carry too. */
     html[data-theme="light"] {
-      --minor: #5a46b4;
-      --cva6: #0d6c62;
-      --drift: #a86e0c;
-      --selected-row: #d5dbee;
-      --slower: #b3313a;
-      --faster: #0d6c62;
-      --mark: #1a5a98;
-      --muted: #5f5f58;
-      --guide: rgba(0, 0, 0, 0.08);
-      --guide-zero: rgba(0, 0, 0, 0.32);
-      --selection-line: rgba(0, 0, 0, 0.35);
-      --primary-bg: #cfe5d9;
-      --primary-bg-hover: #bddcc9;
-      --drop-bg: rgba(238, 238, 234, 0.9);
-      --metric-cycles: #a86e0c;
-      --metric-ipc: #0c7c94;
-      --metric-ic-misses: #1a7f46;
-      --metric-dc-misses: #bf392b;
-      --metric-branches: #6749bb;
-      --metric-mispredicted: #b33680;
-      --metric-ic-accesses: #468f65;
-      --metric-dc-accesses: #c46a5d;
-      --metric-wrong-path: #636a73;
+      --minor: #5856d6;
+      --cva6: #00738a;
+      --drift: #e8890c;
+      --selected-row: #e3eeff;
+      --slower: #d70015;
+      --faster: #1e7a34;
+      --mark: #2f7ae5;
+      --muted: #636366;
+      --guide: rgba(0, 0, 0, 0.06);
+      --guide-zero: rgba(0, 0, 0, 0.25);
+      --selection-line: rgba(0, 0, 0, 0.28);
+      --primary-bg: #e0f2e8;
+      --primary-bg-hover: #cfeadb;
+      --drop-bg: rgba(242, 242, 245, 0.92);
+      --metric-cycles: #e8890c;
+      --metric-ipc: #2f7ae5;
+      --metric-ic-misses: #2fa84f;
+      --metric-dc-misses: #e0463c;
+      --metric-branches: #5b5bd6;
+      --metric-mispredicted: #a35bd6;
+      --metric-ic-accesses: #1aa9a0;
+      --metric-dc-accesses: #a0825a;
+      --metric-wrong-path: #8e8e93;
     }
 
     :focus-visible {
@@ -1686,9 +1687,9 @@
       <p>The counters of both runs over the same instructions. Rows marked * are counted differently by the two tools and are shown for reference, not as model error: the RTL counts every fetch it presents, wrong-path ones included, and the two D-caches count their accesses in different units.</p>
       <h3>The chart</h3>
       <p>Left to right is every compared instruction in commit order, from position 0, or each at its commit cycle on one run when the <b>x axis</b> says so. The buttons over the chart choose what it plots, one panel each over the same axis, and Shift-click shows one alone. Every count runs from the first compared instruction, so it ends at the figure the metrics card shows, and IPC is taken over the window of instructions set beside the buttons.</p>
-      <p><b>Difference</b> plots gem5 minus the RTL. For cycles the height is how many cycles gem5 is behind after that instruction, below zero when it is ahead: a slope means a stretch of code runs at a different speed, a jump means one instruction cost very different amounts on the two sides, and a flat stretch means both run in step. <b>Relative</b> plots the same as a percentage of the RTL, which for cycles ends at the verdict, and it starts once the RTL has counted 1% of its total, since a ratio of small counts swings wildly. <b>Both runs</b> draws each run on its own line. Each metric keeps one colour, on its button, its panel and its lines, and in Both runs the RTL is the grey line under gem5's. Hover to read every panel at one position, and click to open that instruction. Drag across the chart to zoom into a stretch, whose panels then scale to it, and double-click, the <b>Whole program</b> button or the 0 key to see everything again.</p>
+      <p><b>Difference</b> plots gem5 minus the RTL. For cycles the height is how many cycles gem5 is behind after that instruction, below zero when it is ahead: a slope means a stretch of code runs at a different speed, a jump means one instruction cost very different amounts on the two sides, and a flat stretch means both run in step. <b>Relative</b> plots the same as a percentage of the RTL, which for cycles ends at the verdict, and it starts once the RTL has counted 1% of its total, since a ratio of small counts swings wildly. <b>Both runs</b> draws each run on its own line. Each metric keeps one colour, on its button, its panel and its lines, and in Both runs the RTL is the grey line under gem5's. Where one pixel holds many positions, the line is their average and a faint band shows their range. Hover to read every panel at one position, and click to open that instruction. Drag across the chart to zoom into a stretch, whose panels then scale to it, and double-click, the <b>Whole program</b> button or the 0 key to see everything again.</p>
       <h3>Figures</h3>
-      <p><b>Screenshot</b>, or the S key, saves the window as a PNG at three times its resolution. <b>Export</b> saves the chart alone as it is in view, zoom included, as a PNG, as an SVG that stays sharp in a document, or as CSV data for pgfplots, at the size chosen there, made taller when its panels would not fit. The CSV can keep at most 2,000 rows, each stretch's first, last, lowest and highest, small enough for LaTeX. <b>View</b> hides any part of the page or of the chart, gives the chart a title, and sets the theme, the colours, whether the lines take their metric's colour or their run's, the line width and the text size. The light theme is a calm off-white, and the colour-blind safe and greyscale palettes suit a reader who needs them. <b>Figure mode</b>, or the F key, leaves the chart alone on the page. The view is remembered in this browser.</p>
+      <p><b>Screenshot</b>, or the S key, saves the window as a PNG at three times its resolution. <b>Export</b> saves the chart alone as it is in view, zoom included, as a PNG, as an SVG that stays sharp in a document, or as CSV data for pgfplots, at the size chosen there, made taller when its panels would not fit. The CSV can keep at most 2,000 rows, each stretch's first, last, lowest and highest, small enough for LaTeX. <b>View</b> hides any part of the page or of the chart, gives the chart a title, and sets the theme, the colours, whether the lines take their metric's colour or their run's, the line width and the text size. The light theme is a palette of its own, grey chrome and white cards in the manner of macOS, and the colour-blind safe and greyscale palettes suit a reader who needs them. <b>Figure mode</b>, or the F key, leaves the chart alone on the page. The view is remembered in this browser.</p>
       <h3>The tables</h3>
       <p><b>Where the cycles go</b> lists each instruction of the program with how many times it ran, the cycles it took on each side on average (from the previous instruction's commit to its own), and the total it adds to the gap. The rows at the top explain most of the verdict. <b>By instruction type</b> gathers the same by kind, for example every <code>fld</code>. <b>Biggest single steps</b> lists the single executions that moved the gap the most. Selecting a row marks its executions on the curve, brings it into a zoom that left it out, and opens the stage-by-stage timing of one of them below.</p>
       <h3>The checks</h3>
@@ -2499,6 +2500,8 @@
     const FONT_SANS = cssToken('--font-sans');
     /* The difference's fill and the parted line are their tokens at these alphas. */
     const DRIFT_FILL_ALPHA = 0.10;
+    /* A line's range within a pixel, drawn faint beside the trend. */
+    const ENVELOPE_ALPHA = 0.28;
     const PARTED_ALPHA = 0.75;
     const COPY_FLASH_MS = 1200;
     /* Rows a table shows at most, and the marks drawn as dots on the curve at most. */
@@ -3775,17 +3778,15 @@
       return [['above zero gem5 counts more', ink.minor], ['below, the RTL does', ink.cva6]];
     }
 
-    /* The points of a series worth drawing: all of them while they fit, else per fraction of a
-     * pixel the first, lowest, highest and last in order, so no spike is lost. NaN breaks it. */
-    function tracePoints(values, k0, k1, X, Y, perPixel) {
+    /* A series by column of a fraction of a pixel, each column as [x, mean, lowest, highest] in
+     * pixels, so a long series draws as its trend with its range as a band beside it and no spike
+     * is lost. A column of one point is that point. NaN breaks the series. */
+    function traceColumns(values, k0, k1, X, Y, perPixel) {
       const segments = [];
-      let seg = [], col = NaN, first = -1, last = -1, low = -1, high = -1;
+      let seg = [], col = NaN, x = 0, sum = 0, count = 0, low = 0, high = 0;
       const flush = () => {
-        if (first < 0) return;
-        for (const k of [...new Set([first, low, high, last])].sort((x, y) => x - y)) {
-          seg.push([X(k), Y(values[k])]);
-        }
-        first = -1;
+        if (count) seg.push([x, Y(sum / count), Y(low), Y(high)]);
+        count = 0;
       };
       for (let k = k0; k <= k1; k++) {
         const v = values[k];
@@ -3800,12 +3801,15 @@
         if (c !== col) {
           flush();
           col = c;
-          first = last = low = high = k;
+          x = X(k);
+          sum = low = high = v;
+          count = 1;
           continue;
         }
-        last = k;
-        if (v < values[low]) low = k;
-        if (v > values[high]) high = k;
+        sum += v;
+        count++;
+        if (v < low) low = v;
+        if (v > high) high = v;
       }
       flush();
       if (seg.length) segments.push(seg);
@@ -4059,7 +4063,7 @@
       }
 
       const y0 = Math.min(top + ph, Math.max(top, Y(0)));
-      const traced = p.lines.map(line => tracePoints(line.values, k0, k1, X, Y, g.perPixel));
+      const traced = p.lines.map(line => traceColumns(line.values, k0, k1, X, Y, g.perPixel));
       p.lines.forEach((line, i) => {
         if (!line.fill || !show.fill) return;
         ctx.fillStyle = line.colour;
@@ -4074,8 +4078,23 @@
         }
         ctx.globalAlpha = 1;
       });
+      /* Each line's range where a column holds more than a pixel of it, as a band under the line. */
       const under = i => (p.lines[i].under ? 0 : 1);
-      for (const i of [...p.lines.keys()].sort((a, b) => under(a) - under(b))) {
+      const order = [...p.lines.keys()].sort((a, b) => under(a) - under(b));
+      for (const i of order) {
+        ctx.fillStyle = p.lines[i].colour;
+        ctx.globalAlpha = ENVELOPE_ALPHA;
+        for (const seg of traced[i]) {
+          if (!seg.some(([, , lo, hi]) => lo - hi > 1)) continue;
+          ctx.beginPath();
+          seg.forEach(([x, , , hi], j) => (j ? ctx.lineTo(x, hi) : ctx.moveTo(x, hi)));
+          for (let j = seg.length - 1; j >= 0; j--) ctx.lineTo(seg[j][0], seg[j][2]);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      for (const i of order) {
         const line = p.lines[i];
         ctx.strokeStyle = line.colour;
         ctx.lineWidth = settings.lineWidth;
