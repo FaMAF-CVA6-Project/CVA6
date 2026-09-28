@@ -83,58 +83,58 @@
 
     /* Needs: css-tokens */
 
-    /* The light look, for printed figures. It restates every colour of css-tokens, so the pages
-     * keep one light palette, and each page restates its own colours beside its own root. */
+    /* The light look, a calm off-white ground rather than paper white, for daylight and figures.
+     * It restates every colour of css-tokens, and each page restates its own beside its root. */
     html[data-theme="light"] {
-      --bg: #ffffff;
-      --bg2: #f4f4f2;
-      --bg3: #eaeae6;
-      --bg4: #dcdcd7;
-      --border: rgba(0, 0, 0, 0.09);
-      --border2: rgba(0, 0, 0, 0.18);
-      --text: #1c1c1e;
-      --text2: #45454a;
-      --text3: #6f6f69;
-      --text-id: #8a8a84;
-      --text-pc: #72729a;
-      --text-hit: #8a5a00;
-      --accent: #127552;
-      --warn: #a86400;
-      --bad: #c3373d;
-      --compressed: #0f8a80;
-      --link: #1d64a8;
-      --link-hover: #0f4a82;
-      --link-dim: #5a6f8f;
-      --grip: rgba(29, 100, 168, 0.45);
-      --focus: rgba(29, 100, 168, 0.4);
+      --bg: #eeeeea;
+      --bg2: #e5e5e0;
+      --bg3: #dadad4;
+      --bg4: #cfcfc8;
+      --border: rgba(0, 0, 0, 0.1);
+      --border2: rgba(0, 0, 0, 0.19);
+      --text: #2a2a2e;
+      --text2: #4a4a50;
+      --text3: #65655f;
+      --text-id: #7f7f79;
+      --text-pc: #62628c;
+      --text-hit: #6e4800;
+      --accent: #0f6e4c;
+      --warn: #8f5600;
+      --bad: #b3313a;
+      --compressed: #0c7d74;
+      --link: #1a5a98;
+      --link-hover: #0f4478;
+      --link-dim: #56698a;
+      --grip: rgba(26, 90, 152, 0.45);
+      --focus: rgba(26, 90, 152, 0.4);
       --crosshair: rgba(0, 0, 0, 0.22);
-      --timeline-bg: #ffffff;
-      --scrollbar-thumb: #c4c4c0;
-      --scrollbar-thumb-hover: #b0b0ac;
-      --ruler-bg: #f4f4f1;
-      --label-row: #ffffff;
-      --label-row-alternate: #f5f5f3;
-      --label-row-hit: #fbecc8;
-      --scrim: rgba(0, 0, 0, 0.3);
-      --shadow: rgba(0, 0, 0, 0.18);
-      --timeline-row: #ffffff;
-      --timeline-row-alternate: #f5f5f3;
+      --timeline-bg: #eeeeea;
+      --scrollbar-thumb: #bdbdb6;
+      --scrollbar-thumb-hover: #a8a8a1;
+      --ruler-bg: #e5e5e0;
+      --label-row: #eeeeea;
+      --label-row-alternate: #e7e7e2;
+      --label-row-hit: #efd9a4;
+      --scrim: rgba(0, 0, 0, 0.25);
+      --shadow: rgba(0, 0, 0, 0.16);
+      --timeline-row: #eeeeea;
+      --timeline-row-alternate: #e7e7e2;
       --grid-minor: rgba(0, 0, 0, 0.05);
       --grid-major: rgba(0, 0, 0, 0.11);
       --grid-sparse: rgba(0, 0, 0, 0.08);
-      --ruler-tick: #dcdcd8;
-      --ruler-tick-major: #b4b4ae;
-      --ruler-text: #5c5c57;
-      --empty-range: #6b6b66;
-      --op-int: #1d7a4a;
-      --op-fp: #1d64a8;
-      --op-mem: #9a5b00;
-      --op-branch: #7a3fb0;
-      --op-flushed: #a04848;
-      --forward-arrival: #4d6363;
-      --stall-ground: #ecece8;
-      --stall-label: #5c5c57;
-      --stall-axis: #a4a4a0;
+      --ruler-tick: #cfcfc9;
+      --ruler-tick-major: #a9a9a3;
+      --ruler-text: #55554f;
+      --empty-range: #66665f;
+      --op-int: #1a7044;
+      --op-fp: #1a5a98;
+      --op-mem: #8a5200;
+      --op-branch: #6e38a0;
+      --op-flushed: #984242;
+      --forward-arrival: #4a5f5f;
+      --stall-ground: #e2e2dd;
+      --stall-label: #55554f;
+      --stall-axis: #9d9d97;
       color-scheme: light;
     }
 
@@ -1242,29 +1242,29 @@
     /* The light look of FlowCompare's own colours. The shared tokens take theirs from the
      * css-tokens-light block, which MinorFlow and CVA6Flow carry too. */
     html[data-theme="light"] {
-      --minor: #6450c0;
-      --cva6: #0f766b;
-      --drift: #b87a10;
-      --selected-row: #dde3f6;
-      --slower: #c3373d;
-      --faster: #0f766b;
-      --mark: #1d64a8;
-      --muted: #66665f;
-      --guide: rgba(0, 0, 0, 0.07);
+      --minor: #5a46b4;
+      --cva6: #0d6c62;
+      --drift: #a86e0c;
+      --selected-row: #d5dbee;
+      --slower: #b3313a;
+      --faster: #0d6c62;
+      --mark: #1a5a98;
+      --muted: #5f5f58;
+      --guide: rgba(0, 0, 0, 0.08);
       --guide-zero: rgba(0, 0, 0, 0.32);
       --selection-line: rgba(0, 0, 0, 0.35);
-      --primary-bg: #d7efe4;
-      --primary-bg-hover: #c3e6d6;
-      --drop-bg: rgba(255, 255, 255, 0.88);
-      --metric-cycles: #b87a10;
-      --metric-ipc: #0f86a0;
-      --metric-ic-misses: #1d8a4c;
-      --metric-dc-misses: #cc3d2e;
-      --metric-branches: #6f4fc8;
-      --metric-mispredicted: #c23b8a;
-      --metric-ic-accesses: #4f9d70;
-      --metric-dc-accesses: #d0776a;
-      --metric-wrong-path: #6b727c;
+      --primary-bg: #cfe5d9;
+      --primary-bg-hover: #bddcc9;
+      --drop-bg: rgba(238, 238, 234, 0.9);
+      --metric-cycles: #a86e0c;
+      --metric-ipc: #0c7c94;
+      --metric-ic-misses: #1a7f46;
+      --metric-dc-misses: #bf392b;
+      --metric-branches: #6749bb;
+      --metric-mispredicted: #b33680;
+      --metric-ic-accesses: #468f65;
+      --metric-dc-accesses: #c46a5d;
+      --metric-wrong-path: #636a73;
     }
 
     :focus-visible {
@@ -1449,7 +1449,7 @@
         <label class="menu-row">Theme
           <select class="tool-select" id="theme-select">
             <option value="dark">Dark</option>
-            <option value="light">Light, for print</option>
+            <option value="light">Light</option>
           </select>
         </label>
         <label class="menu-row">Colours <select class="tool-select" id="palette-select"></select></label>
@@ -1688,7 +1688,7 @@
       <p>Left to right is every compared instruction in commit order, from position 0, or each at its commit cycle on one run when the <b>x axis</b> says so. The buttons over the chart choose what it plots, one panel each over the same axis, and Shift-click shows one alone. Every count runs from the first compared instruction, so it ends at the figure the metrics card shows, and IPC is taken over the window of instructions set beside the buttons.</p>
       <p><b>Difference</b> plots gem5 minus the RTL. For cycles the height is how many cycles gem5 is behind after that instruction, below zero when it is ahead: a slope means a stretch of code runs at a different speed, a jump means one instruction cost very different amounts on the two sides, and a flat stretch means both run in step. <b>Relative</b> plots the same as a percentage of the RTL, which for cycles ends at the verdict, and it starts once the RTL has counted 1% of its total, since a ratio of small counts swings wildly. <b>Both runs</b> draws each run on its own line. Each metric keeps one colour, on its button, its panel and its lines, and in Both runs the RTL is the grey line under gem5's. Hover to read every panel at one position, and click to open that instruction. Drag across the chart to zoom into a stretch, whose panels then scale to it, and double-click, the <b>Whole program</b> button or the 0 key to see everything again.</p>
       <h3>Figures</h3>
-      <p><b>Screenshot</b>, or the S key, saves the window as a PNG at three times its resolution. <b>Export</b> saves the chart alone as it is in view, zoom included, as a PNG, as an SVG that stays sharp in a document, or as CSV data for pgfplots, at the size chosen there, made taller when its panels would not fit. The CSV can keep at most 2,000 rows, each stretch's first, last, lowest and highest, small enough for LaTeX. <b>View</b> hides any part of the page or of the chart, gives the chart a title, and sets the theme, the colours, whether the lines take their metric's colour or their run's, the line width and the text size. The light theme suits a printed page, and the colour-blind safe and greyscale palettes a reader who needs them. <b>Figure mode</b>, or the F key, leaves the chart alone on the page. The view is remembered in this browser.</p>
+      <p><b>Screenshot</b>, or the S key, saves the window as a PNG at three times its resolution. <b>Export</b> saves the chart alone as it is in view, zoom included, as a PNG, as an SVG that stays sharp in a document, or as CSV data for pgfplots, at the size chosen there, made taller when its panels would not fit. The CSV can keep at most 2,000 rows, each stretch's first, last, lowest and highest, small enough for LaTeX. <b>View</b> hides any part of the page or of the chart, gives the chart a title, and sets the theme, the colours, whether the lines take their metric's colour or their run's, the line width and the text size. The light theme is a calm off-white, and the colour-blind safe and greyscale palettes suit a reader who needs them. <b>Figure mode</b>, or the F key, leaves the chart alone on the page. The view is remembered in this browser.</p>
       <h3>The tables</h3>
       <p><b>Where the cycles go</b> lists each instruction of the program with how many times it ran, the cycles it took on each side on average (from the previous instruction's commit to its own), and the total it adds to the gap. The rows at the top explain most of the verdict. <b>By instruction type</b> gathers the same by kind, for example every <code>fld</code>. <b>Biggest single steps</b> lists the single executions that moved the gap the most. Selecting a row marks its executions on the curve, brings it into a zoom that left it out, and opens the stage-by-stage timing of one of them below.</p>
       <h3>The checks</h3>
