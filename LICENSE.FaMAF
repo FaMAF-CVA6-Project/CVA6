@@ -11,17 +11,19 @@ Project:
                            exists only in this repository
   - README.md and the other documentation written for this fork
 
-  - verilator_changes/     PARTLY, and only the modifications. The two code
-                           files, custom_size_vcds/ariane_tb.cpp and
-                           custom_size_vcds/Makefile, are modified copies of
-                           files belonging to the OpenHW Group and ETH Zurich.
-                           The changes made to them are this project's. The
-                           files themselves stay under their original Apache
-                           2.0 and Solderpad 0.51 terms, and each carries a
-                           notice saying what was changed, as those licences
-                           require. The unmodified originals are at
-                           corev_apu/tb/ariane_tb.cpp and the Makefile at the
-                           root of this repository.
+  - verilator_changes/     the DDR3 memory model in ddr3_memory/, its RTL
+                           and its standalone testbench, and PARTLY the two
+                           diffs, vcd_window/vcd_window.patch and
+                           ddr3_memory/ddr3_memory.patch: the changes are this
+                           project's, and the files they change belong to the
+                           OpenHW Group and ETH Zurich:
+                           corev_apu/tb/ariane_tb.cpp,
+                           corev_apu/tb/ariane_testharness.sv and the Makefile
+                           at the root. Those stay under their original Apache
+                           2.0 and Solderpad 0.51 terms, and once
+                           scripts/patch_cva6_testbench.py applies a diff each
+                           carries a notice saying what was changed, as those
+                           licences require.
 
 It does not cover the CVA6 core or its dependencies, which are the work of the
 OpenHW Group and contributors and stay under their original licences: see
