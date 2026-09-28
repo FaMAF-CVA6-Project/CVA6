@@ -1,8 +1,8 @@
 diff --git a/src/cpu/minor/BaseMinorCPU.py b/src/cpu/minor/BaseMinorCPU.py
-index 545dfea..5458f66 100644
+index 545dfea..d8dfc0a 100644
 --- a/src/cpu/minor/BaseMinorCPU.py
 +++ b/src/cpu/minor/BaseMinorCPU.py
-@@ -90,6 +90,12 @@ class MinorFUTiming(SimObject):
+@@ -90,6 +90,19 @@ class MinorFUTiming(SimObject):
      extraCommitLatExpr = Param.TimingExpr(
          NULL, "extra cycles as a run-time evaluated expression"
      )
@@ -12,10 +12,17 @@ index 545dfea..5458f66 100644
 +        "are held. Needed for exact dependent timing when extraCommitLatExpr "
 +        "sets the latency, which the scoreboard cannot see at issue.",
 +    )
++    consumerReleaseDelay = Param.Cycles(
++        0,
++        "With consumersWaitForCommit, cycles after the commit before the "
++        "consumers may issue. CVA6's integer unit stays busy through "
++        "serdiv's writeback (ex_stage.sv 401), so a divide's consumer "
++        "executes the cycle after the divide commits, 1",
++    )
      extraAssumedLat = Param.Cycles(
          0,
          "extra cycles to add to scoreboard"
-@@ -134,6 +140,24 @@ class MinorFU(SimObject):
+@@ -134,6 +147,24 @@ class MinorFU(SimObject):
      issueLat = Param.Cycles(
          1, "cycles until another instruction can be issued"
      )
@@ -40,7 +47,7 @@ index 545dfea..5458f66 100644
      timings = VectorParam.MinorFUTiming([], "extra decoding rules")
  
      cantForwardFromFUIndices = VectorParam.Unsigned(
-@@ -307,6 +331,24 @@ class BaseMinorCPU(BaseCPU):
+@@ -307,6 +338,24 @@ class BaseMinorCPU(BaseCPU):
      fetch1FetchLimit = Param.Unsigned(
          1, "Number of line fetches allowable in flight at once"
      )
@@ -65,7 +72,7 @@ index 545dfea..5458f66 100644
      fetch1LineSnapWidth = Param.Unsigned(
          0,
          "Fetch1 'line' fetch snap size in bytes"
-@@ -398,6 +440,33 @@ class BaseMinorCPU(BaseCPU):
+@@ -398,6 +447,50 @@ class BaseMinorCPU(BaseCPU):
          2, "Size of LSQ transfers queue (memory transaction queue)"
      )
      executeLSQStoreBufferSize = Param.Unsigned(5, "Size of LSQ store buffer")
@@ -82,6 +89,23 @@ index 545dfea..5458f66 100644
 +        "A committed full memory fence squashes the pipeline and "
 +        "restarts fetch at the next PC (controller.sv lines 123 to "
 +        "136, rule F5)",
++    )
++    executeAtomicSquashesPipeline = Param.Bool(
++        False,
++        "A committed AMO, LR or SC squashes the pipeline and restarts "
++        "fetch at the next PC, as CVA6's commit stage flushes on every "
++        "atomic it acknowledges (commit_stage.sv lines 294 to 300)",
++    )
++    executeMaxInFlightInsts = Param.Unsigned(
++        0,
++        "Instructions issued and not yet committed that stop issue, 0 for "
++        "no limit, as CVA6's scoreboard entries (NrScoreboardEntries)",
++    )
++    executeInFlightReleaseDelay = Param.Cycles(
++        0,
++        "Cycles after its commit that a committed instruction still counts "
++        "against executeMaxInFlightInsts. CVA6 frees the entry at the next "
++        "edge and the instruction taking it executes a cycle later, so 2",
 +    )
 +    executeLSQStoreCollisionReplayDelay = Param.Cycles(
 +        0,
@@ -100,10 +124,10 @@ index 545dfea..5458f66 100644
          1,
          "Delay from Execute deciding to branch and Fetch1 reacting"
 diff --git a/src/cpu/minor/dyn_inst.hh b/src/cpu/minor/dyn_inst.hh
-index 9c6d6fd..eeecc9d 100644
+index 9c6d6fd..6c85d5e 100644
 --- a/src/cpu/minor/dyn_inst.hh
 +++ b/src/cpu/minor/dyn_inst.hh
-@@ -227,6 +227,18 @@ class MinorDynInst : public RefCounted
+@@ -227,6 +227,26 @@ class MinorDynInst : public RefCounted
      Cycles extraCommitDelay{0};
      TimingExpr *extraCommitDelayExpr = nullptr;
  
@@ -111,9 +135,17 @@ index 9c6d6fd..eeecc9d 100644
 +     *  other than being a memory reference, see consumersWaitForCommit. */
 +    bool destsWaitForCommit = false;
 +
++    /** Cycles after its commit before its consumers may issue, see
++     *  MinorFUTiming.consumerReleaseDelay */
++    Cycles destsReleaseDelay{0};
++
 +    /** Issued into its unit's input register while the unit was busy, see
 +     *  MinorFU.holdWhileBusy. Cleared once its commit delay is set. */
 +    bool heldInRegister = false;
++
++    /** It raised a fence or atomic squash, which, though never predicted
++     *  itself, discards the predictions made on the path it abandons */
++    bool squashesPredictions = false;
 +
 +    /** The cycle this instruction reaches the end of its FU pipeline when
 +     *  nothing stalls it, see MinorFU.extraCommitLatFromFUEnd */
@@ -123,18 +155,22 @@ index 9c6d6fd..eeecc9d 100644
       *  to account for delay in absolute time */
      Cycles minimumCommitCycle{0};
 diff --git a/src/cpu/minor/execute.cc b/src/cpu/minor/execute.cc
-index ba4032e..265050f 100644
+index ba4032e..2647879 100644
 --- a/src/cpu/minor/execute.cc
 +++ b/src/cpu/minor/execute.cc
-@@ -79,6 +79,7 @@ Execute::Execute(const std::string &name_,
+@@ -79,6 +79,11 @@ Execute::Execute(const std::string &name_,
      setTraceTimeOnCommit(params.executeSetTraceTimeOnCommit),
      setTraceTimeOnIssue(params.executeSetTraceTimeOnIssue),
      allowEarlyMemIssue(params.executeAllowEarlyMemoryIssue),
 +    fenceSquashesPipeline(params.executeFenceSquashesPipeline),
++    atomicSquashesPipeline(params.executeAtomicSquashesPipeline),
++    maxInFlightInsts(params.executeMaxInFlightInsts),
++    inFlightReleaseDelay(params.executeInFlightReleaseDelay),
++    inFlightReleases(params.numThreads),
      noCostFUIndex(fuDescriptions.funcUnits.size() + 1),
      lsq(name_ + ".lsq", name_ + ".dcache_port",
          cpu_, *this,
-@@ -87,7 +88,10 @@ Execute::Execute(const std::string &name_,
+@@ -87,7 +92,10 @@ Execute::Execute(const std::string &name_,
          params.executeLSQRequestsQueueSize,
          params.executeLSQTransfersQueueSize,
          params.executeLSQStoreBufferSize,
@@ -146,7 +182,7 @@ index ba4032e..265050f 100644
      executeInfo(params.numThreads,
              ExecuteThreadInfo(params.executeCommitLimit)),
      interruptPriority(0),
-@@ -146,6 +150,7 @@ Execute::Execute(const std::string &name_,
+@@ -146,6 +154,7 @@ Execute::Execute(const std::string &name_,
  
          funcUnits.push_back(fu);
      }
@@ -154,7 +190,64 @@ index ba4032e..265050f 100644
  
      /** Check that there is a functional unit for all operation classes */
      for (int op_class = No_OpClass + 1; op_class < Num_OpClasses; op_class++) {
-@@ -614,6 +619,15 @@ Execute::issue(ThreadID thread_id)
+@@ -410,6 +419,23 @@ Execute::handleMemResponse(MinorDynInstPtr inst,
+ 
+     /* Generate output to account for branches */
+     tryToBranch(inst, fault, branch);
++
++    /* An AMO, LR or SC, all under RISC-V's AMO major opcode, flushes the
++     *  pipeline once acknowledged, a failed SC included, and fetch restarts
++     *  at the next instruction (commit_stage.sv lines 294 to 300,
++     *  controller.sv lines 223 to 229). Only the last microop does: an aq
++     *  form ends in a fence microop, which rule F5 squashes after. */
++    const StaticInstPtr &si = inst->staticInst;
++    if (atomicSquashesPipeline && fault == NoFault && branch.isBubble() &&
++        inst->isInst() && (si->getEMI() & 0x7f) == 0x2f &&
++        (!si->isMicroop() || si->isLastMicroop()))
++    {
++        std::unique_ptr<PCStateBase> atomic_next(inst->pc->clone());
++        si->advancePC(*atomic_next);
++        inst->squashesPredictions = true;
++        updateBranchData(inst->id.threadId, BranchData::UnpredictedBranch,
++            inst, *atomic_next, branch);
++    }
+ }
+ 
+ bool
+@@ -543,6 +569,20 @@ cyclicIndexDec(unsigned int index, unsigned int cycle_size)
+     return ret;
+ }
+ 
++bool
++Execute::inFlightFull(ThreadID tid)
++{
++    if (maxInFlightInsts == 0)
++        return false;
++
++    std::deque<Cycles> &releases = inFlightReleases[tid];
++    while (!releases.empty() && releases.front() <= cpu.curCycle())
++        releases.pop_front();
++
++    return executeInfo[tid].inFlightInsts->occupiedSpace() +
++        releases.size() >= maxInFlightInsts;
++}
++
+ unsigned int
+ Execute::issue(ThreadID thread_id)
+ {
+@@ -591,6 +631,11 @@ Execute::issue(ThreadID thread_id)
+                 *inst, thread.streamSeqNum);
+             issued = true;
+             discarded = true;
++        } else if (inFlightFull(thread_id)) {
++            /* Every entry is taken, as a full CVA6 scoreboard stops issue */
++            DPRINTF(MinorExecute, "Can't issue inst: %s, %d instructions"
++                " in flight\n", *inst, maxInFlightInsts);
++            issued = false;
+         } else {
+             /* Try and issue an instruction into an FU, assume we didn't and
+              * fix that in the loop */
+@@ -614,6 +659,15 @@ Execute::issue(ThreadID thread_id)
                  bool fu_is_capable = (!inst->isFault() ?
                      fu->provides(inst->staticInst->opClass()) : true);
  
@@ -170,7 +263,7 @@ index ba4032e..265050f 100644
                  if (inst->isNoCostInst()) {
                      /* Issue free insts. to a fake numbered FU */
                      fu_index = noCostFUIndex;
-@@ -639,7 +653,8 @@ Execute::issue(ThreadID thread_id)
+@@ -639,7 +693,8 @@ Execute::issue(ThreadID thread_id)
  
                      issued = true;
  
@@ -180,7 +273,7 @@ index ba4032e..265050f 100644
                      /* Skip */
                      if (!fu_is_capable) {
                          DPRINTF(MinorExecute, "Can't issue as FU: %d isn't"
-@@ -648,11 +663,11 @@ Execute::issue(ThreadID thread_id)
+@@ -648,11 +703,11 @@ Execute::issue(ThreadID thread_id)
                          DPRINTF(MinorExecute, "Can't issue as FU: %d is"
                              " already busy\n", fu_index);
                      }
@@ -194,7 +287,7 @@ index ba4032e..265050f 100644
                      DPRINTF(MinorExecute, "Can't issue inst: %s to busy FU"
                          " for another: %d cycles\n",
                          *inst, fu->cyclesBeforeInsert());
-@@ -744,20 +759,32 @@ Execute::issue(ThreadID thread_id)
+@@ -744,20 +799,35 @@ Execute::issue(ThreadID thread_id)
                              thread.inFUMemInsts->push(fu_inst);
                          }
  
@@ -220,6 +313,9 @@ index ba4032e..265050f 100644
 +                         *  here, so its consumers can wait for the commit */
 +                        inst->destsWaitForCommit =
 +                            (timing && timing->consumersWaitForCommit) || hold;
++                        inst->destsReleaseDelay =
++                            timing && timing->consumersWaitForCommit ?
++                            timing->consumerReleaseDelay : Cycles(0);
                          scoreboard[thread_id].markupInstDests(inst, cpu.curCycle() +
                              fu->description.opLat +
                              extra_dest_retire_lat +
@@ -231,7 +327,7 @@ index ba4032e..265050f 100644
  
                          /* Push the instruction onto the inFlight queue so
                           *  it can be committed in order */
-@@ -977,6 +1004,23 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
+@@ -977,6 +1047,24 @@ Execute::commitInst(MinorDynInstPtr inst, bool early_memory_issue,
  
          committed = true;
  
@@ -247,6 +343,7 @@ index ba4032e..265050f 100644
 +                // pipeline and refetches (controller.sv 123 to 136, rule F5).
 +                std::unique_ptr<PCStateBase> fence_next(inst->pc->clone());
 +                inst->staticInst->advancePC(*fence_next);
++                inst->squashesPredictions = true;
 +                updateBranchData(thread_id, BranchData::UnpredictedBranch,
 +                    inst, *fence_next, branch);
 +            }
@@ -255,7 +352,7 @@ index ba4032e..265050f 100644
          if (fault != NoFault) {
              if (inst->traceData) {
                  if (debug::ExecFaulting) {
-@@ -1269,10 +1313,31 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
+@@ -1269,10 +1357,31 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                          inst->extraCommitDelayExpr = NULL;
                      }
  
@@ -288,17 +385,33 @@ index ba4032e..265050f 100644
                              inst->extraCommitDelay;
                          inst->extraCommitDelay = Cycles(0);
                      }
-@@ -1375,7 +1440,8 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
+@@ -1368,6 +1477,14 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
+              *  clear its dependencies */
+             ex_info.inFlightInsts->pop();
+ 
++            /* A committed instruction keeps its entry a little longer. A
++             *  squash frees every entry at once, as CVA6's flush does */
++            if (maxInFlightInsts != 0 && inFlightReleaseDelay != 0 &&
++                !discard_inst) {
++                inFlightReleases[thread_id].push_back(
++                    cpu.curCycle() + inFlightReleaseDelay);
++            }
++
+             /* Complete barriers in the LSQ/move to store buffer */
+             if (inst->isInst() && inst->staticInst->isFullMemBarrier()) {
+                 DPRINTF(MinorMem, "Completing memory barrier"
+@@ -1375,7 +1492,9 @@ Execute::commit(ThreadID thread_id, bool only_commit_microops, bool discard,
                  lsq.completeMemBarrierInst(inst, committed_inst);
              }
  
 -            scoreboard[thread_id].clearInstDests(inst, inst->isMemRef());
 +            scoreboard[thread_id].clearInstDests(inst,
-+                inst->isMemRef() || inst->destsWaitForCommit);
++                inst->isMemRef() || inst->destsWaitForCommit,
++                cpu.curCycle());
          }
  
          /* Handle per-cycle instruction counting */
-@@ -1520,6 +1586,22 @@ Execute::evaluate()
+@@ -1520,6 +1639,22 @@ Execute::evaluate()
          }
      }
  
@@ -321,7 +434,7 @@ index ba4032e..265050f 100644
      bool becoming_stalled = true;
  
      /* Advance the pipelines and note whether they still need to be
-@@ -1584,6 +1666,7 @@ Execute::evaluate()
+@@ -1584,6 +1719,7 @@ Execute::evaluate()
         can_issue_next || /* Can still issue a new inst */
         head_inst_might_commit || /* Could possible commit the next inst */
         lsq.needsToTick() || /* Must step the dcache port */
@@ -330,20 +443,43 @@ index ba4032e..265050f 100644
  
      if (!need_to_tick) {
 diff --git a/src/cpu/minor/execute.hh b/src/cpu/minor/execute.hh
-index 0a1dde1..e198877 100644
+index 0a1dde1..1fafb8c 100644
 --- a/src/cpu/minor/execute.hh
 +++ b/src/cpu/minor/execute.hh
-@@ -114,6 +114,9 @@ class Execute : public Named
+@@ -45,6 +45,7 @@
+ #ifndef __CPU_MINOR_EXECUTE_HH__
+ #define __CPU_MINOR_EXECUTE_HH__
+ 
++#include <deque>
+ #include <vector>
+ 
+ #include "base/named.hh"
+@@ -114,6 +115,24 @@ class Execute : public Named
       *  of the in flight insts queue if their dependencies are met */
      bool allowEarlyMemIssue;
  
 +    /** Rule F5: a committed full fence squashes and refetches */
 +    bool fenceSquashesPipeline;
 +
++    /** A committed AMO, LR or SC squashes and refetches, as CVA6 flushes
++     *  on each atomic its commit stage acknowledges */
++    bool atomicSquashesPipeline;
++
++    /** Issued and uncommitted instructions that stop issue, 0 for none,
++     *  as CVA6's scoreboard entries */
++    unsigned int maxInFlightInsts;
++
++    /** Cycles after its commit that an instruction still holds its entry */
++    Cycles inFlightReleaseDelay;
++
++    /** Per thread, the cycles at which recently committed instructions
++     *  free their entries */
++    std::vector<std::deque<Cycles>> inFlightReleases;
++
      /** The FU index of the non-existent costless FU for instructions
       *  which pass the MinorDynInst::isNoCostInst test */
      unsigned int noCostFUIndex;
-@@ -127,6 +130,10 @@ class Execute : public Named
+@@ -127,6 +146,10 @@ class Execute : public Named
      /** The execution functional units */
      std::vector<FUPipeline *> funcUnits;
  
@@ -354,6 +490,16 @@ index 0a1dde1..e198877 100644
    public: /* Public for Pipeline to be able to pass it to Decode */
      std::vector<InputBuffer<ForwardInstData>> inputBuffer;
  
+@@ -213,6 +236,9 @@ class Execute : public Named
+   protected:
+     friend std::ostream &operator <<(std::ostream &os, DrainState state);
+ 
++    /** Whether the in-flight limit stops this thread issuing now */
++    bool inFlightFull(ThreadID tid);
++
+     /** Get a piece of data to work on from the inputBuffer, or 0 if there
+      *  is no data. */
+     const ForwardInstData *getInput(ThreadID tid);
 diff --git a/src/cpu/minor/fetch1.cc b/src/cpu/minor/fetch1.cc
 index dd427b7..d8f820b 100644
 --- a/src/cpu/minor/fetch1.cc
@@ -626,33 +772,56 @@ index b65bb70..4777289 100644
      unsigned int numInFlightFetches();
  
      /** Print the appropriate MinorLine line for a fetch response */
+diff --git a/src/cpu/minor/fetch2.cc b/src/cpu/minor/fetch2.cc
+index b02294b..d2320ac 100644
+--- a/src/cpu/minor/fetch2.cc
++++ b/src/cpu/minor/fetch2.cc
+@@ -131,8 +131,13 @@ Fetch2::updateBranchPrediction(const BranchData &branch)
+     MinorDynInstPtr inst = branch.inst;
+ 
+     /* Don't even consider instructions we didn't try to predict or faults */
+-    if (inst->isFault() || !inst->triedToPredict)
++    if (inst->isFault() || !inst->triedToPredict) {
++        /* A fence or atomic squash still takes back the predictions made
++         *  after it, or a later commit would count and train them */
++        if (!inst->isFault() && inst->squashesPredictions)
++            branchPredictor.squash(inst->id.fetchSeqNum, inst->id.threadId);
+         return;
++    }
+ 
+     switch (branch.reason) {
+       case BranchData::NoBranch:
 diff --git a/src/cpu/minor/func_unit.cc b/src/cpu/minor/func_unit.cc
-index f508d58..2ab48e6 100644
+index f508d58..1cf671b 100644
 --- a/src/cpu/minor/func_unit.cc
 +++ b/src/cpu/minor/func_unit.cc
-@@ -69,6 +69,7 @@ MinorFUTiming::MinorFUTiming(
+@@ -69,6 +69,8 @@ MinorFUTiming::MinorFUTiming(
      suppress(params.suppress),
      extraCommitLat(params.extraCommitLat),
      extraCommitLatExpr(params.extraCommitLatExpr),
 +    consumersWaitForCommit(params.consumersWaitForCommit),
++    consumerReleaseDelay(params.consumerReleaseDelay),
      extraAssumedLat(params.extraAssumedLat),
      srcRegsRelativeLats(params.srcRegsRelativeLats),
      opClasses(params.opClasses)
 diff --git a/src/cpu/minor/func_unit.hh b/src/cpu/minor/func_unit.hh
-index 13ae019..c11f6b1 100644
+index 13ae019..2e856d7 100644
 --- a/src/cpu/minor/func_unit.hh
 +++ b/src/cpu/minor/func_unit.hh
-@@ -120,6 +120,9 @@ class MinorFUTiming: public SimObject
+@@ -120,6 +120,12 @@ class MinorFUTiming: public SimObject
      Cycles extraCommitLat;
      TimingExpr *extraCommitLatExpr;
  
 +    /** Consumers of this inst. wait for its commit, see BaseMinorCPU.py */
 +    bool consumersWaitForCommit;
 +
++    /** Cycles after that commit before they may issue */
++    Cycles consumerReleaseDelay;
++
      /** Extra delay that results should show in the scoreboard after
       *  leaving the pipeline.  If set to Cycles(0) for memory references,
       *  an 'unpredictable' return time will be set in the scoreboard
-@@ -174,6 +177,13 @@ class MinorFU : public SimObject
+@@ -174,6 +180,13 @@ class MinorFU : public SimObject
      /** Extra timing info to give timings to individual ops */
      std::vector<MinorFUTiming *> timings;
  
@@ -666,7 +835,7 @@ index 13ae019..c11f6b1 100644
    public:
      MinorFU(const MinorFUParams &params) :
          SimObject(params),
-@@ -181,7 +191,10 @@ class MinorFU : public SimObject
+@@ -181,7 +194,10 @@ class MinorFU : public SimObject
          opLat(params.opLat),
          issueLat(params.issueLat),
          cantForwardFromFUIndices(params.cantForwardFromFUIndices),
@@ -827,8 +996,113 @@ index e30a615..12add06 100644
      /** Get the execSeqNum of the last issued memory barrier */
      InstSeqNum getLastMemBarrier(ThreadID thread_id) const
      { return lastMemBarrier[thread_id]; }
+diff --git a/src/cpu/minor/scoreboard.cc b/src/cpu/minor/scoreboard.cc
+index 25228c1..2fe4e57 100644
+--- a/src/cpu/minor/scoreboard.cc
++++ b/src/cpu/minor/scoreboard.cc
+@@ -170,7 +170,8 @@ Scoreboard::execSeqNumToWaitFor(MinorDynInstPtr inst,
+ }
+ 
+ void
+-Scoreboard::clearInstDests(MinorDynInstPtr inst, bool clear_unpredictable)
++Scoreboard::clearInstDests(MinorDynInstPtr inst, bool clear_unpredictable,
++    Cycles now)
+ {
+     if (inst->isFault())
+         return;
+@@ -192,7 +193,10 @@ Scoreboard::clearInstDests(MinorDynInstPtr inst, bool clear_unpredictable)
+             numResults[index] --;
+ 
+             if (numResults[index] == 0) {
+-                returnCycle[index] = Cycles(0);
++                /* A consumer that waited for the commit may have to wait
++                 *  a little longer, see consumerReleaseDelay */
++                returnCycle[index] = inst->destsReleaseDelay != 0 ?
++                    now + inst->destsReleaseDelay : Cycles(0);
+                 writingInst[index] = 0;
+                 fuIndices[index] = invalidFUIndex;
+             }
+diff --git a/src/cpu/minor/scoreboard.hh b/src/cpu/minor/scoreboard.hh
+index dd42bc6..017a3cd 100644
+--- a/src/cpu/minor/scoreboard.hh
++++ b/src/cpu/minor/scoreboard.hh
+@@ -144,7 +144,8 @@ class Scoreboard : public Named
+ 
+     /** Clear down the dependencies for this instruction.  clear_unpredictable
+      *  must match mark_unpredictable for the same inst. */
+-    void clearInstDests(MinorDynInstPtr inst, bool clear_unpredictable);
++    void clearInstDests(MinorDynInstPtr inst, bool clear_unpredictable,
++        Cycles now);
+ 
+     /** Returns the exec sequence number of the most recent inst on
+      *  which the given inst depends.  Useful for determining which
+diff --git a/src/cpu/pred/2bit_local.cc b/src/cpu/pred/2bit_local.cc
+index 7c27355..ea24428 100644
+--- a/src/cpu/pred/2bit_local.cc
++++ b/src/cpu/pred/2bit_local.cc
+@@ -57,6 +57,8 @@ LocalBP::LocalBP(const LocalBPParams &params)
+       localCtrBits(params.localCtrBits),
+       localPredictorSets(localPredictorSize / localCtrBits),
+       localCtrs(localPredictorSets, SatCounter8(localCtrBits)),
++      coldStaticPrediction(params.coldStaticPrediction),
++      localValid(localPredictorSets, false),
+       indexMask(localPredictorSets - 1)
+ {
+     if (!isPowerOf2(localPredictorSize)) {
+@@ -106,6 +108,16 @@ LocalBP::lookup(ThreadID tid, Addr branch_addr, void * &bp_history)
+     return taken;
+ }
+ 
++bool
++LocalBP::coldPrediction(ThreadID tid, Addr pc, bool backward, bool &taken)
++{
++    if (!coldStaticPrediction || localValid[getLocalIndex(pc)])
++        return false;
++
++    taken = backward;
++    return true;
++}
++
+ void
+ LocalBP::update(ThreadID tid, Addr branch_addr, bool taken, void *&bp_history,
+                 bool squashed, const StaticInstPtr & inst, Addr target)
+@@ -121,6 +133,7 @@ LocalBP::update(ThreadID tid, Addr branch_addr, bool taken, void *&bp_history,
+ 
+     // Update the local predictor.
+     local_predictor_idx = getLocalIndex(branch_addr);
++    localValid[local_predictor_idx] = true;
+ 
+     DPRINTF(Fetch, "Looking up index %#x\n", local_predictor_idx);
+ 
+diff --git a/src/cpu/pred/2bit_local.hh b/src/cpu/pred/2bit_local.hh
+index 8d77289..f75ef3e 100644
+--- a/src/cpu/pred/2bit_local.hh
++++ b/src/cpu/pred/2bit_local.hh
+@@ -84,6 +84,9 @@ class LocalBP : public BPredUnit
+     void squash(ThreadID tid, void * &bp_history) override
+     { assert(bp_history == NULL); }
+ 
++    bool coldPrediction(ThreadID tid, Addr pc, bool backward,
++                        bool &taken) override;
++
+   private:
+     /**
+      *  Returns the taken/not taken prediction given the value of the
+@@ -108,6 +111,12 @@ class LocalBP : public BPredUnit
+     /** Array of counters that make up the local predictor. */
+     std::vector<SatCounter8> localCtrs;
+ 
++    /** A cold counter predicts statically, see coldStaticPrediction */
++    const bool coldStaticPrediction;
++
++    /** Whether each counter has been updated since reset */
++    std::vector<bool> localValid;
++
+     /** Mask to get index bits. */
+     const unsigned indexMask;
+ };
 diff --git a/src/cpu/pred/BranchPredictor.py b/src/cpu/pred/BranchPredictor.py
-index 47b9852..638f26b 100644
+index 47b9852..1b48426 100644
 --- a/src/cpu/pred/BranchPredictor.py
 +++ b/src/cpu/pred/BranchPredictor.py
 @@ -65,6 +65,7 @@ class TargetProvider(Enum):
@@ -863,8 +1137,21 @@ index 47b9852..638f26b 100644
      indirectBranchPred = Param.IndirectPredictor(
          SimpleIndirectPredictor(),
          "Indirect branch predictor, set to NULL to disable "
+@@ -235,6 +249,12 @@ class LocalBP(BranchPredictor):
+ 
+     localPredictorSize = Param.Unsigned(2048, "Size of local predictor")
+     localCtrBits = Param.Unsigned(2, "Bits per counter")
++    coldStaticPrediction = Param.Bool(
++        False,
++        "A counter never updated predicts a direct conditional branch by "
++        "the sign of its offset, backward taken, as CVA6's BHT does for an "
++        "entry whose valid bit is clear (frontend.sv 268 to 282)",
++    )
+ 
+ 
+ class TournamentBP(BranchPredictor):
 diff --git a/src/cpu/pred/bpred_unit.cc b/src/cpu/pred/bpred_unit.cc
-index 4580cd7..53db15e 100644
+index 4580cd7..d532101 100644
 --- a/src/cpu/pred/bpred_unit.cc
 +++ b/src/cpu/pred/bpred_unit.cc
 @@ -59,10 +59,12 @@ BPredUnit::BPredUnit(const Params &params)
@@ -880,7 +1167,19 @@ index 4580cd7..53db15e 100644
        iPred(params.indirectBranchPred),
        stats(this)
  {
-@@ -188,7 +190,11 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
+@@ -157,6 +159,11 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
+         // Conditional branches -------
+         ++stats.condPredicted;
+         hist->condPred = lookup(tid, pc.instAddr(), hist->bpHistory);
++        if (inst->isDirectCtrl()) {
++            const bool backward =
++                inst->branchTarget(pc)->instAddr() < pc.instAddr();
++            coldPrediction(tid, pc.instAddr(), backward, hist->condPred);
++        }
+ 
+         if (hist->condPred) {
+             ++stats.condPredictedTaken;
+@@ -188,7 +195,11 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
          stats.BTBHits++;
          hist->btbHit = true;
  
@@ -893,7 +1192,7 @@ index 4580cd7..53db15e 100644
              hist->targetProvider = TargetProvider::BTB;
              set(hist->target, btb_target);
          }
-@@ -285,6 +291,16 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
+@@ -285,6 +296,16 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
      }
  
  
@@ -910,7 +1209,7 @@ index 4580cd7..53db15e 100644
      /** ----------------------------------------------
       * Fallthrough
       * -----------------------------------------------
-@@ -438,7 +454,10 @@ BPredUnit::squashHistory(ThreadID tid, PredictorHistory* &history)
+@@ -438,7 +459,10 @@ BPredUnit::squashHistory(ThreadID tid, PredictorHistory* &history)
                  "PC %#x. Fix RAS.\n", tid, history->seqNum,
                  history->pc);
  
@@ -922,7 +1221,7 @@ index 4580cd7..53db15e 100644
      }
  
      if (iPred) {
-@@ -575,17 +594,22 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
+@@ -575,17 +599,22 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
              } else if (!actually_taken && (hist->rasHistory != nullptr)) {
                  // The branch was not taken but the RAS was modified.
                  // Needs to be fixed.
@@ -952,10 +1251,24 @@ index 4580cd7..53db15e 100644
              if (!hist->btbHit) {
                  ++stats.BTBMispredicted;
 diff --git a/src/cpu/pred/bpred_unit.hh b/src/cpu/pred/bpred_unit.hh
-index 9523b7e..bc5248f 100644
+index 9523b7e..b4a3ad8 100644
 --- a/src/cpu/pred/bpred_unit.hh
 +++ b/src/cpu/pred/bpred_unit.hh
-@@ -470,6 +470,11 @@ class BPredUnit : public SimObject
+@@ -147,6 +147,13 @@ class BPredUnit : public SimObject
+      */
+     virtual bool lookup(ThreadID tid, Addr pc, void * &bp_history) = 0;
+ 
++    /** Where a direct conditional branch's entry was never updated and the
++     *  predictor predicts statically, set taken by backward, the offset's
++     *  sign, and return true, see LocalBP.coldStaticPrediction */
++    virtual bool coldPrediction(ThreadID tid, Addr pc, bool backward,
++                                bool &taken)
++    { return false; }
++
+     /**
+      * Ones done with the prediction this function updates the
+      * path and global history. All branches call this function
+@@ -470,6 +477,11 @@ class BPredUnit : public SimObject
       * Low-end CPUs predecoding might be used to identify branches. */
      const bool requiresBTBHit;
  
@@ -967,7 +1280,7 @@ index 9523b7e..bc5248f 100644
      /** Number of bits to shift instructions by for predictor addresses. */
      const unsigned instShiftAmt;
  
-@@ -486,6 +491,8 @@ class BPredUnit : public SimObject
+@@ -486,6 +498,8 @@ class BPredUnit : public SimObject
      /** The return address stack. */
      ReturnAddrStack * ras;
  
