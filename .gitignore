@@ -57,7 +57,7 @@ temp/
 CVA6_files/
 gem5_files/
 
-# The upstream copies scripts/patch_cva6_testbench.py keeps while a change is in.
+# The upstream copies scripts/patch_CVA6_testbench.py keeps while a change is in.
 *.upstream
 
 # Files too big to be tracked.

@@ -21,7 +21,7 @@ Project:
                            corev_apu/tb/ariane_testharness.sv and the Makefile
                            at the root. Those stay under their original Apache
                            2.0 and Solderpad 0.51 terms, and once
-                           scripts/patch_cva6_testbench.py applies a diff each
+                           scripts/patch_CVA6_testbench.py applies a diff each
                            carries a notice saying what was changed, as those
                            licences require.
 

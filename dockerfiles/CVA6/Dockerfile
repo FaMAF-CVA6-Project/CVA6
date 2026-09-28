@@ -150,7 +150,7 @@ RUN rm -rf /CVA6/dockerfiles /CVA6/scripts \
     /CVA6/gem5_config_CVA6 \
     && chmod +x /CVA6/scripts/*.py /CVA6/CVA6Flow/*.py
 
-COPY scripts/patch_cva6_testbench.py /CVA6/scripts/patch_cva6_testbench.py
+COPY scripts/patch_CVA6_testbench.py /CVA6/scripts/patch_CVA6_testbench.py
 COPY scripts/run_CVA6_config_sweep.py /CVA6/scripts/
 
 # The cache geometry package this side sweeps, beside the viewer's. It is

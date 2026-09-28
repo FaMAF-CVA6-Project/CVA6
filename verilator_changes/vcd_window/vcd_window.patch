@@ -1,0 +1,83 @@
+--- a/corev_apu/tb/ariane_tb.cpp
++++ b/corev_apu/tb/ariane_tb.cpp
+@@ -140,7 +140,16 @@
+ #if VM_TRACE
+   FILE * vcdfile = NULL;
+   char * fst_fname = NULL;
+-  uint64_t start = 0;
++  
++  #ifndef START_TRACE_CYCLE
++  #define START_TRACE_CYCLE 0
++  #endif
++  uint64_t start = START_TRACE_CYCLE;
++
++  #ifndef END_TRACE_CYCLE
++  #define END_TRACE_CYCLE 0xFFFFFFFFFFFFFFFFULL 
++  #endif
++  uint64_t end_trace = END_TRACE_CYCLE;
+ #endif
+   char ** htif_argv = NULL;
+   int verilog_plusargs_legal = 1;
+@@ -316,13 +325,13 @@
+     top->rtc_i = 0;
+     top->eval();
+ #if VM_TRACE
+-    if (vcdfile || fst_fname)
++    if ((vcdfile || fst_fname) && main_time >= start && main_time <= end_trace)
+       tfp->dump(static_cast<vluint64_t>(main_time * 2));
+ #endif
+     top->clk_i = 1;
+     top->eval();
+ #if VM_TRACE
+-    if (vcdfile || fst_fname)
++    if ((vcdfile || fst_fname) && main_time >= start && main_time <= end_trace)
+       tfp->dump(static_cast<vluint64_t>(main_time * 2 + 1));
+ #endif
+     main_time++;
+@@ -359,14 +368,14 @@
+     top->clk_i = 0;
+     top->eval();
+ #if VM_TRACE
+-    if (vcdfile || fst_fname)
++    if ((vcdfile || fst_fname) && main_time >= start && main_time <= end_trace)
+       tfp->dump(static_cast<vluint64_t>(main_time * 2));
+ #endif
+ 
+     top->clk_i = 1;
+     top->eval();
+ #if VM_TRACE
+-    if (vcdfile || fst_fname)
++    if ((vcdfile || fst_fname) && main_time >= start && main_time <= end_trace)
+       tfp->dump(static_cast<vluint64_t>(main_time * 2 + 1));
+ #endif
+     // toggle RTC
+--- a/Makefile
++++ b/Makefile
+@@ -1,7 +1,7 @@
+ # Author: Florian Zaruba, ETH Zurich
+ # Date: 03/19/2017
+ # Description: Makefile for linting and testing Ariane.
+-
++#
+ # questa library
+ library ?= work
+ # verilator lib
+@@ -18,6 +18,9 @@
+ max_cycles ?= 10000000
+ # Test case to run
+ test_case ?= core_test
++# New variables to make vcd shorter
++trace_start ?= 0
++trace_end ?= 5000000000000000000000000000000000000
+ # QuestaSim Version
+ questa_version ?= ${QUESTASIM_VERSION}
+ VLOG ?= vlog$(questa_version)
+@@ -670,7 +673,7 @@
+                     $(if $(TRACE_COMPACT), --trace-fst $(VL_INC_DIR)/verilated_fst_c.cpp)                        \
+                     $(if $(TRACE_FAST), --trace $(VL_INC_DIR)/verilated_vcd_c.cpp)                               \
+                     -LDFLAGS "-L$(RISCV)/lib -L$(SPIKE_INSTALL_DIR)/lib -Wl,-rpath,$(RISCV)/lib -Wl,-rpath,$(SPIKE_INSTALL_DIR)/lib -lfesvr -lriscv -ldisasm -lyaml-cpp $(if $(PROFILE), -g -pg,) -lpthread $(if $(TRACE_COMPACT), -lz,)" \
+-                    -CFLAGS "$(CFLAGS)$(if $(PROFILE), -g -pg,) -DVL_DEBUG -I$(SPIKE_INSTALL_DIR)"               \
++                    -CFLAGS "$(CFLAGS)$(if $(PROFILE), -g -pg,) -DVL_DEBUG -DSTART_TRACE_CYCLE=$(trace_start) -DEND_TRACE_CYCLE=$(trace_end) -I$(SPIKE_INSTALL_DIR)" \
+                     $(if $(SPIKE_TANDEM), +define+SPIKE_TANDEM, )                                                \
+                     --cc --vpi                                                                                   \
+                     $(list_incdir) --top-module ariane_testharness                                               \

@@ -8,19 +8,19 @@ This file describes what is **inside the container**, so every path below is a c
 
 ## What is in here
 
-| Path                  | What it is                                                                                                                              |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`, `corev_apu/` | The CVA6 core RTL and its SoC wrapper, upstream's work                                                                                  |
-| `verif/`              | The verification harness. `verif/sim/cva6.py` is what the drivers call, through `verif/sim/setup-env.sh`                                |
-| `tools/`              | The toolchain built into the image: `riscv-none-elf-gcc` 13.1.0, Verilator 5.008 and Spike 1.1.1-dev                                    |
-| `scripts/`            | The drivers, the two sweeps, the batch JSON converter, the cleaner, the VCD window tool and the viewer server                           |
-| `CVA6_configs/`       | The three configuration packages: the production one, the viewer's swept copy and `..._config_testing_pkg.sv`, the cache geometry table |
-| `benchmarks/config/`  | The calibration set, the programs the gem5 comparison is measured on                                                                    |
-| `benchmarks/viewer/`  | The set written while developing the viewer, one core behaviour per program                                                             |
-| `CVA6Flow/`           | The viewer: `CVA6Flow.html`, its tracer, `index.html`, `docs/` and an empty `tests/`                                                    |
-| `verilator_changes/`  | `custom_size_vcds/`, the windowed waveform dump, applied and reverted by `scripts/patch_vcd_window.py`                                  |
-| `results/`            | Where every run writes. Empty in a fresh container                                                                                      |
-| `Makefile`, `Flist.*` | Upstream's build entry points, which the harness drives                                                                                 |
+| Path                  | What it is                                                                                                                                                  |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/`, `corev_apu/` | The CVA6 core RTL and its SoC wrapper, upstream's work                                                                                                      |
+| `verif/`              | The verification harness. `verif/sim/cva6.py` is what the drivers call, through `verif/sim/setup-env.sh`                                                    |
+| `tools/`              | The toolchain built into the image: `riscv-none-elf-gcc` 13.1.0, Verilator 5.008 and Spike 1.1.1-dev                                                        |
+| `scripts/`            | The drivers, the two sweeps, the batch JSON converter, the cleaner, the testbench change tool and the viewer server                                         |
+| `CVA6_configs/`       | The three configuration packages: the production one, the viewer's swept copy and `..._config_testing_pkg.sv`, the cache geometry table                     |
+| `benchmarks/config/`  | The calibration set, the programs the gem5 comparison is measured on                                                                                        |
+| `benchmarks/viewer/`  | The set written while developing the viewer, one core behaviour per program                                                                                 |
+| `CVA6Flow/`           | The viewer: `CVA6Flow.html`, its tracer, `index.html`, `docs/` and an empty `tests/`                                                                        |
+| `verilator_changes/`  | `vcd_window/` and `ddr3_memory/`, the windowed waveform dump and the DDR3 memory model, both out, put in and taken out by `scripts/patch_CVA6_testbench.py` |
+| `results/`            | Where every run writes. Empty in a fresh container                                                                                                          |
+| `Makefile`, `Flist.*` | Upstream's build entry points, which the harness drives                                                                                                     |
 
 The target built here is `cv64a6_imafdc_sv39_hpdcache_wb`, a 64-bit CVA6 with the HPDcache writeback data cache, a 16 KiB 4-way instruction cache and a 32 KiB 8-way data cache.
 
@@ -54,10 +54,10 @@ Output lands under `results/`: the files worth keeping in `results/run/`, and th
 | `scripts/measure_CVA6_overhead.py`     | Measures the overhead profiles `run_CVA6.py` subtracts, from each suite's empty template, and with `--write` puts them into it                                              |
 | `scripts/clean_CVA6_runs.py`           | Deletes what a run writes. It asks about `work-ver` on its own, since rebuilding it is slow                                                                                 |
 | `scripts/run_CVA6_config_sweep.py`     | The **matched configuration** search on the real core: seventeen cuts of L1I and L1D size and associativity plus the baseline, the RTL side of what the gem5 harness sweeps |
-| `scripts/patch_vcd_window.py`          | Applies or reverts the windowed waveform dump                                                                                                                               |
+| `scripts/patch_CVA6_testbench.py`      | Puts the VCD window, the DDR3 memory or both into the testbench, or takes them out                                                                                          |
 | `scripts/serve_CVA6Flow.py`            | Serves the viewer over HTTP, since the image has no browser                                                                                                                 |
 
-Every one of them answers `--help`. `patch_vcd_window.py` and `measure_CVA6_overhead.py` take `-n` for a dry run, `clean_CVA6_runs.py` and `run_all_CVA6_benchmarks.py` take `--dry-run`, and both sweeps take `--dry-run` to print the plan without running it.
+Every one of them answers `--help`. `patch_CVA6_testbench.py` and `measure_CVA6_overhead.py` take `-n` for a dry run, `clean_CVA6_runs.py` and `run_all_CVA6_benchmarks.py` take `--dry-run`, and both sweeps take `--dry-run` to print the plan without running it.
 
 ## Use the viewer
 
@@ -85,18 +85,21 @@ The tracer finds the disassembly listing on its own when it sits beside the VCD 
 
 `CVA6Flow/tests/` already holds a full sample of every program in `benchmarks/viewer/` whose run fits the 500,000 records the page renders at once, every record of it, made while this image was built, so Load sample works before anything has been run here. Four programs run past that limit and have no sample: `commit_ilp_test`, `data_cache_stress_test`, `icache_footprint_test` and `store_miss_test`. The page offers only what `tests/samples.js` lists that its tracer wrote at schema 3, so a sample made later appears too once its `.sample.js` and the manifest are in `CVA6Flow/tests/`. On the host, `python3 scripts/docker_sync.py push CVA6` replaces the folder with the checkout's own.
 
-## Windowed waveforms
+## Testbench changes
 
-An unwindowed VCD of a long benchmark reaches tens of gigabytes. The two modified copies in `verilator_changes/custom_size_vcds/` bound the dump to a window of clock cycles, whose VCD timestamps are twice the cycle numbers:
+`verilator_changes/` holds two changes to the testbench, both out as the image is built, each a diff against the upstream files that `scripts/patch_CVA6_testbench.py` puts in and takes out, alone or together:
+
+- `vcd_window/` bounds the waveform dump to a window of clock cycles, since an unwindowed VCD of a long benchmark reaches tens of gigabytes. The window, in clock cycles, whose VCD timestamps are twice the cycle numbers, is exported before the run.
+- `ddr3_memory/` replaces the single-transaction `axi2mem` with a DDR3-1600 model of gem5's `DDR3_1600_8x8` and its `MemCtrl`, printing its statistics into the run's log, `verif/sim/out_<date>/veri-testharness_sim/<test>.*.log.iss`. `ddr3_memory/tb/` is a standalone testbench for the model, `make` there with `tools/verilator/bin` on the path.
 
 ```bash
-python3 scripts/patch_vcd_window.py apply
+python3 scripts/patch_CVA6_testbench.py apply --vcd-window --ddr3
 export trace_start=100000 trace_end=200000
 python3 scripts/run_CVA6.py benchmarks/viewer/daxpy.S
-python3 scripts/patch_vcd_window.py revert
+python3 scripts/patch_CVA6_testbench.py revert
 ```
 
-The window is a compile-time define, and it has to be exported: the driver's build runs `make verilate` again, which drops a window given only on an earlier `make verilate` command line, while an exported one reaches that build too. `apply` keeps the file it replaces beside it as `<name>.upstream`, which is how `revert` puts it back, since this container has no git history to restore from.
+Either change needs the model rebuilt, which the first `run_CVA6.py` without `--keep-build` does. The window is a compile-time define, and it has to be exported: the driver's build runs `make verilate` again, which drops a window given only on an earlier `make verilate` command line, while an exported one reaches that build too. `apply` keeps each file it changes beside it as `<name>.upstream`, which is how `revert` puts it back, since this container has no git history to restore from, and `status` says what is in.
 
 ## Benchmarks and configurations
 
@@ -125,7 +128,7 @@ It deletes `results/run/`, `results/batch/`, `results/sweep_CVA6Flow/`, `results
 
 The core, its SoC wrapper, the verification harness and the vendored dependencies are the work of the OpenHW Group and contributors, under the licences preserved in the image: `LICENSE`, `LICENSE.Berkeley` and `LICENSE.SiFive`.
 
-What this project adds is listed in `LICENSE.FaMAF`, which also carries the MIT terms it is offered under. `CITATION.cff` is how to cite the image. The two files in `verilator_changes/custom_size_vcds/` are modified copies of upstream files and each carries a notice of what was changed, as their licences require.
+What this project adds is listed in `LICENSE.FaMAF`, which also carries the MIT terms it is offered under. `CITATION.cff` is how to cite the image. The diffs in `verilator_changes/` change upstream files, and once `scripts/patch_CVA6_testbench.py` puts one in, each file it edited carries a notice of what was changed, as their licences require.
 
 ## Built with
 

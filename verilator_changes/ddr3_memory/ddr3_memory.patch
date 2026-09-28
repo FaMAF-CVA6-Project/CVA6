@@ -1,0 +1,106 @@
+--- a/corev_apu/tb/ariane_tb.cpp
++++ b/corev_apu/tb/ariane_tb.cpp
+@@ -397,6 +397,11 @@
+     fprintf(stderr, "%s *** SUCCESS *** (tohost = 0) after %ld cycles\n", htif_argv[1], main_time);
+   }
+ 
++  // Run the SystemVerilog final blocks, which Verilator executes only when told
++  // the run is over. The stock testbench never says so, and the DDR3 model
++  // prints its statistics from one.
++  top->final();
++
+   if (dtm) delete dtm;
+   if (jtag) delete jtag;
+ 
+--- a/corev_apu/tb/ariane_testharness.sv
++++ b/corev_apu/tb/ariane_testharness.sv
+@@ -33,7 +33,22 @@
+   parameter bit          InclSimDTM        = 1'b1,
+   parameter int unsigned NUM_WORDS         = 2**25,         // memory size
+   parameter bit          StallRandomOutput = 1'b0,
+-  parameter bit          StallRandomInput  = 1'b0
++  parameter bit          StallRandomInput  = 1'b0,
++  // DDR3 memory model knobs, see verilator_changes/ddr3_memory/README.md. The
++  // read slots cap the memory level parallelism the model can show, so keep
++  // them at least the HPDcache's miss capacity.
++  parameter int unsigned DDR3NumRdSlots  = 8,
++  parameter int unsigned DDR3NumWrSlots  = 4,
++  // gem5 answers a write as soon as it is buffered. 0 holds the answer until
++  // the data reaches the array.
++  parameter int unsigned DDR3PostedWrites = 1,
++  // 0 removes refresh, as a sensitivity check.
++  parameter int unsigned DDR3EnableRefresh = 1,
++  // Harness clock period in picoseconds. 20000 is the 50 MHz this testharness
++  // is clocked at, and every DDR3 constraint is resolved against it.
++  parameter int unsigned DDR3TckPs = 20000,
++  // Controller pipeline after the device access, gem5 static_backend_latency.
++  parameter int unsigned DDR3BackendPs = 10000
+ ) (
+   input  logic                           clk_i,
+   input  logic                           rtc_i,
+@@ -450,23 +465,40 @@
+     .mst    ( dram_delayed )
+   );
+ 
+-  axi2mem #(
++  // ---------------------------------------------------------------------------
++  // DDR3 main memory
++  // ---------------------------------------------------------------------------
++  // Replaces axi2mem on the same ports and array, so i_sram keeps its hierarchy
++  // and ariane_tb.cpp still preloads the ELF into it. axi2mem took one
++  // transaction at a time, which would hide every bank effect behind it.
++  ddr3_pkg::ddr3_stats_t ddr3_stats;
++
++  axi_ddr3_slave #(
+     .AXI_ID_WIDTH   ( ariane_axi_soc::IdWidthSlave ),
+     .AXI_ADDR_WIDTH ( AXI_ADDRESS_WIDTH            ),
+     .AXI_DATA_WIDTH ( AXI_DATA_WIDTH               ),
+-    .AXI_USER_WIDTH ( AXI_USER_WIDTH               )
++    .AXI_USER_WIDTH ( AXI_USER_WIDTH               ),
++    .MemBase        ( ariane_soc::DRAMBase         ),
++    .MemSizeBytes   ( ariane_soc::DRAMLength       ),
++    .TckHostPs      ( DDR3TckPs                    ),
++    .NumRdSlots     ( DDR3NumRdSlots               ),
++    .NumWrSlots     ( DDR3NumWrSlots               ),
++    .PostedWrites   ( DDR3PostedWrites             ),
++    .EnableRefresh  ( DDR3EnableRefresh            ),
++    .BackendPs      ( DDR3BackendPs                )
+   ) i_axi2mem (
+-    .clk_i  ( clk_i        ),
+-    .rst_ni ( ndmreset_n   ),
+-    .slave  ( dram_delayed ),
+-    .req_o  ( req          ),
+-    .we_o   ( we           ),
+-    .addr_o ( addr         ),
+-    .be_o   ( be           ),
+-    .user_o ( wuser        ),
+-    .data_o ( wdata        ),
+-    .user_i ( ruser        ),
+-    .data_i ( rdata        )
++    .clk_i   ( clk_i        ),
++    .rst_ni  ( ndmreset_n   ),
++    .slave   ( dram_delayed ),
++    .req_o   ( req          ),
++    .we_o    ( we           ),
++    .addr_o  ( addr         ),
++    .be_o    ( be           ),
++    .user_o  ( wuser        ),
++    .data_o  ( wdata        ),
++    .user_i  ( ruser        ),
++    .data_i  ( rdata        ),
++    .stats_o ( ddr3_stats   )
+   );
+ 
+   sram #(
+--- a/Makefile
++++ b/Makefile
+@@ -202,6 +202,9 @@
+        vendor/pulp-platform/tech_cells_generic/src/deprecated/pulp_clk_cells.sv     \
+        vendor/pulp-platform/tech_cells_generic/src/rtl/tc_clk.sv                    \
+        core/include/iti_pkg.sv														 \
++       corev_apu/tb/ddr3_pkg.sv                                                     \
++       corev_apu/tb/ddr3_scheduler.sv                                               \
++       corev_apu/tb/axi_ddr3_slave.sv                                               \
+        corev_apu/tb/ariane_testharness.sv                                           \
+        corev_apu/tb/ariane_peripherals.sv                                           \
+        corev_apu/tb/rvfi_tracer.sv                                                  \
