@@ -418,7 +418,7 @@ class CVA6FUPool(MinorFUPool):
             return unit
 
         # fpnew's NONCOMP and CONV pipelines hold 1 and 2 registers,
-        # a cycle each plus one, as the ADDMUL rows. fmv is NONCOMP, 
+        # a cycle each plus one, as the ADDMUL rows. fmv is NONCOMP,
         # so only fcvt takes the third.
         def fp_cvt():
             unit = MinorFU()

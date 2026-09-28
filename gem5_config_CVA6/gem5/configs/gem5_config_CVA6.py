@@ -58,7 +58,7 @@ L1D_SIZE = "32KiB"
 SCOREBOARD_ENTRIES = 8
 
 # CVA6 pre-decodes every direct target and keeps a 32-entry BTB for JALR.
-# Stock Minor takes a taken target only from the BTB, so one that holds 
+# Stock Minor takes a taken target only from the BTB, so one that holds
 # every taken branch stands in, as directTargetsFromDecode does.
 BTB_ENTRIES = 4096
 
