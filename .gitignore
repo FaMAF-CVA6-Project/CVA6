@@ -56,9 +56,8 @@ Bender.lock
 temp/
 CVA6_files/
 gem5_files/
-verilator_changes/ddr3_memory
 
-# The upstream copies scripts/patch_vcd_window.py keeps while it is applied.
+# The upstream copies scripts/patch_cva6_testbench.py keeps while a change is in.
 *.upstream
 
 # Files too big to be tracked.
