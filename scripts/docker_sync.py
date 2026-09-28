@@ -125,7 +125,9 @@ CONTAINERS = {
             ("viewers/CVA6Flow/scripts/run_CVA6Flow_sweep.py",
              "/CVA6/scripts/"),
             ("viewers/CVA6Flow/scripts/serve_CVA6Flow.py", "/CVA6/scripts/"),
-            ("scripts/patch_vcd_window.py", "/CVA6/scripts/"),
+            ("scripts/patch_cva6_testbench.py", "/CVA6/scripts/"),
+            # The testbench changes, out until the script puts one in.
+            ("verilator_changes/.", "/CVA6/verilator_changes/"),
             ("scripts/run_CVA6_config_sweep.py", "/CVA6/scripts/"),
             # The cache geometry package the fork sweeps, beside the
             # viewer's. Only the sweep installs it over the live one.
